@@ -21,16 +21,25 @@ echo "+++++++++++++++++++++++++++++++++++++++++++++++"
 echo
 
 echo "Linking dotfiles"
+
 BACKUP=`date +"%Y-%m-%d_%H-%M-%S"`
 mkdir -p ~/$BACKUPS_DIR/$BACKUP
-for CONFIG in `find ~/src/dotfiles/linked_configs`; do
-  FILENAME=`basename $CONFIG`
-  [ -f ~/"$FILENAME" ] && \
-    cp -r ~/"$FILENAME" ~/$BACKUPS_DIR/$BACKUP && \
-    echo "backup created: ~/$BACKUPS_DIR/$BACKUP/$FILENAME"
 
-  [ -f "$CONFIG" ] && ln -sfv "$CONFIG" ~/
-done
+create_symlinks() {
+  path="${1}"
+
+  for CONFIG in `find $path -depth 1`; do
+    FILENAME=`basename $CONFIG`
+    [ -f ~/"$FILENAME" ] || [ -d ~/"$FILENAME" ] && \
+      cp -r ~/"$FILENAME" ~/$BACKUPS_DIR/$BACKUP && \
+      echo "backup created: ~/$BACKUPS_DIR/$BACKUP/$FILENAME"
+
+    [ -f "$CONFIG" ] && ln -sfv "$CONFIG" ~/
+    [ -d "$CONFIG" ] && ln -sFiv "$CONFIG" ~/
+  done
+}
+
+create_symlinks ~/src/dotfiles/linked_configs
 echo "+++++++++++++++++++++++++++++++++++++++++++++++"
 echo
 
