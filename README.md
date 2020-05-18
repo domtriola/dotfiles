@@ -22,10 +22,10 @@ Get dotfiles:
 mkdir -p ~/src && cd ~/src && git clone git@github.com:domtriola/dotfiles.git
 ```
 
-Make a backup of any existing dotfiles!
+The script should make backups of any files it replaces, but you may want to create a manual backup anyway just in case:
 
 ```bash
-mkdir -p ~/dotfiles_backup && cp ~/.bash_profile ~/dotfiles_backup
+mkdir -p ~/custom_dotfile_backup && cp ~/.bash_profile ~/custom_dotfile_backup
 ```
 
 Install:
