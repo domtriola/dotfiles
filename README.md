@@ -1,5 +1,12 @@
 # My Dotfiles
 
+Dotfiles are linked from [linked](linked). Bash configs (aliases, functions, path extensions, etc.) are found in [helpers](helpers). Custom bash configs that should not be shared with other devices are stored in [custom](custom).
+
+* Fresh install: `make`
+* Update packages: `make update`
+* Install tools: `make tools`
+* Update symlinks: `make links`
+
 ## Prerequisites
 
 On a brand new system:
@@ -19,22 +26,27 @@ xcode-select --install
 Get dotfiles:
 
 ```bash
-mkdir -p ~/src && cd ~/src && git clone git@github.com:domtriola/dotfiles.git
+cd ~/ && git clone git@github.com:domtriola/dotfiles.git .dotfiles
 ```
 
-The script should make backups of any files it replaces, but you may want to create a manual backup anyway just in case:
+Stow will not overwrite any existing files, so move all existing files to a backup folder:
 
 ```bash
-mkdir -p ~/custom_dotfile_backup && cp ~/.bash_profile ~/custom_dotfile_backup
+BACKUPS_DIR="dotfile_backups"
+BACKUP=`date +"%Y-%m-%d_%H-%M-%S"`
+mkdir -p ~/$BACKUPS_DIR/$BACKUP
+mv ~/.bash_profile ~/.aws/config ~/$BACKUPS_DIR/$BACKUP
 ```
 
 Install:
 
 ```bash
-cd ~/src/dotfiles && make
+cd ~/.dotfiles && make
 ```
 
 ## Updates
+
+### Bash Configs
 
 To add new configs to `~/.bash_profile`:
 
@@ -42,4 +54,6 @@ To add new configs to `~/.bash_profile`:
 * Add system specific configurations to [custom](custom).
 * `source ~/.bash_profile`
 
-To save raw dotfiles add them to [linked_configs](linked_configs) and re-run `make install`.
+### Linked Dotfiles
+
+To save raw dotfiles add them to [linked](linked) run `make link`.

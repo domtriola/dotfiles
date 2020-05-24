@@ -9,4 +9,7 @@ update:
 tools:
 	install/tools.sh
 
-.PHONY: all install update tools
+links:
+	install/links.sh
+
+.PHONY: all install update tools links
