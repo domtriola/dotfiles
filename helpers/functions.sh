@@ -5,6 +5,10 @@ function pdfman() {
  man -t "${1}" | open -f -a /Applications/Preview.app/
 }
 
+function waitforinput() {
+  read -sr -n 1
+}
+
 # now prints the current time in the format YEAR-MON-DAY HOUR:MIN:SEC
 function now() {
   date +"%Y-%m-%d %H:%M:%S"
