@@ -1,6 +1,6 @@
 #!/bin/bash
 
-alias l="ls -alh"
+alias l="ls -hal"
 
 # Git
 ########################
