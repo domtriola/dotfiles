@@ -19,8 +19,10 @@ brew install terraform || brew upgrade terraform
 # JSON
 brew install jq || brew upgrade jq
 
-# Terminal
+# Terminal Workflow
 brew install tmux || brew upgrade tmux
+brew install tree || brew upgrade tree
+brew install stow || brew upgrade stow
 
 # Future additions?
 # brew cask install visual-studio-code || brew upgrade visual-studio-code

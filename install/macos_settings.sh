@@ -19,3 +19,4 @@ defaults write com.apple.finder _FXShowPosixPathInTitle -bool true
 
 # Automatically hide and show the Dock
 defaults write com.apple.dock autohide -bool true
+defaults write com.apple.dock show-recents -bool false

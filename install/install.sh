@@ -16,7 +16,7 @@ echo "+++++++++++++++++++++++++++++++++++++++++++++++"
 echo
 
 echo "Installing tools"
-source $DIR/tools.sh
+make tools
 echo "+++++++++++++++++++++++++++++++++++++++++++++++"
 echo
 

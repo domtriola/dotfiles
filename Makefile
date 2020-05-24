@@ -6,4 +6,7 @@ install:
 update:
 	install/update.sh
 
-.PHONY: all install update
+tools:
+	install/tools.sh
+
+.PHONY: all install update tools
