@@ -14,3 +14,11 @@ function now() {
 function timestamp() {
   date +%s
 }
+
+# recentmods returns all files in n path that were modified within m days
+# recentmods n m
+# e.g. to find all documents modified within 10 days:
+# recentmods ~/Documents 10
+function recentmods() {
+  find "$1" -type f -mtime -"$2" -exec ls -l {} \;
+}
