@@ -1,5 +1,7 @@
 #!/bin/bash
 
+alias l="ls -alh"
+
 # Git
 ########################
 
