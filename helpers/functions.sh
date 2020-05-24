@@ -15,8 +15,7 @@ function timestamp() {
   date +%s
 }
 
-# recentmods returns all files in n path that were modified within m days
-# recentmods n m
+# `recentmods n m` returns all files in n path that were modified within m days
 # e.g. to find all documents modified within 10 days:
 # recentmods ~/Documents 10
 function recentmods() {
