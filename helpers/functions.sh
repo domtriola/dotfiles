@@ -5,6 +5,7 @@ function pdfman() {
  man -t "${1}" | open -f -a /Applications/Preview.app/
 }
 
+# waitforinput blocks the process until any 1 character input is received
 function waitforinput() {
   read -sr -n 1
 }
