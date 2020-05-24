@@ -30,15 +30,15 @@ function git_branch {
 
   if [[ $git_status =~ $on_branch ]]; then
     local branch=${BASH_REMATCH[1]}
-    echo "($branch)"
+    echo "$branch"
   elif [[ $git_status =~ $on_commit ]]; then
     local commit=${BASH_REMATCH[1]}
-    echo "($commit)"
+    echo "$commit"
   fi
 }
 
 PS1="\h:\W "
 PS1+="\[\$(git_color)\]"
-PS1+="\$(git_branch)"
+PS1+="(\$(git_branch))"
 PS1+="\[$COLOR_RESET\]\$ "
 export PS1
