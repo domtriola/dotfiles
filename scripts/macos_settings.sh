@@ -1,3 +1,7 @@
+#!/bin/bash
+
+set -eo pipefail
+
 # Keypress
 ############
 

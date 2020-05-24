@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 # Update App Store apps
 sudo softwareupdate -i
 

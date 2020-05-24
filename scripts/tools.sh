@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -eo pipefail
+
 # HTTP
 brew install wget || brew upgrade wget
 

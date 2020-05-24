@@ -1,15 +1,15 @@
 all: install update
 
 install:
-	install/install.sh
+	scripts/install.sh
 
 update:
-	install/update.sh
+	scripts/update.sh
 
 tools:
-	install/tools.sh
+	scripts/tools.sh
 
 links:
-	install/links.sh
+	scripts/links.sh
 
 .PHONY: all install update tools links
