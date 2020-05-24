@@ -1,12 +1,12 @@
 #!/bin/bash
 
+# Modified from:
 # https://coderwall.com/p/pn8f0g/show-your-git-status-and-branch-in-color-at-the-command-prompt
+
 COLOR_RED="\033[0;31m"
 COLOR_YELLOW="\033[0;33m"
 COLOR_GREEN="\033[0;32m"
 COLOR_OCHRE="\033[38;5;95m"
-COLOR_BLUE="\033[0;34m"
-COLOR_WHITE="\033[0;37m"
 COLOR_RESET="\033[0m"
 
 function git_color {
@@ -25,8 +25,8 @@ function git_color {
 
 function git_branch {
   local git_status="$(git status 2>/dev/null)"
-  local on_branch="On branch ([^${IFS}]*)"
-  local on_commit="HEAD detached at ([^${IFS}]*)"
+  local on_branch="On branch ([^[:space:]]*)"
+  local on_commit="HEAD detached at ([^[:space:]]*)"
 
   if [[ $git_status =~ $on_branch ]]; then
     local branch=${BASH_REMATCH[1]}
