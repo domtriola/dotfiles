@@ -6,6 +6,8 @@ set -eo pipefail
 brew install wget || brew upgrade wget
 
 # Images
+# Installs the `magick` command
+# Example usage: `magick ./image.heic ./image.jpeg`
 brew install imagemagick || brew upgrade imagemagick
 
 # JS
@@ -26,6 +28,10 @@ brew install jq || brew upgrade jq
 brew install tmux || brew upgrade tmux
 brew install tree || brew upgrade tree
 brew install stow || brew upgrade stow
+
+# Misc
+# GNU core utilities; enter `info coreutils` to see all commands
+brew install coreutils || brew upgrade coreutils
 
 # Future additions?
 # brew cask install visual-studio-code || brew upgrade visual-studio-code
