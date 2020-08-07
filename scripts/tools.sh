@@ -32,6 +32,7 @@ brew install stow || brew upgrade stow
 # Misc
 # GNU core utilities; enter `info coreutils` to see all commands
 brew install coreutils || brew upgrade coreutils
+brew install cpulimit || brew upgrade cpulimit
 
 # Future additions?
 # brew cask install visual-studio-code || brew upgrade visual-studio-code
