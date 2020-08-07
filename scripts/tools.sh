@@ -28,15 +28,9 @@ brew install jq || brew upgrade jq
 brew install tmux || brew upgrade tmux
 brew install tree || brew upgrade tree
 brew install stow || brew upgrade stow
+brew install autojump || brew upgrade autojump
 
 # Misc
 # GNU core utilities; enter `info coreutils` to see all commands
 brew install coreutils || brew upgrade coreutils
 brew install cpulimit || brew upgrade cpulimit
-
-# Future additions?
-# brew cask install visual-studio-code || brew upgrade visual-studio-code
-# brew cask install firefox || brew upgrade firefox
-# brew cask install google-chrome || brew upgrade google-chrome
-# brew cask install spotify || brew upgrade spotify
-# brew cask install vlc || brew upgrade vlc
