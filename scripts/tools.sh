@@ -33,4 +33,7 @@ brew install autojump || brew upgrade autojump
 # Misc
 # GNU core utilities; enter `info coreutils` to see all commands
 brew install coreutils || brew upgrade coreutils
+
+# Performance Profiling
 brew install cpulimit || brew upgrade cpulimit
+brew install graphviz || brew upgrade graphviz
