@@ -29,6 +29,7 @@ brew install tmux || brew upgrade tmux
 brew install tree || brew upgrade tree
 brew install stow || brew upgrade stow
 brew install autojump || brew upgrade autojump
+brew install ripgrep || brew upgrade ripgrep
 
 # Misc
 # GNU core utilities; enter `info coreutils` to see all commands
