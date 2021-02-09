@@ -57,3 +57,7 @@ To add new configs to `~/.bash_profile`:
 ### Linked Dotfiles
 
 To save raw dotfiles add them to [linked](linked) run `make link`.
+
+## Common Custom Scripts
+
+See [custom_common](custom_common) for scripts that will apply to many, but not all machines.
