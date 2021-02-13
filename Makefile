@@ -12,4 +12,7 @@ tools:
 links:
 	scripts/links.sh
 
+macos:
+	scripts/macos_settings.sh
+
 .PHONY: all install update tools links
