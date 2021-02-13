@@ -18,6 +18,9 @@ defaults write com.apple.finder AppleShowAllFiles -bool true
 # Display full POSIX path as Finder window title
 defaults write com.apple.finder _FXShowPosixPathInTitle -bool true
 
+# Don't create .DS_Store files
+defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+
 # Dock
 ############
 
