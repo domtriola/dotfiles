@@ -35,6 +35,8 @@ brew install ripgrep || brew upgrade ripgrep
 # Misc
 # GNU core utilities; enter `info coreutils` to see all commands
 brew install coreutils || brew upgrade coreutils
+# Needed for matplotlib
+brew install libmagic || brew upgrade libmagic
 
 # Performance Profiling
 brew install cpulimit || brew upgrade cpulimit
