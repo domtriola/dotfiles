@@ -17,6 +17,7 @@ brew install nvm || brew upgrade nvm
 # Python
 brew install pyenv || brew upgrade pyenv
 brew install pipenv || brew upgrade pipenv
+brew install pyenv-virtualenv || brew upgrade pyenv-virtualenv
 
 # Terraform
 brew install terraform || brew upgrade terraform
