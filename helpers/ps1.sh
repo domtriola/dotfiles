@@ -2,6 +2,7 @@
 
 # Modified from:
 # https://coderwall.com/p/pn8f0g/show-your-git-status-and-branch-in-color-at-the-command-prompt
+# https://gist.github.com/frnhr/dba7261bcb6970cf6121
 
 COLOR_RED="\033[0;31m"
 COLOR_YELLOW="\033[0;33m"
@@ -37,8 +38,45 @@ function git_branch {
   fi
 }
 
-PS1="\h:\W "
+function pyenv_color {
+  local global_name="$(pyenv global)"
+  local venv_name="$(pyenv version-name)"
+
+  # non-global version
+  color="$COLOR_GREEN"
+
+  # global version
+  [[ $venv_name == $global_name ]] && color="$COLOR_OCHRE"
+
+  echo -e $color
+}
+
+function pyenv_name {
+  echo "$(pyenv version-name)"
+}
+
+# Initialize
+PS1=""
+
+# Pyenv indicator
+if [ -n "$COLORIZE_PYENV_PROMPT" ]; then
+  export PYENV_VIRTUALENV_DISABLE_PROMPT=1
+  PS1+="\[\$(pyenv_color)\]"
+  PS1+="(\$(pyenv_name))"
+  PS1+="\[$COLOR_RESET\]"
+  PS1+=" "
+fi
+
+# User and directory info
+PS1+="\h:\W"
+PS1+=" "
+
+# Git indicator
 PS1+="\[\$(git_color)\]"
 PS1+="(\$(git_branch))"
-PS1+="\[$COLOR_RESET\]\$ "
+PS1+="\[$COLOR_RESET\]"
+
+# Suffix
+PS1+="\$ "
+
 export PS1
