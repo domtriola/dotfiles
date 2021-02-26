@@ -36,6 +36,9 @@ brew install ripgrep || brew upgrade ripgrep
 brew install coreutils || brew upgrade coreutils
 # Needed for matplotlib
 brew install libmagic || brew upgrade libmagic
+# "Pretty Good Privacy" tools
+# https://gnupg.org/documentation/guides.html
+brew install gnupg || brew upgrade gnupg
 
 # Performance Profiling
 brew install cpulimit || brew upgrade cpulimit
