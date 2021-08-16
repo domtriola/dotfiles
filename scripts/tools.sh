@@ -18,6 +18,10 @@ brew install nvm || brew upgrade nvm
 brew install pyenv || brew upgrade pyenv
 brew install pyenv-virtualenv || brew upgrade pyenv-virtualenv
 
+# Java
+brew install jenv || brew upgrade jenv
+brew install maven || brew upgrade maven
+
 # JSON
 brew install jq || brew upgrade jq
 
