@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Modified from:
 # https://coderwall.com/p/pn8f0g/show-your-git-status-and-branch-in-color-at-the-command-prompt
 # https://gist.github.com/frnhr/dba7261bcb6970cf6121

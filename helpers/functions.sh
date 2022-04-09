@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # pdfman opens a man page as a PDF
 function pdfman() {
  man -t "${1}" | open -f -a /Applications/Preview.app/

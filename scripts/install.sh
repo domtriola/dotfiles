@@ -25,7 +25,7 @@ make links
 echo "+++++++++++++++++++++++++++++++++++++++++++++++"
 echo
 
-echo "Initializing ~/.bash_profile"
-source ~/.bash_profile
-
 echo "Done!"
+
+echo ""
+echo "source your ~/.bash_profile or ~/.zshrc && ~/.zprofile to bring the current session up to speed"
