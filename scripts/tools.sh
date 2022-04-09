@@ -26,6 +26,7 @@ brew install maven || brew upgrade maven
 brew install jq || brew upgrade jq
 
 # Terminal Workflow
+brew install starship || brew upgrade starship
 brew install tmux || brew upgrade tmux
 brew install tree || brew upgrade tree
 brew install stow || brew upgrade stow

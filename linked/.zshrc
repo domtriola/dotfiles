@@ -1,3 +1,6 @@
+##################################
+# Custom scripts
+##################################
 for HELPER in `find ~/.dotfiles/helpers`; do
   [ -f "$HELPER" ] && source "$HELPER"
 done
@@ -5,6 +8,7 @@ done
 for CUSTOM in `find ~/.dotfiles/custom`; do
   [ -f "$CUSTOM" ] && source "$CUSTOM"
 done
+
 
 # JavaScript
 ##################################
@@ -32,3 +36,9 @@ eval "$(jenv init -)"
 # autojump
 [ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
 
+
+###############################################
+# Starship
+# (Keep at bottom)
+###############################################
+eval "$(starship init zsh)"
