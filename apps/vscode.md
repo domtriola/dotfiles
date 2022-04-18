@@ -38,7 +38,6 @@
     "workbench.colorTheme": "One Dark Pro",
     "editor.renderWhitespace": "boundary",
     "editor.renderControlCharacters": true,
-    "window.zoomLevel": 1,
     "python.linting.flake8Enabled": true,
     "python.linting.mypyEnabled": true,
     "python.linting.pydocstyleEnabled": true
