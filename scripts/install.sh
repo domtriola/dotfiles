@@ -28,4 +28,4 @@ echo
 echo "Done!"
 
 echo ""
-echo "source your ~/.bash_profile or ~/.zshrc && ~/.zprofile to bring the current session up to speed"
+echo "source your ~/.zshrc && ~/.zprofile to bring the current session up to speed"
