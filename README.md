@@ -35,7 +35,7 @@ Stow will not overwrite any existing files, so move all existing files to a back
 BACKUPS_DIR="dotfile_backups"
 BACKUP=`date +"%Y-%m-%d_%H-%M-%S"`
 mkdir -p ~/$BACKUPS_DIR/$BACKUP
-mv ~/.bash_profile ~/.aws/config ~/$BACKUPS_DIR/$BACKUP
+mv ~/.zshrc ~/.zprofile ~/.aws/config ~/$BACKUPS_DIR/$BACKUP
 ```
 
 Install:
@@ -48,11 +48,11 @@ cd ~/.dotfiles && make
 
 ### Bash Configs
 
-To add new configs to `~/.bash_profile`:
+To add new configs to `~/.zshrc`:
 
 * Add new configurations to [helpers](helpers).
 * Add system specific configurations to [custom](custom).
-* `source ~/.bash_profile`
+* `source ~/.zshrc`
 
 ### Linked Dotfiles
 
