@@ -9,6 +9,9 @@ set -eo pipefail
 # (can be made faster here if desired - 0 is the fastest possible)
 defaults write NSGlobalDomain KeyRepeat -int 2
 
+# Disable press-and-hold for keys in favor of key repeat
+defaults write -g ApplePressAndHoldEnabled -bool false
+
 # Finder
 ############
 
