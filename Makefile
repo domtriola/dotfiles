@@ -9,9 +9,6 @@ update:
 tools:
 	scripts/tools.sh
 
-opttools:
-	scripts/tools_optional.sh
-
 links:
 	scripts/links.sh
 
