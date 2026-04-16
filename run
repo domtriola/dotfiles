@@ -16,7 +16,7 @@
 
 set -eo pipefail
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 filter=""
 dry="0"
 
@@ -49,7 +49,7 @@ execute() {
 log "$script_dir -- $filter"
 
 cd $script_dir
-scripts=$(find ./runs -maxdepth 1 -mindepth 1 -perm +111 -type f)
+scripts=$(find $script_dir/runs -maxdepth 1 -mindepth 1 -perm +111 -type f)
 
 for script in $scripts; do
   if echo "$script" | grep -qv "$filter"; then
