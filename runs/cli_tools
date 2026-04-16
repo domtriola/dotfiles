@@ -7,5 +7,4 @@ brew install tree || brew upgrade tree
 brew install autojump || brew upgrade autojump
 brew install ripgrep || brew upgrade ripgrep
 brew install wget || brew upgrade wget
-
-go get -u github.com/cheat/cheat/cmd/cheat
+brew install cheat || brew upgrade cheat

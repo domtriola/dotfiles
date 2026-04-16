@@ -38,7 +38,7 @@ log() {
 }
 
 execute() {
-  log "execute $@"
+  log "Execute $@"
   if [[ $dry == "1" ]]; then
     return
   fi
@@ -85,3 +85,6 @@ for script in $all_scripts; do
   fi
   run_script "$script"
 done
+
+echo "----------------------------------------"
+echo "All scripts executed"
