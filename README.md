@@ -1,11 +1,9 @@
 # My Dotfiles
 
-Dotfiles are linked from [linked](linked). Bash configs (aliases, functions, path extensions, etc.) are found in [helpers](helpers). Custom bash configs that should not be shared with other devices are stored in [custom](custom).
+- `env` contains environment configurations. These are copied over to the system via `./dev-env`.
+- `runs` contains scripts that run tool installations or system configurations. Run them with `./run`. To run just one tool, run `./run toolname`.
 
-* Fresh install: `make`
-* Update packages: `make update`
-* Install tools: `make tools`
-* Update symlinks: `make links`
+Both commands can be ran as dry-runs: `./run toolname --dry`
 
 ## Prerequisites
 
@@ -29,35 +27,20 @@ Get dotfiles:
 cd ~/ && git clone git@github.com:domtriola/dotfiles.git .dotfiles
 ```
 
-Stow will not overwrite any existing files, so move all existing files to a backup folder:
-
-```bash
-BACKUPS_DIR="dotfile_backups"
-BACKUP=`date +"%Y-%m-%d_%H-%M-%S"`
-mkdir -p ~/$BACKUPS_DIR/$BACKUP
-mv ~/.zshrc ~/.zprofile ~/.aws/config ~/$BACKUPS_DIR/$BACKUP
-```
-
 Install:
 
 ```bash
-cd ~/.dotfiles && make
+cd ~/.dotfiles
+
+./run --dry
+./run
+
+./dev-env --dry
+./dev-env
 ```
 
 ## Updates
 
-### Bash Configs
+Run `./dev-env` after updating anything in `env`. Update `dev-env` first if you create a new file or directory.
 
-To add new configs to `~/.zshrc`:
-
-* Add new configurations to [helpers](helpers).
-* Add system specific configurations to [custom](custom).
-* `source ~/.zshrc`
-
-### Linked Dotfiles
-
-To save raw dotfiles add them to [linked](linked) and run `make link`.
-
-## Common Custom Scripts
-
-See [custom_common](custom_common) for scripts that will apply to many, but not all machines.
+Run `./run` after updating anything in `runs`.
