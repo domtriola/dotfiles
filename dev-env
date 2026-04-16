@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+#
+# Usage: ./dev-env [--dry]
+#
+# Copies environment config files and directories from ./env/ into $HOME.
+#
+# Arguments:
+#   --dry  Print what would be copied without making any changes.
 
 set -eo pipefail
 
