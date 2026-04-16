@@ -31,11 +31,6 @@ alias gl="git log --graph --pretty=format:'%Cred%h%Creset - %C(bold blue)<%an> %
 # Functions
 ##################################
 
-# pdfman opens a man page as a PDF
-function pdfman() {
- man -t "${1}" | open -f -a /Applications/Preview.app/
-}
-
 # waitforinput blocks the process until any 1 character input is received
 function waitforinput() {
   read -sr -n 1
