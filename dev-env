@@ -62,3 +62,5 @@ copy_dir .config $HOME/.config
 
 copy_file .zshrc $HOME
 copy_file .zprofile $HOME
+
+copy_file .aws/config $HOME/.aws
