@@ -88,6 +88,11 @@ export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"
 
 
+# Rust
+########################
+source "$HOME/.cargo/env"
+
+
 ##################################
 # CLI Tools
 ##################################
