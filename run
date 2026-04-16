@@ -49,13 +49,39 @@ execute() {
 log "$script_dir -- $filter"
 
 cd $script_dir
-scripts=$(find $script_dir/runs -maxdepth 1 -mindepth 1 -perm +111 -type f)
 
-for script in $scripts; do
-  if echo "$script" | grep -qv "$filter"; then
+priority=("x_code" "macos_settings" "homebrew")
+all_scripts=$(find $script_dir/runs -maxdepth 1 -mindepth 1 -perm +111 -type f | sort)
+
+run_script() {
+  local script="$1"
+  if [[ -n "$filter" ]] && ! echo "$script" | grep -q "$filter"; then
     log "Skipping $script"
+    return
+  fi
+  execute "$script"
+}
+
+# Run priority scripts first, in order
+for name in "${priority[@]}"; do
+  script="$script_dir/runs/$name"
+  if [[ -x "$script" ]]; then
+    run_script "$script"
+  fi
+done
+
+# Run remaining scripts, skipping those already handled
+for script in $all_scripts; do
+  name=$(basename "$script")
+  skip=0
+  for p in "${priority[@]}"; do
+    if [[ "$name" == "$p" ]]; then
+      skip=1
+      break
+    fi
+  done
+  if [[ $skip -eq 1 ]]; then
     continue
   fi
-
-  execute $script
+  run_script "$script"
 done
