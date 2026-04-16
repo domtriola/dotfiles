@@ -9,10 +9,7 @@ Both commands can be ran as dry-runs: `./run toolname --dry`
 
 On a brand new system:
 
-```bash
-# Update
-sudo softwareupdate -i
-
+```sh
 # Install xcode for git and make
 xcode-select --install
 ```
