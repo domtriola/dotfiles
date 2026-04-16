@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+brew install cpulimit || brew upgrade cpulimit
+brew install graphviz || brew upgrade graphviz

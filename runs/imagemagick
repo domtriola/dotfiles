@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# Example usage: `magick ./image.heic ./image.jpeg`
+brew install imagemagick || brew upgrade imagemagick

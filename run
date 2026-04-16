@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Usage: ./run [<pattern>] [--dry]
+#
+# Discovers and executes all executable files under ./runs/.
+#
+# Arguments:
+#   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
+#              If omitted, all scripts are run.
+#   --dry      Print what would be executed without running anything.
+#
+# Examples:
+#   ./run                   # run all scripts
+#   ./run hello             # run only scripts matching "hello"
+#   ./run hello --dry       # preview which scripts would run
+
+set -eo pipefail
+
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+filter=""
+dry="0"
+
+while [[ $# > 0 ]]; do
+  if [[ $1 == "--dry" ]]; then
+    dry="1"
+  else
+    filter="$1"
+  fi
+  shift
+done
+
+log() {
+  if [[ $dry == "1" ]]; then
+    echo "[DRY RUN]: $@"
+  else
+    echo "$@"
+  fi
+}
+
+execute() {
+  log "Execute $@"
+  if [[ $dry == "1" ]]; then
+    return
+  fi
+
+  "$@"
+}
+
+log "$script_dir -- $filter"
+
+cd $script_dir
+
+priority=("x_code" "macos_settings" "homebrew")
+all_scripts=$(find $script_dir/runs -maxdepth 1 -mindepth 1 -perm +111 -type f | sort)
+
+run_script() {
+  local script="$1"
+  if [[ -n "$filter" ]] && ! echo "$script" | grep -q "$filter"; then
+    log "Skipping $script"
+    return
+  fi
+  execute "$script"
+}
+
+# Run priority scripts first, in order
+for name in "${priority[@]}"; do
+  script="$script_dir/runs/$name"
+  if [[ -x "$script" ]]; then
+    run_script "$script"
+  fi
+done
+
+# Run remaining scripts, skipping those already handled
+for script in $all_scripts; do
+  name=$(basename "$script")
+  skip=0
+  for p in "${priority[@]}"; do
+    if [[ "$name" == "$p" ]]; then
+      skip=1
+      break
+    fi
+  done
+  if [[ $skip -eq 1 ]]; then
+    continue
+  fi
+  run_script "$script"
+done
+
+echo "----------------------------------------"
+echo "All scripts executed"

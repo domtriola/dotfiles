@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+if xcode-select -p &>/dev/null && pkgutil --pkg-info=com.apple.pkg.CLTools_Executables &>/dev/null; then
+  echo "Xcode Command Line Tools already installed. Skipping."
+else
+  echo "Installing Xcode Command Line Tools..."
+  xcode-select --install
+fi

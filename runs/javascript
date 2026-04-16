@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+brew install node || brew upgrade node
+brew install nvm || brew upgrade nvm
