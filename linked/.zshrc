@@ -1,17 +1,70 @@
 ##################################
 # Custom scripts
 ##################################
-for HELPER in `find ~/.dotfiles/helpers`; do
-  [ -f "$HELPER" ] && source "$HELPER"
-done
-
 for CUSTOM in `find ~/.dotfiles/custom`; do
   [ -f "$CUSTOM" ] && source "$CUSTOM"
 done
 
+##################################
+# CLI Defaults
+##################################
+
+# Enables colorization for ls
+export CLICOLOR=1
+
+
+##################################
+# Aliases
+##################################
+
+# Core
+########################
+alias l="ls -hal"
+
+# Git
+########################
+alias g="git status"
+alias gl="git log --graph --pretty=format:'%Cred%h%Creset - %C(bold blue)<%an> %Cgreen(%cr)%C(yellow)%d%Creset %s %Creset' --abbrev-commit"
+
+
+##################################
+# Functions
+##################################
+
+# pdfman opens a man page as a PDF
+function pdfman() {
+ man -t "${1}" | open -f -a /Applications/Preview.app/
+}
+
+# waitforinput blocks the process until any 1 character input is received
+function waitforinput() {
+  read -sr -n 1
+}
+
+# now prints the current time in the format YEAR-MON-DAY HOUR:MIN:SEC
+function now() {
+  date +"%Y-%m-%d %H:%M:%S"
+}
+
+# timestamp prints the current Epoch time
+function timestamp() {
+  date +%s
+}
+
+# `recentmods n m` returns all files in n path that were modified within m days
+# e.g. to find all documents modified within 10 days:
+# recentmods ~/Documents 10
+function recentmods() {
+  find "$1" -type f -mtime -"$2" -exec ls -l {} \;
+}
+
+
+##################################
+# Language Setups
+##################################
 
 # JavaScript
-##################################
+########################
 # nvm
 export NVM_DIR="$HOME/.nvm"
 [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
@@ -19,7 +72,7 @@ export NVM_DIR="$HOME/.nvm"
 
 
 # Python
-##################################
+########################
 # pyenv
 # From https://stackoverflow.com/questions/45577194/failed-to-activate-virtualenv-with-pyenv
 # to fix not being able to activate virtualenv
@@ -34,20 +87,21 @@ eval "$(pyenv virtualenv-init -)"
 
 
 # Java
-##################################
+########################
 # jenv
 export PATH="$HOME/.jenv/bin:$PATH"
 eval "$(jenv init -)"
 
 
+##################################
 # CLI Tools
 ##################################
 # autojump
 [ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
 
 
-###############################################
+##################################
 # Starship
 # (Keep at bottom)
-###############################################
+##################################
 eval "$(starship init zsh)"
