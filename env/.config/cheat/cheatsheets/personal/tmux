@@ -1,0 +1,5 @@
+# To start tmux:
+tmux
+
+# To detach from tmux:
+Ctrl-a d
