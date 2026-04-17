@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# For automating macOS with Lua scripts
+brew install hammerspoon --cask || brew upgrade --cask hammerspoon
