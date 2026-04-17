@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-brew install starship || brew upgrade starship
 brew install jq || brew upgrade jq
-brew install tmux || brew upgrade tmux
 brew install tree || brew upgrade tree
 brew install autojump || brew upgrade autojump
 brew install ripgrep || brew upgrade ripgrep
