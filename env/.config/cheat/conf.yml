@@ -40,11 +40,12 @@ pager: /usr/bin/less -FRX
 # See: https://github.com/cheat/cheat/blob/master/doc/cheat.1.md#cheatpaths
 cheatpaths:
 
-  # Cheatsheets that are tagged "personal" are stored here by default:
-  - name: personal
-    path: /Users/dominicktriola/.config/cheat/cheatsheets/personal
-    tags: [ personal ]
-    readonly: false
+  # Community cheatsheets (https://github.com/cheat/cheatsheets):
+  # To install: git clone https://github.com/cheat/cheatsheets /Users/dominicktriola/.config/cheat/cheatsheets/community
+  - name: community
+    path: /Users/dominicktriola/.config/cheat/cheatsheets/community
+    tags: [ community ]
+    readonly: true
 
   # Cheatsheets that are tagged "work" are stored here by default:
   - name: work
@@ -52,12 +53,11 @@ cheatpaths:
     tags: [ work ]
     readonly: false
 
-  # Community cheatsheets (https://github.com/cheat/cheatsheets):
-  # To install: git clone https://github.com/cheat/cheatsheets /Users/dominicktriola/.config/cheat/cheatsheets/community
-  - name: community
-    path: /Users/dominicktriola/.config/cheat/cheatsheets/community
-    tags: [ community ]
-    readonly: true
+  # Cheatsheets that are tagged "personal" are stored here by default:
+  - name: personal
+    path: /Users/dominicktriola/.config/cheat/cheatsheets/personal
+    tags: [ personal ]
+    readonly: false
 
   # You can also use glob patterns to automatically load cheatsheets from all
   # directories that match.
