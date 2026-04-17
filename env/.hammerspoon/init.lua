@@ -7,16 +7,16 @@ spoon.Cherry:bindHotkeys({})        -- uses default: cmd+ctrl+alt+C
 
 -- AppWindowSwitcher (switch between windows of specific apps)
 hs.loadSpoon("AppWindowSwitcher")
-    -- :setLogLevel("debug") -- uncomment for console debug log
-    :bindHotkeys({
-        ["iTerm"]        = {hyper, "1"},
-        [{"com.apple.Safari",
-          "com.google.Chrome",
-          "com.kagi.kagimacOS",
-          "com.microsoft.edgemac",
-          "org.mozilla.firefox"}]     = {hyper, "2"},
+  -- :setLogLevel("debug") -- uncomment for console debug log
+  :bindHotkeys({
+    ["Obsidian"]                  = {hyper, "1"},
+    ["iTerm"]                     = {hyper, "2"},
+    [{"com.apple.Safari",
+      "com.google.Chrome",
+      "com.kagi.kagimacOS",
+      "com.microsoft.edgemac",
+      "org.mozilla.firefox"}]     = {hyper, "3"},
     })
-
 
 -- WindowHalfsAndThirds (window snapping)
 hs.loadSpoon("WindowHalfsAndThirds")
