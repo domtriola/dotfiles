@@ -1,11 +1,4 @@
 ##################################
-# Custom scripts
-##################################
-for CUSTOM in `find ~/.dotfiles/custom`; do
-  [ -f "$CUSTOM" ] && source "$CUSTOM"
-done
-
-##################################
 # CLI Defaults
 ##################################
 
