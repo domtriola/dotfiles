@@ -1,4 +1,4 @@
-local hyper = {"cmd", "shift"}
+local hyper = {"cmd", "alt", "ctrl"}
 
 -- Cherry (Pomodoro timer)
 hs.loadSpoon("Cherry")
@@ -18,128 +18,16 @@ hs.loadSpoon("AppWindowSwitcher")
     })
 
 
--- Move the focused window to the left half of the screen
-hs.hotkey.bind(hyper, "H", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  win:setFrame(f)
-end)
-
--- Move the focused window to the right half of the screen
-hs.hotkey.bind(hyper, "L", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x + (max.w / 2)
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h
-  win:setFrame(f)
-end)
-
--- Move the focused window to the top half of the screen
-hs.hotkey.bind(hyper, "K", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x
-  f.y = max.y
-  f.w = max.w
-  f.h = max.h / 2
-  win:setFrame(f)
-end)
-
--- Move the focused window to the bottom half of the screen
-hs.hotkey.bind(hyper, "J", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x
-  f.y = max.y + (max.h / 2)
-  f.w = max.w
-  f.h = max.h / 2
-  win:setFrame(f)
-end)
-
--- Move the focused window to the top left quarter of the screen
-hs.hotkey.bind(hyper, "Y", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h / 2
-  win:setFrame(f)
-end)
-
--- Move the focused window to the top right quarter of the screen
-hs.hotkey.bind(hyper, "U", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x + (max.w / 2)
-  f.y = max.y
-  f.w = max.w / 2
-  f.h = max.h / 2
-  win:setFrame(f)
-end)
-
--- Move the focused window to the bottom left quarter of the screen
-hs.hotkey.bind(hyper, "B", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x
-  f.y = max.y + (max.h / 2)
-  f.w = max.w / 2
-  f.h = max.h / 2
-  win:setFrame(f)
-end)
-
--- Move the focused window to the bottom right quarter of the screen
-hs.hotkey.bind(hyper, "N", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x + (max.w / 2)
-  f.y = max.y + (max.h / 2)
-  f.w = max.w / 2
-  f.h = max.h / 2
-  win:setFrame(f)
-end)
-
--- Move the focused window to the full screen
-hs.hotkey.bind(hyper, "F", function()
-  local win = hs.window.focusedWindow()
-  local f = win:frame()
-  local screen = win:screen()
-  local max = screen:frame()
-
-  f.x = max.x
-  f.y = max.y
-  f.w = max.w
-  f.h = max.h
-  win:setFrame(f)
-end)
+-- WindowHalfsAndThirds (window snapping)
+hs.loadSpoon("WindowHalfsAndThirds")
+spoon.WindowHalfsAndThirds:bindHotkeys({
+  left_half    = {hyper, "H"},
+  right_half   = {hyper, "L"},
+  top_half     = {hyper, "K"},
+  bottom_half  = {hyper, "J"},
+  top_left     = {hyper, "Y"},
+  top_right    = {hyper, "U"},
+  bottom_left  = {hyper, "B"},
+  bottom_right = {hyper, "N"},
+  max          = {hyper, "F"}
+});
