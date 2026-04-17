@@ -1,3 +1,9 @@
+-- Cherry (Pomodoro timer)
+hs.loadSpoon("Cherry")
+spoon.Cherry.duration = 25          -- minutes per session
+spoon.Cherry:bindHotkeys({})        -- uses default: cmd+ctrl+alt+C
+
+
 -- Move the focused window to the left half of the screen
 hs.hotkey.bind({"cmd", "alt", "ctrl"}, "H", function()
   local win = hs.window.focusedWindow()
