@@ -1,5 +1,26 @@
 # To start tmux:
 tmux
 
-# To detach from tmux:
+# List sessions
+tmux ls
+
+# To create a new session from within tmux, spawn as a detached session
+tmux new-session -d
+
+# Create a new window
+tmux neww -n name
+
+# To detach from tmux
 Ctrl-a d
+
+# To attach to session (from outside tmux)
+tmux attach-session -t name
+
+# To attach to session (from another session)
+tmux switch-client -t name
+
+# TIP: has-session uses prefix search with `-t name`, but searches for exact match with `-t=name`
+tmux has-session -t=name
+
+# Move to named session:window
+tmux switch-client -t sname:wname
