@@ -1,5 +1,4 @@
-# To start tmux:
-tmux
+# NOTE: The default prefix is Ctrl-b, but I've remapped it to Ctrl-a
 
 # List sessions
 tmux ls
