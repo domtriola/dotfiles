@@ -96,6 +96,8 @@ source "$HOME/.cargo/env"
 ##################################
 # autojump
 [ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
+# fzf fuzzy finder
+source <(fzf --zsh)
 
 
 ##################################
