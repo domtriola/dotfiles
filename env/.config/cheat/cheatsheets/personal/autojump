@@ -1,0 +1,8 @@
+# View weight keys
+j -s
+
+# Increase current directory weight
+j -i
+
+# Decrease current directory weight
+j -d
