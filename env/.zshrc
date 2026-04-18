@@ -24,6 +24,11 @@ alias gl="git log --graph --pretty=format:'%Cred%h%Creset - %C(bold blue)<%an> %
 # Functions
 ##################################
 
+# `addToPath` prepends a directory to $PATH if it exists and isn't already in $PATH
+function addToPath() {
+  [[ -d "$1" && ":$PATH:" != *":$1:"* ]] && export PATH="$1:$PATH"
+}
+
 # waitforinput blocks the process until any 1 character input is received
 function waitforinput() {
   read -sr -n 1
@@ -91,6 +96,12 @@ source "$HOME/.cargo/env"
 ##################################
 # autojump
 [ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
+
+
+##################################
+# Custom binaries
+##################################
+addToPath "$HOME/.local/bin"
 
 
 ##################################
