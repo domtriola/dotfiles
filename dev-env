@@ -39,10 +39,6 @@ execute() {
   "$@"
 }
 
-log "------------ dev-env ------------"
-
-cd $script_dir/$DEV_ENV
-
 copy_dir() {
   from=$1
   to=$2
@@ -65,6 +61,14 @@ copy_file() {
   execute cp $from $to/$name
 }
 
+log "------------ dev-env ------------"
+
+cd $script_dir/$DEV_ENV
+
+# ---------------------------------------------------
+# Files to copy into $HOME
+# ---------------------------------------------------
+
 copy_dir .config $HOME/.config
 
 copy_file .zshrc $HOME
@@ -75,6 +79,8 @@ copy_file .aws/config $HOME/.aws
 
 copy_dir .hammerspoon $HOME/.hammerspoon
 copy_file .hammerspoon/init.lua $HOME/.hammerspoon
+
+# ---------------------------------------------------
 
 echo "----------------------------------------"
 echo "Environment setup complete"
