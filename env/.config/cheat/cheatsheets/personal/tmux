@@ -1,8 +1,10 @@
-# To start tmux:
-tmux
+# NOTE: The default prefix is Ctrl-b, but I've remapped it to Ctrl-a
 
 # List sessions
 tmux ls
+
+# View windows
+Ctrl-a w
 
 # To create a new session from within tmux, spawn as a detached session
 tmux new-session -d

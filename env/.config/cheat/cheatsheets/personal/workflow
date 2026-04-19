@@ -1,0 +1,8 @@
+# Navigating to a project
+# #############################
+
+# Start tmux if not already in it
+tmux
+
+# Select desired project
+Ctrl-a f
