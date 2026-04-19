@@ -4,9 +4,8 @@ Custom tooling in this repo allows for automation of terminal sessions and windo
 
 - To navigate to a project and start the configured tmux setup:
   - Start a tmux session if not already in one: `tmux`
-  - Open the tmux-sessionizer fzf navigation: `Ctrl-a f`
-  - Go to project
-  - This will switch to that directory and call the local `.ready-tmux` script (or the global default) if one exists
+  - Open the tmux-sessionizer fuzzy navigation: `Ctrl-a f`
+  - Choosing a project will switch to that directory and call the local `.ready-tmux` script (or the global default) if one exists
 
 ## Tmux detailed workflow context
 
@@ -14,8 +13,8 @@ Custom tooling in this repo allows for automation of terminal sessions and windo
 
 Three custom scripts work together to automate tmux project navigation:
 
-1. **`tmux-sessionizer`** (`~/.local/bin/tmux-sessionizer`) — Uses `fzf` to browse directories under `~/src`, then creates or switches to a named tmux session for the selected project.
-2. **`ready-tmux`** (`~/.local/bin/ready-tmux`) — Runs after a new session is created. Looks for a local `.ready-tmux` script in the project directory; if none exists, falls back to `~/.ready-tmux`.
+1. **`tmux-sessionizer`** — Uses `fzf` to browse directories under `~/src`, then creates or switches to a named tmux session for the selected project.
+2. **`ready-tmux`** — Runs after a new session is created. Looks for a local `.ready-tmux` script in the project directory; if none exists, falls back to `~/.ready-tmux`.
 3. **`.ready-tmux`** (per-project or global) — Defines the windows/panes to set up for that project.
 
 ### Custom key bindings (prefix is `Ctrl-a`)
