@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Find a potential tmux session for a specified directory
-selected=$(find ~/src -mindepth 1 -maxdepth 2 -type d | fzf)
+selected=$(find ~/src/personal ~/src/work ~/src/community -mindepth 1 -maxdepth 1 -type d | fzf)
 if [[ -z "$selected" ]]; then
   exit 0
 fi

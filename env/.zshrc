@@ -12,7 +12,7 @@ export CLICOLOR=1
 
 # Core
 ########################
-alias l="ls -hal"
+alias ll="ls -hal"
 
 # Git
 ########################
