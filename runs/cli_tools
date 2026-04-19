@@ -6,4 +6,5 @@ brew install tree || brew upgrade tree
 brew install autojump || brew upgrade autojump
 brew install ripgrep || brew upgrade ripgrep
 brew install wget || brew upgrade wget
+brew install parallel || brew upgrade parallel
 brew install cheat || brew upgrade cheat
