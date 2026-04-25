@@ -29,5 +29,8 @@ spoon.WindowHalfsAndThirds:bindHotkeys({
   top_right    = {hyper, "U"},
   bottom_left  = {hyper, "B"},
   bottom_right = {hyper, "N"},
-  max          = {hyper, "F"}
+  max          = {hyper, "Up"},
+  third_left   = {hyper, "Left"},
+  third_right  = {hyper, "Right"},
+  center       = {hyper, "Down"},
 });
