@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# Usage: ./pull-nvim [--dry]
+#
+# Copies nvim config from ~/.config/nvim into ./env/.config/nvim.
+#
+# Arguments:
+#   --dry  Print what would be executed without making any changes.
+
+set -eo pipefail
+
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+dry="0"
+
+while [[ $# > 0 ]]; do
+  if [[ $1 == "--dry" ]]; then
+    dry="1"
+  fi
+  shift
+done
+
+log() {
+  if [[ $dry == "1" ]]; then
+    echo "[DRY RUN]: $@"
+  else
+    echo "$@"
+  fi
+}
+
+execute() {
+  log "execute $@"
+  if [[ $dry == "1" ]]; then
+    return
+  fi
+
+  "$@"
+}
+
+execute rm -rf "$script_dir/env/.config/nvim"
+execute cp -r ~/.config/nvim "$script_dir/env/.config/nvim"
