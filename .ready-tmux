@@ -1,3 +1,11 @@
 #!/usr/bin/env bash
 
-tmux rename-window dev
+tmux rename-window cli
+
+tmux neww -n dev
+tmux send-keys "nvim" C-m
+
+tmux neww -n ai
+tmux send-keys "claude" C-m
+
+tmux select-window -t cli
