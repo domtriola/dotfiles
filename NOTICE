@@ -1,0 +1,20 @@
+dotfiles
+Copyright 2020 Dominick Triola
+
+This repository includes software and configuration developed by Dominick Triola.
+
+Portions of this repository are copied from, derived from, or inspired by third-party projects.
+
+The Initial Developer of content in env/.config/nvim,
+is the LazyVim project (https://github.com/LazyVim/LazyVim), distributed under the Apache License, Version 2.0.
+
+The Initial Developer of env/.hammerspoon/Spoons/AppWindowSwitcher.spoon,
+is B Viefhues, distributed under the MIT License.
+
+The Initial Developers of env/.hammerspoon/Spoons/Cherry.spoon,
+are Daniel Marques and Omar El-Domeiri, distributed under the MIT License.
+
+The Initial Developer of env/.hammerspoon/Spoons/WindowHalfsAndThirds.spoon,
+is Diego Zamboni, distributed under the MIT License.
+
+The Initial Developer of the dev-env and run conventions is ThePrimeagen (https://github.com/ThePrimeagen/dev)
