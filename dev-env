@@ -81,6 +81,7 @@ echo "---------------------------"
 
 echo "Tmux configuration:"
 copy_file .tmux.conf $HOME
+copy_file .ready-tmux $HOME
 echo "---------------------------"
 
 echo "AWS configuration:"
