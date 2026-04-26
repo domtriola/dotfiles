@@ -19,6 +19,7 @@ hs
 			"com.apple.Safari",
 			"com.google.Chrome",
 			"org.mozilla.firefox",
+			"com.brave.Browser",
 		}] = { hyper, "B" }, -- B for browser
 	})
 
