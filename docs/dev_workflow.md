@@ -7,6 +7,8 @@ Custom tooling in this repo allows for automation of terminal sessions and windo
   - Open the tmux-sessionizer fuzzy navigation: `Ctrl-a f`
   - Choosing a project will switch to that directory and call the local `.ready-tmux` script (or the global default) if one exists
 
+Keep track of workflow reminders in `cheat workflow`. To edit: `cheat -e workflow`.
+
 ## Tmux detailed workflow context
 
 ### Overview
