@@ -13,15 +13,13 @@ hs
 	.loadSpoon("AppWindowSwitcher")
 	-- :setLogLevel("debug") -- uncomment for console debug log
 	:bindHotkeys({
-		["Obsidian"] = { hyper, "1" },
-		["iTerm"] = { hyper, "2" },
+		["Obsidian"] = { hyper, "O" }, -- O for Obsidian
+		["Ghostty"] = { hyper, "T" }, -- T for terminal
 		[{
 			"com.apple.Safari",
 			"com.google.Chrome",
-			"com.kagi.kagimacOS",
-			"com.microsoft.edgemac",
 			"org.mozilla.firefox",
-		}] = { hyper, "3" },
+		}] = { hyper, "B" }, -- B for browser
 	})
 
 -- WindowHalfsAndThirds (window snapping)
@@ -31,10 +29,6 @@ spoon.WindowHalfsAndThirds:bindHotkeys({
 	right_half = { hyper, "L" },
 	top_half = { hyper, "K" },
 	bottom_half = { hyper, "J" },
-	top_left = { hyper, "Y" },
-	top_right = { hyper, "U" },
-	bottom_left = { hyper, "B" },
-	bottom_right = { hyper, "N" },
 	max = { hyper, "Up" },
 	third_left = { hyper, "Left" },
 	third_right = { hyper, "Right" },
