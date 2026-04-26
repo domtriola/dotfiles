@@ -2,7 +2,7 @@
 # #############################
 
 # Start tmux if not already in it
-tmux
+troot
 
 # Select desired project
 Ctrl-a f
