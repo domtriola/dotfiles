@@ -1,0 +1,73 @@
+---
+tags: [ vim ]
+---
+
+# BURNDOWN: once commands are intuitive I should remove them from this cheatsheet
+# This will keep the cheatsheet succinct for easier reference of the truly hard to remember commands.
+
+# Movement
+
+w               next start of word
+W               next start of whitespace-delimited word
+e               next end of word
+E               next end of whitespace-delimited word
+b               previous start of word
+B               previous start of whitespace-delimited word
+gg              go to first line in file
+G               go to end of file
+
+# Insertion
+
+a               append after the cursor
+I               insert at the beginning of the line
+R               enter insert mode but replace instead of inserting chars
+:r {file}       insert from file
+
+# Editing
+
+yy              yank (copy) a line
+y{motion}       yank text that {motion} moves over
+p               paste after cursor
+P               paste before cursor
+<Del> or x      delete a character
+
+# Search and replace with the `:substitute` (aka `:s`) command
+
+:s/foo/bar/	replace the first match of 'foo' with 'bar' on the current line only
+:s/foo/bar/g	replace all matches (`g` flag) of 'foo' with 'bar' on the current line only
+:%s/foo/bar/g	replace all matches of 'foo' with 'bar' in the entire file (`:%s`)
+:%s/foo/bar/gc	ask to manually confirm (`c` flag) each replacement
+
+# Preceding a motion or edition with a number repeats it 'n' times
+# Examples:
+2dw         deletes 2 words
+5yy         copies 5 lines
+42G         go to line 42
+
+# Shell manipulations
+:.! <command>                 - Shell out
+:'<,'>!jq -c                  - Format visual selected json
+:'<,'>!sort -gk 1 -t ,        - To sort  a visual range on column 1 as a number
+
+# Delete every line that has a FOO in it. See `:help global`.
+# The _ in the d _ command ensures registers and clipboards are not changed.
+:g/FOO/d _
+
+
+
+# Buffers
+# move to N, next, previous, first last buffers
+:ls              - show current buffers
+:bn              - goes to next buffer
+:bp              - goes to prev buffer
+:bf              - goes to first buffer
+:bl              - goes to last buffer
+:b 2             - open buffer #2 in this window
+:new             - open a new buffer
+:vnew            - open a new vertical buffer
+:bd 2            - deletes buffer 2
+:wall            - writes all buffers
+:ball            - open a window for all buffers
+:bunload         - removes buffer from window
+:taball          - open a tab for all buffers
+
