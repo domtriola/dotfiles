@@ -11,3 +11,6 @@ tmux send-keys "claude" C-m
 tmux neww -n server
 
 tmux select-window -t cli
+
+# Open Obsidian file in new window
+# tmux send-keys 'obsidian vault="Vault" open file="File Name" newtab && obsidian command id=workspace:open-in-new-window' C-m
