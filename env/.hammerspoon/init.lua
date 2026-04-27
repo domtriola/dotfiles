@@ -17,6 +17,7 @@ hs
 		["Ghostty"] = { hyper, "T" }, -- T for terminal
 		["Slack"] = { hyper, "C" }, -- C for Chat
 		["Spotify"] = { hyper, "M" }, -- M for Music
+		["Claude"] = { hyper, "A" }, -- A for AI
 		["com.microsoft.VSCode"] = { hyper, "E" }, -- E for Editor
 		[{
 			"com.apple.Safari",
