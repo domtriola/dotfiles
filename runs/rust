@@ -7,3 +7,5 @@ if rustup toolchain list 2>/dev/null | grep -q "^stable"; then
 else
 	rustup toolchain install stable
 fi
+
+rustup component add rust-analyzer
