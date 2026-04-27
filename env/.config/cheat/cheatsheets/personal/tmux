@@ -1,5 +1,8 @@
 # NOTE: The default prefix is Ctrl-b, but I've remapped it to Ctrl-a
 
+# List all keybindings
+Ctrl-a ?
+
 # List sessions
 tmux ls
 
