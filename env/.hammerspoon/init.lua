@@ -13,8 +13,11 @@ hs
 	.loadSpoon("AppWindowSwitcher")
 	-- :setLogLevel("debug") -- uncomment for console debug log
 	:bindHotkeys({
-		["Obsidian"] = { hyper, "O" }, -- O for Obsidian
+		["Obsidian"] = { hyper, "N" }, -- N for Notes
 		["Ghostty"] = { hyper, "T" }, -- T for terminal
+		["Slack"] = { hyper, "C" }, -- C for Chat
+		["Spotify"] = { hyper, "M" }, -- M for Music
+		["com.microsoft.VSCode"] = { hyper, "E" }, -- E for Editor
 		[{
 			"com.apple.Safari",
 			"com.google.Chrome",
