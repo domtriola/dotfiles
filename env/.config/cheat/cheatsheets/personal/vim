@@ -74,3 +74,37 @@ P               paste before cursor
 :bunload         - removes buffer from window
 :taball          - open a tab for all buffers
 
+
+# Commands summary
+
+# Operators
+y               yank (copy)
+d               delete
+c               change (delete + enter insert mode)
+> / <           indent / dedent
+=               auto-indent
+gu / gU         lower / uppercase
+
+# Motions
+h j k l         left / down / up / right
+w b e           word forward / back / end
+0 ^ $           line start / first non-blank / end
+gg G            file start / end
+{ }             paragraph backward / forward
+f t             find / till char (on line)
+n N             next / prev search match
+
+# Text object modifiers (scope, always precede a text object)
+a               around - includes surrounding whitespace or delimiters
+i               inner  - excludes surrounding whitespace or delimiters
+
+# Text objects (used after a modifier)
+w               word
+s               sentence
+p               paragraph
+b / (           parentheses
+B / {           curly braces
+[               square brackets
+t               HTML/XML tag
+" ' `           quoted string
+
