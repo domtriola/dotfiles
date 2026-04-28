@@ -39,6 +39,14 @@ function now() {
   date +"%Y-%m-%d %H:%M:%S"
 }
 
+function nowiso() {
+  date +"%Y-%m-%dT%H:%M:%SZ"
+}
+
+function nowutc() {
+  date -u +"%Y-%m-%d %H:%M:%S"
+}
+
 # timestamp prints the current Epoch time
 function timestamp() {
   date +%s
