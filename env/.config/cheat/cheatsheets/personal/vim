@@ -27,6 +27,7 @@ R               enter insert mode but replace instead of inserting chars
 
 yy              yank (copy) a line
 y{motion}       yank text that {motion} moves over
+yap             yank around paragraph
 p               paste after cursor
 P               paste before cursor
 <Del> or x      delete a character
