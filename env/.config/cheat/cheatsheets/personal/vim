@@ -33,10 +33,12 @@ P               paste before cursor
 
 # Search and replace with the `:substitute` (aka `:s`) command
 
-:s/foo/bar/	replace the first match of 'foo' with 'bar' on the current line only
-:s/foo/bar/g	replace all matches (`g` flag) of 'foo' with 'bar' on the current line only
-:%s/foo/bar/g	replace all matches of 'foo' with 'bar' in the entire file (`:%s`)
-:%s/foo/bar/gc	ask to manually confirm (`c` flag) each replacement
+:s/foo/bar/       replace the first match of 'foo' with 'bar' on the current line only
+:s/foo/bar/g      replace all matches (`g` flag) of 'foo' with 'bar' on the current line only
+:%s/foo/bar/g     replace all matches of 'foo' with 'bar' in the entire file (`:%s`)
+:%s/foo/bar/gc    ask to manually confirm (`c` flag) each replacement
+:'<,'>s/foo/bar   replace all matches in visual selection
+:5,10s/foo/bar    replace all matches within line numbers
 
 # Preceding a motion or edition with a number repeats it 'n' times
 # Examples:
