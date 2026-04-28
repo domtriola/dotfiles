@@ -3,9 +3,11 @@
 brew install rustup || brew upgrade rustup
 
 if rustup toolchain list 2>/dev/null | grep -q "^stable"; then
-	rustup update
+  rustup update
 else
-	rustup toolchain install stable
+  rustup toolchain install stable
 fi
 
 rustup component add rust-analyzer
+
+cargo install cargo-edit
