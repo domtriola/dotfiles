@@ -5,6 +5,11 @@ tags: [ vim ]
 # BURNDOWN: once commands are intuitive I should remove them from this cheatsheet
 # This will keep the cheatsheet succinct for easier reference of the truly hard to remember commands.
 
+# LazyVim commands
+K               display symbol documentation window
+KK              display and enter symbol documentation window
+
+
 # Movement
 
 w               next start of word
