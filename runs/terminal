@@ -4,4 +4,3 @@ brew install --cask ghostty || brew upgrade --cask ghostty
 
 brew install starship || brew upgrade starship
 brew install tmux || brew upgrade tmux
-brew install zellij || brew upgrade zellij
