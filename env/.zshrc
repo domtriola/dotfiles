@@ -120,6 +120,12 @@ addToPath "$HOME/.local/bin"
 bindkey -v
 KEYTIMEOUT=1
 
+# Make backspace/delete behave predictably in vi insert mode.
+# Without this, delete stops at boundary of insert buffer.
+bindkey -M viins '^?' backward-delete-char
+bindkey -M viins '^H' backward-delete-char
+bindkey -M viins '^[[3~' delete-char
+
 
 ##################################
 # Starship
