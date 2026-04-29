@@ -115,7 +115,33 @@ addToPath "$HOME/.local/bin"
 
 
 ##################################
+# Vi Mode
+##################################
+bindkey -v
+KEYTIMEOUT=1
+
+
+##################################
 # Starship
 # (Keep at bottom)
 ##################################
 eval "$(starship init zsh)"
+
+# Override Starship's zle-keymap-select to add cursor shape changes.
+# Defined after starship init so it takes precedence.
+# Calls `zle reset-prompt` to keep Starship's prompt redraw on mode switch.
+#
+# This fixes recursive call conflict between vi mode and zle-keymap-select:
+# `starship_zle-keymap-select-wrapped:1: maximum nested function level reached; increase FUNCNEST?`
+zle-keymap-select() {
+  case $KEYMAP in
+    vicmd)      printf '\e[2 q' ;; # block cursor  — normal mode
+    viins|main) printf '\e[6 q' ;; # beam cursor   — insert mode
+  esac
+  zle reset-prompt
+}
+zle -N zle-keymap-select
+
+# Beam cursor on new prompt / after accepting a line
+zle-line-init() { printf '\e[6 q' }
+zle -N zle-line-init
