@@ -1,0 +1,5 @@
+# For cargo command help
+cheat cargo
+
+# To get more info on a specific error code:
+rustc --explain E0308
