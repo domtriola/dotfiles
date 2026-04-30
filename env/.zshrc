@@ -137,8 +137,9 @@ eval "$(starship init zsh)"
 # Defined after starship init so it takes precedence.
 # Calls `zle reset-prompt` to keep Starship's prompt redraw on mode switch.
 #
-# This fixes recursive call conflict between vi mode and zle-keymap-select:
+# This also fixes recursive call conflict between vi mode and zle-keymap-select:
 # `starship_zle-keymap-select-wrapped:1: maximum nested function level reached; increase FUNCNEST?`
+# See issues linked in https://github.com/starship/starship/pull/6398 for more details.
 zle-keymap-select() {
   case $KEYMAP in
     vicmd)      printf '\e[2 q' ;; # block cursor  — normal mode
