@@ -1,0 +1,5 @@
+# Run a script from src/bin
+cargo run --bin name
+
+# Open local documentation web page for local packages
+cargo doc --open
