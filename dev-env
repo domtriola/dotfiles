@@ -9,7 +9,7 @@
 
 set -eo pipefail
 
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 dry="0"
 
 # Location of environment files
@@ -39,17 +39,25 @@ execute() {
   "$@"
 }
 
-copy_dir() {
+copy_subdirs() {
   from=$1
   to=$2
 
-  pushd $from > /dev/null
+  pushd $from >/dev/null
   dirs=$(find . -mindepth 1 -maxdepth 1 -type d)
   for dir in $dirs; do
     execute rm -rf $to/$dir
     execute cp -r $dir $to/$dir
   done
-  popd > /dev/null
+  popd >/dev/null
+}
+
+copy_dir() {
+  from=$1
+  to=$2
+
+  execute rm -rf $to
+  execute cp -r $from $to
 }
 
 copy_file() {
@@ -70,8 +78,8 @@ cd $script_dir/$DEV_ENV
 # ---------------------------------------------------
 
 echo "General directories:"
-copy_dir .config $HOME/.config
-copy_dir .local $HOME/.local
+copy_subdirs .config $HOME/.config
+copy_subdirs .local $HOME/.local
 echo "---------------------------"
 
 echo "Shell configuration files:"
@@ -82,6 +90,7 @@ echo "---------------------------"
 echo "Tmux configuration:"
 copy_file .tmux.conf $HOME
 copy_file .ready-tmux $HOME
+copy_dir .troot $HOME/.troot
 echo "---------------------------"
 
 echo "AWS configuration:"
@@ -89,7 +98,7 @@ copy_file .aws/config $HOME/.aws
 echo "---------------------------"
 
 echo "Hammerspoon configuration:"
-copy_dir .hammerspoon $HOME/.hammerspoon
+copy_subdirs .hammerspoon $HOME/.hammerspoon
 copy_file .hammerspoon/init.lua $HOME/.hammerspoon
 echo "---------------------------"
 

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# CLI:
+tmux rename-window cli
+
+# AI:
+tmux neww -n claude
+tmux send-keys "claude" C-m
+tmux neww -n copilot
+tmux send-keys "copilot" C-m
+
+tmux select-window -t cli
