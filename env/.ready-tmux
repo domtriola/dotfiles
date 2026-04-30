@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 
+# CLI:
 tmux rename-window cli
 
+# Nvim:
 tmux neww -n dev
 tmux send-keys "nvim" C-m
 
-tmux neww -n ai
-tmux send-keys "claude" C-m
+# AI:
+# tmux neww -n ai
+# tmux send-keys "claude" C-m
 
-tmux neww -n server
+# Server:
+# tmux neww -n server
+
+# Notes:
+# tmux send-keys 'obsidian vault="Vault" open file="File Name" newtab && obsidian command id=workspace:open-in-new-window' C-m
 
 tmux select-window -t cli
-
-# Open Obsidian file in new window
-# tmux send-keys 'obsidian vault="Vault" open file="File Name" newtab && obsidian command id=workspace:open-in-new-window' C-m
