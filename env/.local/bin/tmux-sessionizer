@@ -10,34 +10,34 @@ search_roots=(
 
 # Find a potential tmux session for a specified directory
 if [[ -n "${1:-}" ]]; then
-  selected="$1"
+  selected_dir="$1"
 else
-  selected=$(find "${search_roots[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | fzf)
+  selected_dir=$(find "${search_roots[@]}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | fzf)
 fi
-if [[ -z "$selected" ]]; then
+if [[ -z "$selected_dir" ]]; then
   exit 0
 fi
 
 # Convert the selected directory name into a valid tmux session name by
 # replacing problematic characters
-selected_name=$(basename "$selected" | tr ":,. " "____")
+session_name=$(basename "$selected_dir" | tr ":,. " "____")
 
 switch_to() {
   if [[ -z "$TMUX" ]]; then
-    tmux attach-session -t "$selected_name"
+    tmux attach-session -t "$session_name"
   else
-    tmux switch-client -t "$selected_name"
+    tmux switch-client -t "$session_name"
   fi
 }
 
-if tmux has-session -t "$selected_name" 2>/dev/null; then
+if tmux has-session -t "$session_name" 2>/dev/null; then
   switch_to
   exit 0
 fi
 
-tmux new-session -ds "$selected_name" -c "$selected"
+tmux new-session -ds "$session_name" -c "$selected_dir"
 switch_to
 
 # Send ready command to the new tmux session (rather than having it execute in
 # source location)
-tmux send-keys -t "$selected_name" "ready-tmux" ^M
+tmux send-keys -t "$session_name" "ready-tmux" ^M
