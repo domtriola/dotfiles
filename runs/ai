@@ -2,3 +2,5 @@
 
 brew install --cask claude-code
 brew install copilot-cli
+
+brew install ollama
