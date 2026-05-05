@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
+# Agents
 brew install --cask claude-code
 brew install copilot-cli
+if command -v hermes &>/dev/null; then
+  hermes update
+else
+  curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+fi
 
+# Local model servers
 brew install ollama
