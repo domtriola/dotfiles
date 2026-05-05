@@ -62,6 +62,14 @@ P               paste before cursor
 :g/FOO/d _
 
 
+# Macros
+qa         " start recording into register 'a'
+...        " do all your edits (navigate into block, add line, move to next block)
+q          " stop recording
+@a         " replay once
+@@         " replay again
+10@a       " replay 10 times
+
 
 # Buffers
 # move to N, next, previous, first last buffers
