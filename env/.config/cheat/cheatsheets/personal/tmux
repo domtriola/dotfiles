@@ -21,6 +21,9 @@ tmux neww -n name
 # To detach from tmux
 Ctrl-a d
 
+# To close a tmux window (from the window to close):
+exit
+
 # To attach to session (from outside tmux)
 tmux attach-session -t name
 
