@@ -24,6 +24,9 @@ Ctrl-a d
 # To close a tmux window (from the window to close):
 exit
 
+# To close a session:
+tmux kill-session -t <session-name>
+
 # To attach to session (from outside tmux)
 tmux attach-session -t name
 
