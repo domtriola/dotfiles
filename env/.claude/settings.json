@@ -1,18 +1,13 @@
 {
-  "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": true
-  },
-  "extraKnownMarketplaces": {
-    "anthropic-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/skills"
-      }
-    }
-  },
   "permissions": {
+    "allow": [
+      "Read(~/src/)",
+      "Read(~/Documents/Books/)"
+    ],
     "deny": [
+      "Read(//)",
       "Read(//**/.env*)",
+      "Read(//**/*.env)",
       "Read(//**/.envrc)",
       "Read(//**/*secret*)",
       "Read(//**/secrets/**)",
@@ -45,11 +40,73 @@
       "Read(//**/*.p12)",
       "Read(//**/*.pfx)",
       "Read(//**/*.jks)",
-      "Read(//**/*.keystore)"
-    ],
-    "allow": [
-      "Read(~/Documents/Books/)"
+      "Read(//**/*.keystore)",
+      "Read(//**/.pgpass)",
+      "Read(//**/.my.cnf)",
+      "Read(//**/my.cnf)",
+      "Read(//**/.s3cfg)",
+      "Read(//**/.dbt/profiles.yml)",
+      "Read(//**/.databrickscfg)",
+      "Read(//**/.snowsql/config)",
+      "Read(//**/terraform.tfstate)",
+      "Read(//**/terraform.tfstate.backup)",
+      "Read(//**/*.tfvars)",
+      "Read(//**/*.tfvars.json)",
+      "Read(//**/.terraformrc)",
+      "Read(//**/.terraform.d/credentials.tfrc.json)",
+      "Read(//**/vault_password*)",
+      "Read(//**/vault-password*)",
+      "Read(//**/*service-account*.json)",
+      "Read(//**/*service_account*.json)",
+      "Read(//**/serviceAccount*.json)",
+      "Read(//**/firebase-adminsdk*.json)",
+      "Read(//**/.firebase/*.json)",
+      "Read(//**/.netlify/state.json)",
+      "Read(//**/.vercel/project.json)",
+      "Read(//**/.git-credentials)",
+      "Read(//**/.config/git/credentials)",
+      "Read(//**/.htpasswd)",
+      "Read(//**/auth.json)",
+      "Read(//**/.yarnrc.yml)",
+      "Read(//**/.cargo/credentials*)",
+      "Read(//**/.m2/settings.xml)",
+      "Read(//**/.gradle/gradle.properties)",
+      "Read(//**/.config/composer/auth.json)",
+      "Read(//**/.pip/pip.conf)",
+      "Read(//**/.config/pip/pip.conf)",
+      "Read(//**/cypress.env.json)",
+      "Read(//**/.auth/*.json)",
+      "Read(//**/.vscode/sftp.json)",
+      "Read(//**/.idea/dataSources.local.xml)",
+      "Read(//**/.idea/dataSources/**)",
+      "Read(//**/postman_environment*.json)",
+      "Read(//**/*postman_environment*.json)",
+      "Read(//**/*.ppk)",
+      "Read(//**/*.gpg)",
+      "Read(//**/*.age)",
+      "Read(//**/kubeconfig)",
+      "Read(//**/*kubeconfig*)",
+      "Read(//**/*.token)",
+      "Read(//**/.token)",
+      "Read(//**/*.jwt)",
+      "Read(//**/passwords.txt)",
+      "Read(//**/password.txt)",
+      "Read(//**/api_keys*)",
+      "Read(//**/api-keys*)",
+      "Read(//**/tokens.json)",
+      "Read(//**/token.json)"
     ]
+  },
+  "enabledPlugins": {
+    "example-skills@anthropic-agent-skills": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    }
   },
   "sandbox": {
     "enabled": true,
@@ -58,6 +115,7 @@
         "/",
         "~/",
         "/**/.env*",
+        "/**/*.env",
         "/**/.envrc",
         "/**/*secret*",
         "/**/secrets/**",
@@ -90,7 +148,61 @@
         "/**/*.p12",
         "/**/*.pfx",
         "/**/*.jks",
-        "/**/*.keystore"
+        "/**/*.keystore",
+        "/**/.pgpass",
+        "/**/.my.cnf",
+        "/**/my.cnf",
+        "/**/.s3cfg",
+        "/**/.dbt/profiles.yml",
+        "/**/.databrickscfg",
+        "/**/.snowsql/config",
+        "/**/terraform.tfstate",
+        "/**/terraform.tfstate.backup",
+        "/**/*.tfvars",
+        "/**/*.tfvars.json",
+        "/**/.terraformrc",
+        "/**/.terraform.d/credentials.tfrc.json",
+        "/**/vault_password*",
+        "/**/vault-password*",
+        "/**/*service-account*.json",
+        "/**/*service_account*.json",
+        "/**/serviceAccount*.json",
+        "/**/firebase-adminsdk*.json",
+        "/**/.firebase/*.json",
+        "/**/.netlify/state.json",
+        "/**/.vercel/project.json",
+        "/**/.git-credentials",
+        "/**/.config/git/credentials",
+        "/**/.htpasswd",
+        "/**/auth.json",
+        "/**/.yarnrc.yml",
+        "/**/.cargo/credentials*",
+        "/**/.m2/settings.xml",
+        "/**/.gradle/gradle.properties",
+        "/**/.config/composer/auth.json",
+        "/**/.pip/pip.conf",
+        "/**/.config/pip/pip.conf",
+        "/**/cypress.env.json",
+        "/**/.auth/*.json",
+        "/**/.vscode/sftp.json",
+        "/**/.idea/dataSources.local.xml",
+        "/**/.idea/dataSources/**",
+        "/**/postman_environment*.json",
+        "/**/*postman_environment*.json",
+        "/**/*.ppk",
+        "/**/*.gpg",
+        "/**/*.age",
+        "/**/kubeconfig",
+        "/**/*kubeconfig*",
+        "/**/*.token",
+        "/**/.token",
+        "/**/*.jwt",
+        "/**/passwords.txt",
+        "/**/password.txt",
+        "/**/api_keys*",
+        "/**/api-keys*",
+        "/**/tokens.json",
+        "/**/token.json"
       ],
       "allowRead": [
         "~/src/"
