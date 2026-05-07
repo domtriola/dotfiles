@@ -1,4 +1,8 @@
 {
+  "statusLine": {
+    "type": "command",
+    "command": "sh /Users/dominicktriola/.claude/statusline.sh"
+  },
   "permissions": {
     "allow": [
       "Read(~/src/)",

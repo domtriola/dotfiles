@@ -104,6 +104,7 @@ echo "---------------------------"
 
 echo "Claude settings:"
 copy_file .claude/settings.json $HOME/.claude
+copy_file .claude/statusline.sh $HOME/.claude
 echo "---------------------------"
 
 # ---------------------------------------------------
