@@ -46,6 +46,9 @@
       "Read(**/*.pfx)",
       "Read(**/*.jks)",
       "Read(**/*.keystore)"
+    ],
+    "allow": [
+      "Read(~/Documents/Books/)"
     ]
   },
   "sandbox": {
