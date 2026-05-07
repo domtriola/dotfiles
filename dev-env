@@ -102,6 +102,10 @@ copy_subdirs .hammerspoon $HOME/.hammerspoon
 copy_file .hammerspoon/init.lua $HOME/.hammerspoon
 echo "---------------------------"
 
+echo "Claude settings:"
+copy_file .claude/settings.json $HOME/.claude
+echo "---------------------------"
+
 # ---------------------------------------------------
 
 echo "----------------------------------------"
