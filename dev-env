@@ -97,10 +97,12 @@ echo "AWS configuration:"
 copy_file .aws/config $HOME/.aws
 echo "---------------------------"
 
-echo "Hammerspoon configuration:"
-copy_subdirs .hammerspoon $HOME/.hammerspoon
-copy_file .hammerspoon/init.lua $HOME/.hammerspoon
-echo "---------------------------"
+if [[ "$OSTYPE" == darwin* ]]; then
+  echo "Hammerspoon configuration:"
+  copy_subdirs .hammerspoon $HOME/.hammerspoon
+  copy_file .hammerspoon/init.lua $HOME/.hammerspoon
+  echo "---------------------------"
+fi
 
 echo "Claude settings:"
 copy_file .claude/settings.json $HOME/.claude

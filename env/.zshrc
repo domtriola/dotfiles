@@ -64,14 +64,6 @@ function recentmods() {
 # Language Setups
 ##################################
 
-# JavaScript
-########################
-# nvm
-export NVM_DIR="$HOME/.nvm"
-[ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
-[ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
-
-
 # Python
 ########################
 # pyenv
@@ -103,7 +95,11 @@ source "$HOME/.cargo/env"
 # CLI Tools
 ##################################
 # autojump
-[ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
+if [[ "$OSTYPE" == darwin* ]]; then
+  [ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
+else
+  [ -f /usr/share/autojump/autojump.sh ] && . /usr/share/autojump/autojump.sh
+fi
 # fzf fuzzy finder
 source <(fzf --zsh)
 
