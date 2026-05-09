@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+# CLI tools
+# ##############
+
+brew install jq
+brew install fzf
+brew install tree
+brew install autojump
+brew install ripgrep
+brew install wget
+brew install parallel
+brew install cheat
+
+# Performance profiling
+brew install cpulimit
+brew install graphviz
+
+# Example usage: `magick ./image.heic ./image.jpeg`
+brew install imagemagick
+
+# Development Environment
+# ##########################
+
+brew install neovim
+brew install --cask ghostty
+brew install tmux
+brew install starship
+
+# AI
+# ##############
+
+# Agents
+brew install --cask claude-code
+brew install copilot-cli
+if command -v hermes &>/dev/null; then
+  hermes update
+else
+  curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+fi
+
+# Local model servers
+brew install ollama
+
+# Desktop Management
+# ####################
+
+# For automating macOS with Lua scripts
+brew install hammerspoon --cask
+
+# Languages
+# ####################
+
+brew install go
+brew install node
+brew install nvm
+brew install pyenv
+brew install pyenv-virtualenv
+
+brew install rustup
+
+if rustup toolchain list 2>/dev/null | grep -q "^stable"; then
+  rustup update
+else
+  rustup toolchain install stable
+fi
+
+rustup component add rust-analyzer
+
+cargo install cargo-edit

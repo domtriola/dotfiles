@@ -2,7 +2,17 @@
 #
 # Usage: ./run [<pattern>] [--dry]
 #
-# Discovers and executes all executable files under ./runs/.
+# Discovers and executes platform-appropriate scripts under ./runs/.
+#
+# Execution order:
+#   1. runs/shared/         (cross-platform installers, all OSes)
+#   2. runs/macos/          (macOS only)
+#      - or -
+#      runs/linux/common/   (any Linux)
+#      runs/linux/<distro>/ (Fedora, Ubuntu, ...)
+#
+# Within each directory, scripts run in filename order. Use numeric
+# prefixes (00_, 10_, 20_) to control ordering.
 #
 # Arguments:
 #   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
@@ -10,17 +20,19 @@
 #   --dry      Print what would be executed without running anything.
 #
 # Examples:
-#   ./run                   # run all scripts
-#   ./run hello             # run only scripts matching "hello"
-#   ./run hello --dry       # preview which scripts would run
+#   ./run                   # run all platform-appropriate scripts
+#   ./run packages          # run only scripts matching "packages"
+#   ./run packages --dry    # preview which scripts would run
 
 set -eo pipefail
 
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+source "$script_dir/runs/lib/platform.sh"
+
 filter=""
 dry="0"
 
-while [[ $# > 0 ]]; do
+while [[ $# -gt 0 ]]; do
   if [[ $1 == "--dry" ]]; then
     dry="1"
   else
@@ -46,13 +58,6 @@ execute() {
   "$@"
 }
 
-log "$script_dir -- $filter"
-
-cd $script_dir
-
-priority=("x_code" "macos_settings" "homebrew")
-all_scripts=$(find $script_dir/runs -maxdepth 1 -mindepth 1 -perm +111 -type f | sort)
-
 run_script() {
   local script="$1"
   if [[ -n "$filter" ]] && ! echo "$script" | grep -q "$filter"; then
@@ -62,29 +67,32 @@ run_script() {
   execute "$script"
 }
 
-# Run priority scripts first, in order
-for name in "${priority[@]}"; do
-  script="$script_dir/runs/$name"
-  if [[ -x "$script" ]]; then
+run_dir() {
+  local dir="$1"
+  [[ -d "$dir" ]] || return 0
+  log "--- $dir ---"
+  while IFS= read -r script; do
+    [[ -f "$script" && -x "$script" ]] || continue
     run_script "$script"
-  fi
-done
+  done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+}
 
-# Run remaining scripts, skipping those already handled
-for script in $all_scripts; do
-  name=$(basename "$script")
-  skip=0
-  for p in "${priority[@]}"; do
-    if [[ "$name" == "$p" ]]; then
-      skip=1
-      break
-    fi
-  done
-  if [[ $skip -eq 1 ]]; then
-    continue
+log "$script_dir -- $filter"
+
+cd "$script_dir"
+
+run_dir "$script_dir/runs/shared"
+
+if is_mac; then
+  run_dir "$script_dir/runs/macos"
+elif is_linux; then
+  run_dir "$script_dir/runs/linux/common"
+  if is_fedora; then
+    run_dir "$script_dir/runs/linux/fedora"
+  elif is_ubuntu; then
+    run_dir "$script_dir/runs/linux/ubuntu"
   fi
-  run_script "$script"
-done
+fi
 
 echo "----------------------------------------"
 echo "All scripts executed"
