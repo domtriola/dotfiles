@@ -65,6 +65,7 @@ copy_file() {
   to=$2
   name=$(basename $from)
 
+  execute mkdir -p $to
   execute rm -f $to/$name
   execute cp $from $to/$name
 }
