@@ -86,6 +86,7 @@ echo "---------------------------"
 echo "Shell configuration files:"
 copy_file .zshrc $HOME
 copy_file .zprofile $HOME
+copy_file .bash_profile $HOME
 echo "---------------------------"
 
 echo "Tmux configuration:"
