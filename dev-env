@@ -110,6 +110,8 @@ copy_file .claude/statusline.sh $HOME/.claude
 echo "---------------------------"
 
 echo "Misc configs:"
+# Git config
+copy_file .gitconfig $HOME
 # This file is used by nvim-lint:
 copy_file .markdownlint.json $HOME
 
