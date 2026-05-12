@@ -7,7 +7,7 @@ zsh_path=$(which zsh)
 current_shell=$(getent passwd "$USER" | cut -d: -f7)
 if [[ "$current_shell" != "$zsh_path" ]]; then
   echo "Changing default shell to zsh..."
-  chsh -s "$zsh_path"
+  sudo chsh -s "$zsh_path" "$USER"
 else
   echo "Default shell is already zsh. Skipping."
 fi
