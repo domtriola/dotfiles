@@ -109,6 +109,10 @@ copy_file .claude/settings.json $HOME/.claude
 copy_file .claude/statusline.sh $HOME/.claude
 echo "---------------------------"
 
+echo "Misc configs:"
+# This file is used by nvim-lint:
+copy_file .markdownlint.json $HOME
+
 # ---------------------------------------------------
 
 echo "----------------------------------------"
