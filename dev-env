@@ -80,7 +80,11 @@ cd $script_dir/$DEV_ENV
 
 echo "General directories:"
 copy_subdirs .config $HOME/.config
-copy_subdirs .local $HOME/.local
+# Binaries:
+copy_file .local/bin/init-tmux $HOME/.local/bin
+copy_file .local/bin/ready-tmux $HOME/.local/bin
+copy_file .local/bin/tmux-sessionizer $HOME/.local/bin
+copy_file .local/bin/troot $HOME/.local/bin
 echo "---------------------------"
 
 echo "Shell configuration files:"
