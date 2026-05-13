@@ -12,10 +12,6 @@ brew install wget
 brew install parallel
 brew install cheat
 
-# Performance profiling
-brew install cpulimit
-brew install graphviz
-
 # Example usage: `magick ./image.heic ./image.jpeg`
 brew install imagemagick
 
