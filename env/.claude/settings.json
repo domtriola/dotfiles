@@ -102,8 +102,10 @@
     "command": "sh /Users/dominicktriola/.claude/statusline.sh"
   },
   "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": true,
-    "rust-analyzer-lsp@claude-plugins-official": true
+    "example-skills@anthropic-agent-skills": false,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "anthropic-agent-skills": {
