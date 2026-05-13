@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-
-echo "No desktop configurations applied yet..."
-
-# sudo dnf install -y gnome-pomodoro

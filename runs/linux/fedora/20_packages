@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
+sudo dnf upgrade
+
 sudo dnf install -y \
+  zsh \
   fzf \
   autojump-zsh \
   wget \
