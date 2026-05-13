@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+sudo dnf install -y \
+  fzf \
+  autojump-zsh \
+  wget \
+  parallel \
+  neovim \
+  tmux

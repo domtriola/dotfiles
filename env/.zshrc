@@ -76,7 +76,8 @@ source "$HOME/.cargo/env"
 if [[ "$OSTYPE" == darwin* ]]; then
   [ -f /opt/homebrew/etc/profile.d/autojump.sh ] && . /opt/homebrew/etc/profile.d/autojump.sh
 else
-  [ -f /usr/share/autojump/autojump.sh ] && . /usr/share/autojump/autojump.sh
+  # Fedora
+  [ -f /usr/share/autojump/autojump.zsh ] && . /usr/share/autojump/autojump.zsh
 fi
 # fzf fuzzy finder
 source <(fzf --zsh)
