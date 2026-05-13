@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Ollama for local models
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Hermes Agent
+if command -v hermes &>/dev/null; then
+  hermes update
+else
+  curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
+fi
