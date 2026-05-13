@@ -38,4 +38,3 @@ brew install hammerspoon --cask
 # ####################
 
 brew install go
-brew install node
