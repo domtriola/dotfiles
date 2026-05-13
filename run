@@ -69,12 +69,16 @@ run_script() {
 
 run_dir() {
   local dir="$1"
+  local -a scripts
+  local script
   [[ -d "$dir" ]] || return 0
   log "--- $dir ---"
-  while IFS= read -r script; do
+
+  mapfile -t scripts < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+  for script in "${scripts[@]}"; do
     [[ -f "$script" && -x "$script" ]] || continue
     run_script "$script"
-  done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+  done
 }
 
 log "$script_dir -- $filter"

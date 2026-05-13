@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-echo "Nothing to bootstrap yet..."
+sudo dnf upgrade
+
+sudo dnf install zsh
