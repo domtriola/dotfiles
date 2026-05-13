@@ -113,6 +113,7 @@ fi
 echo "Claude settings:"
 copy_file .claude/settings.json $HOME/.claude
 copy_file .claude/statusline.sh $HOME/.claude
+copy_dir .claude/skills $HOME/.claude/skills
 echo "---------------------------"
 
 echo "Misc configs:"
