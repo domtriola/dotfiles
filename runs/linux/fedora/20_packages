@@ -7,3 +7,6 @@ sudo dnf install -y \
   parallel \
   neovim \
   tmux
+
+sudo dnf copr enable scottames/ghostty
+sudo dnf install ghostty
