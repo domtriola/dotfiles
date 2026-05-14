@@ -15,10 +15,10 @@ hs
 	:bindHotkeys({
 		["Obsidian"] = { hyper, "N" }, -- N for Notes
 		["Ghostty"] = { hyper, "T" }, -- T for terminal
-		["Slack"] = { hyper, "C" }, -- C for Chat
 		["Spotify"] = { hyper, "M" }, -- M for Music
 		["Claude"] = { hyper, "A" }, -- A for AI
 		["com.microsoft.VSCode"] = { hyper, "E" }, -- E for Editor
+		[{ "Slack", "Discord" }] = { hyper, "C" }, -- C for Chat
 		[{
 			"com.apple.Safari",
 			"com.google.Chrome",
