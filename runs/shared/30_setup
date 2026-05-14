@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# Security scanning
+tirith setup claude-code --scope user

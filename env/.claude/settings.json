@@ -1,4 +1,45 @@
 {
+  "enabledPlugins": {
+    "example-skills@anthropic-agent-skills": false,
+    "frontend-design@claude-plugins-official": true,
+    "pm-data-analytics@pm-skills": true,
+    "pm-execution@pm-skills": true,
+    "pm-go-to-market@pm-skills": true,
+    "pm-market-research@pm-skills": true,
+    "pm-marketing-growth@pm-skills": true,
+    "pm-product-discovery@pm-skills": true,
+    "pm-product-strategy@pm-skills": true,
+    "pm-toolkit@pm-skills": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "repo": "anthropics/skills",
+        "source": "github"
+      }
+    },
+    "pm-skills": {
+      "source": {
+        "repo": "phuryn/pm-skills",
+        "source": "github"
+      }
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "python3 \"$HOME/.claude/hooks/tirith-check.py\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Read(~/src/)",
@@ -97,41 +138,12 @@
       "Read(//**/token.json)"
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "sh /Users/dominicktriola/.claude/statusline.sh"
-  },
-  "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": false,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "pm-toolkit@pm-skills": true,
-    "pm-product-strategy@pm-skills": true,
-    "pm-product-discovery@pm-skills": true,
-    "pm-market-research@pm-skills": true,
-    "pm-data-analytics@pm-skills": true,
-    "pm-marketing-growth@pm-skills": true,
-    "pm-go-to-market@pm-skills": true,
-    "pm-execution@pm-skills": true
-  },
-  "extraKnownMarketplaces": {
-    "anthropic-agent-skills": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/skills"
-      }
-    },
-    "pm-skills": {
-      "source": {
-        "source": "github",
-        "repo": "phuryn/pm-skills"
-      }
-    }
-  },
   "sandbox": {
     "enabled": true,
     "filesystem": {
+      "allowRead": [
+        "~/src/"
+      ],
       "denyRead": [
         "/",
         "~/",
@@ -224,10 +236,11 @@
         "/**/api-keys*",
         "/**/tokens.json",
         "/**/token.json"
-      ],
-      "allowRead": [
-        "~/src/"
       ]
     }
+  },
+  "statusLine": {
+    "command": "sh /Users/dominicktriola/.claude/statusline.sh",
+    "type": "command"
   }
 }
