@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Terminal Prompt
+curl -sS https://starship.rs/install.sh | sh
+
 # Ollama for local models
 curl -fsSL https://ollama.com/install.sh | sh
 
