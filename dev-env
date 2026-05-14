@@ -85,6 +85,7 @@ copy_file .local/bin/init-tmux $HOME/.local/bin
 copy_file .local/bin/ready-tmux $HOME/.local/bin
 copy_file .local/bin/tmux-sessionizer $HOME/.local/bin
 copy_file .local/bin/troot $HOME/.local/bin
+copy_file .local/bin/hermes-backup $HOME/.local/bin
 echo "---------------------------"
 
 echo "Shell configuration files:"

@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: hermes-backup [--dry] [--dest PATH]
+
+Create a sanitized Hermes backup by copying a small non-secret subset of files
+from $HERMES_HOME (default: ~/.hermes) into a destination directory
+(default: ~/src/personal/hermes-backup).
+
+Included:
+  - config.yaml
+  - SOUL.md
+  - memories/
+  - skills/
+  - cron/
+
+Deliberately excluded:
+  - .env
+  - auth.json
+  - logs/
+  - state.db
+  - sessions/
+  - profiles/
+
+Options:
+  --dry                 Print what would be copied without making changes
+  --dest PATH           Destination directory
+  -h, --help            Show this help
+
+Environment overrides:
+  HERMES_HOME
+  HERMES_BACKUP_DIR
+EOF
+}
+
+dry="0"
+
+log() {
+  if [[ $dry == "1" ]]; then
+    echo "[DRY RUN]: $@"
+  else
+    echo "$@"
+  fi
+}
+
+execute() {
+  log "execute $*"
+  if [[ $dry == "1" ]]; then
+    return
+  fi
+
+  "$@"
+}
+
+copy_subdirs() {
+  local from=$1
+  local to=$2
+  local dir
+
+  if [[ ! -d "$from" ]]; then
+    log "skip  ${from} (missing)"
+    return 0
+  fi
+
+  execute mkdir -p "$to"
+
+  pushd "$from" >/dev/null
+  while IFS= read -r -d '' dir; do
+    execute rm -rf "$to/${dir#./}"
+    execute cp -R "$dir" "$to/${dir#./}"
+  done < <(find . -mindepth 1 -maxdepth 1 -type d -print0)
+  popd >/dev/null
+}
+
+copy_dir() {
+  local from=$1
+  local to=$2
+
+  if [[ ! -d "$from" ]]; then
+    log "skip  ${from} (missing)"
+    return 0
+  fi
+
+  execute rm -rf "$to"
+  execute mkdir -p "$(dirname "$to")"
+  execute cp -R "$from" "$to"
+}
+
+copy_file() {
+  local from=$1
+  local to=$2
+  local name
+
+  if [[ ! -f "$from" ]]; then
+    log "skip  ${from} (missing)"
+    return 0
+  fi
+
+  name=$(basename "$from")
+  execute mkdir -p "$to"
+  execute rm -f "$to/$name"
+  execute cp "$from" "$to/$name"
+}
+
+write_readme() {
+  local path=$1
+
+  execute mkdir -p "$(dirname "$path")"
+
+  if [[ $dry == "1" ]]; then
+    log "execute write README to $path"
+    return
+  fi
+
+  cat > "$path" <<EOF
+Hermes sanitized backup
+Generated: $(date '+%Y-%m-%d %H:%M:%S %z')
+Source: $HERMES_HOME
+Destination: $DEST_ROOT
+
+Included:
+- config.yaml
+- SOUL.md
+- memories/
+- skills/
+- cron/
+
+Deliberately excluded:
+- .env
+- auth.json
+- logs/
+- state.db
+- sessions/
+- profiles/
+
+Restore recommendation:
+1. Install Hermes on the new machine with --skip-setup.
+2. Copy these files into ~/.hermes/.
+3. Re-add secrets manually to ~/.hermes/.env or via Hermes setup.
+EOF
+}
+
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+DEST_ROOT="${HERMES_BACKUP_DIR:-$HOME/src/personal/hermes-backup}"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry)
+      dry="1"
+      shift
+      ;;
+    --dest)
+      if [[ $# -lt 2 ]]; then
+        echo "error: --dest requires a path" >&2
+        exit 1
+      fi
+      DEST_ROOT="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+execute mkdir -p "$DEST_ROOT"
+
+copy_file "$HERMES_HOME/config.yaml" "$DEST_ROOT"
+copy_file "$HERMES_HOME/SOUL.md" "$DEST_ROOT"
+copy_dir "$HERMES_HOME/memories" "$DEST_ROOT/memories"
+copy_dir "$HERMES_HOME/skills" "$DEST_ROOT/skills"
+copy_dir "$HERMES_HOME/cron" "$DEST_ROOT/cron"
+write_readme "$DEST_ROOT/README.txt"
+
+log
+if [[ $dry == "1" ]]; then
+  log "Dry run complete for: $DEST_ROOT"
+else
+  log "Sanitized Hermes backup prepared at: $DEST_ROOT"
+fi
+log "Manual test command:"
+log "  /Users/dominicktriola/src/personal/dotfiles/env/.local/bin/hermes-backup --dry --dest ~/src/personal/hermes-backup-test"
