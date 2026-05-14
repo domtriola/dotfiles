@@ -12,3 +12,6 @@ if command -v hermes &>/dev/null; then
 else
   curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 fi
+
+# Terminal command security
+cargo install tirith
