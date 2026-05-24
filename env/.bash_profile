@@ -8,10 +8,33 @@ fi
 # User specific environment and startup programs
 ####################################################
 
-# Hand it off to zsh:
-# This is a workaround for systems with non-persistent /etc configs
-# So instead of overriding the shell with chsh, just redirect to zsh
-# at runtime:
-if [ -z "${ZSH_VERSION:-}" ] && [ -x /usr/bin/zsh ]; then
-  exec /usr/bin/zsh -l
-fi
+##################################
+# CLI Defaults
+##################################
+
+# Enables colorization for ls
+export CLICOLOR=1
+
+##################################
+# Language Setups
+##################################
+
+# Rust
+########################
+source "$HOME/.cargo/env"
+
+# JavaScript
+########################
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+##################################
+# Custom binaries
+##################################
+addToPath "$HOME/.local/bin"
+
+##################################
+# Starship
+# (Keep at bottom)
+##################################
+eval "$(starship init bash)"
