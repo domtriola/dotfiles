@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# Usage: ./run [<pattern>] [--dry]
+# Usage: ./setup [<pattern>] [--dry]
 #
-# Discovers and executes platform-appropriate scripts under ./runs/.
+# Discovers and executes platform-appropriate scripts under ./setups/.
 #
 # Execution order:
-#   1. runs/shared/         (cross-platform installers, all OSes)
-#   2. runs/macos/          (macOS only)
+#   1. setups/shared/         (cross-platform installers, all OSes)
+#   2. setups/macos/          (macOS only)
 #      - or -
-#      runs/linux/common/   (any Linux)
-#      runs/linux/<distro>/ (Fedora, Ubuntu, ...)
+#      setups/linux/common/   (any Linux)
+#      setups/linux/<distro>/ (Fedora, Ubuntu, ...)
 #
 # Within each directory, scripts run in filename order. Use numeric
 # prefixes (00_, 10_, 20_) to control ordering.
@@ -20,14 +20,14 @@
 #   --dry      Print what would be executed without running anything.
 #
 # Examples:
-#   ./run                   # run all platform-appropriate scripts
-#   ./run packages          # run only scripts matching "packages"
-#   ./run packages --dry    # preview which scripts would run
+#   ./setup                   # run all platform-appropriate scripts
+#   ./setup packages          # run only scripts matching "packages"
+#   ./setup packages --dry    # preview which scripts would run
 
 set -eo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-source "$script_dir/runs/lib/platform.sh"
+source "$script_dir/setups/lib/platform.sh"
 
 filter=""
 dry="0"
@@ -85,16 +85,16 @@ log "$script_dir -- $filter"
 
 cd "$script_dir"
 
-run_dir "$script_dir/runs/shared"
+run_dir "$script_dir/setups/shared"
 
 if is_mac; then
-  run_dir "$script_dir/runs/macos"
+  run_dir "$script_dir/setups/macos"
 elif is_linux; then
-  run_dir "$script_dir/runs/linux/common"
+  run_dir "$script_dir/setups/linux/common"
   if is_fedora; then
-    run_dir "$script_dir/runs/linux/fedora"
+    run_dir "$script_dir/setups/linux/fedora"
   elif is_ubuntu; then
-    run_dir "$script_dir/runs/linux/ubuntu"
+    run_dir "$script_dir/setups/linux/ubuntu"
   fi
 fi
 
