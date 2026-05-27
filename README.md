@@ -1,9 +1,9 @@
 # My Dotfiles
 
-- `env` contains environment configurations. These are copied over to the system via `./sync-env`.
-- `runs` contains scripts that run tool installations or system configurations. Run them with `./run`. To run just one tool, run `./run toolname`.
+- `env/` contains environment configurations. These are copied over to the system via `./sync-env`.
+- `setups/` contains scripts that run tool installations or system configurations. Run them with `./setup`. To run just one tool, run `./setup toolname`.
 
-Both commands can be ran as dry-runs: `./run toolname --dry`
+Both commands can be ran as dry-runs: `./setup toolname --dry`
 
 ## Fresh System Setup
 
@@ -14,10 +14,10 @@ Both commands can be ran as dry-runs: `./run toolname --dry`
 3. Clone the repo: `cd ~/src/personal && git clone git@github.com:domtriola/dotfiles.git && cd dotfiles`
 4. Run the setup tools:
     1. `./sync-env`
-    2. `./run`
+    2. `./setup`
 
 ## Updates
 
-Run `./sync-env` after updating anything in `env`. Update `sync-env` first if you create a new file or directory.
+Run `./sync-env` after updating anything in `env/`. Update `sync-env` first if you create a new file or directory.
 
-Run `./run` after updating anything in `runs`.
+Run `./setup` after updating anything in `setups/`.
