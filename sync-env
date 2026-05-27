@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: ./dev-env [--dry]
+# Usage: ./sync-env [--dry]
 #
 # Copies environment config files and directories from ./env/ into $HOME.
 #
@@ -70,7 +70,7 @@ copy_file() {
   execute cp $from $to/$name
 }
 
-log "------------ dev-env ------------"
+log "------------ sync-env ------------"
 
 cd $script_dir/$DEV_ENV
 
