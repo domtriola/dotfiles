@@ -19,6 +19,10 @@ export CLICOLOR=1
 # Language Setups
 ##################################
 
+# Go
+########################
+export PATH=$PATH:/usr/local/go/bin
+
 # Rust
 ########################
 source "$HOME/.cargo/env"
