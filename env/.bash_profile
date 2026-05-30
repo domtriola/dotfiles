@@ -22,6 +22,7 @@ export CLICOLOR=1
 # Go
 ########################
 export PATH=$PATH:/usr/local/go/bin
+export PATH=$PATH:/home/user/go/bin
 
 # Rust
 ########################
