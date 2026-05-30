@@ -240,7 +240,7 @@
     }
   },
   "statusLine": {
-    "command": "sh /Users/dominicktriola/.claude/statusline.sh",
+    "command": "sh ~/.claude/statusline.sh",
     "type": "command"
   }
 }
