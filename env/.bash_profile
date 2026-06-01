@@ -11,7 +11,7 @@ fi
 ##################################
 # Security
 ##################################
-eval "$(tirith init --shell bash)"
+# eval "$(tirith init --shell bash)"
 
 ##################################
 # CLI Defaults
