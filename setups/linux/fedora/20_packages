@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [[ -f /etc/qubes-release ]]; then
+if uname -r | grep -q qubes; then
   echo "Qubes detected, skipping package install."
   return 0 2>/dev/null || exit 0
 fi
