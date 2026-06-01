@@ -14,4 +14,4 @@ else
 fi
 
 # Terminal command security
-npm install -g tirith
+sudo npm install -g tirith
