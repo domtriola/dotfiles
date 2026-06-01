@@ -14,4 +14,4 @@ else
 fi
 
 # Terminal command security
-cargo install tirith
+npm install -g tirith

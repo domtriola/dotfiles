@@ -2,7 +2,6 @@
 
 # Python
 # #######################################
-
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # JavaScript
@@ -17,19 +16,19 @@ nvm install 24
 
 # Rust
 # #######################################
-if command -v rustup &>/dev/null; then
-  echo "rustup already installed. Updating..."
-  rustup update
-else
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-fi
-
-# shellcheck source=/dev/null
-source "$HOME/.cargo/env"
-
-if ! rustup toolchain list | grep -q "^stable"; then
-  rustup toolchain install stable
-fi
-
-rustup component add rust-analyzer
-cargo install cargo-edit
+# if command -v rustup &>/dev/null; then
+#   echo "rustup already installed. Updating..."
+#   rustup update
+# else
+#   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# fi
+#
+# # shellcheck source=/dev/null
+# source "$HOME/.cargo/env"
+#
+# if ! rustup toolchain list | grep -q "^stable"; then
+#   rustup toolchain install stable
+# fi
+#
+# rustup component add rust-analyzer
+# cargo install cargo-edit
