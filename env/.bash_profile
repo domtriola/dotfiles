@@ -9,9 +9,15 @@ fi
 ####################################################
 
 ##################################
+# Security
+##################################
+eval "$(tirith init --shell bash)"
+
+##################################
 # CLI Defaults
 ##################################
 
+export EDITOR=vim
 # Enables colorization for ls
 export CLICOLOR=1
 
