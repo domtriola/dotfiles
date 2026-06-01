@@ -27,19 +27,7 @@
       }
     }
   },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "python3 \"$HOME/.claude/hooks/tirith-check.py\"",
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash"
-      }
-    ]
-  },
+  "hooks": {},
   "permissions": {
     "allow": [
       "Read(~/src/)",
