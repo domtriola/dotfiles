@@ -90,7 +90,7 @@ run_dir "$script_dir/setups/shared"
 if is_mac; then
   run_dir "$script_dir/setups/macos"
 elif is_linux; then
-  run_dir "$script_dir/setups/linux/common"
+  run_dir "$script_dir/setups/linux"
   if is_fedora; then
     run_dir "$script_dir/setups/linux/fedora"
   elif is_ubuntu; then

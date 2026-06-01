@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+GO_VERSION="1.26.3"
+ARCH="linux-amd64"
+TARBALL="go${GO_VERSION}.${ARCH}.tar.gz"
+
+wget -O "/tmp/${TARBALL}" "https://go.dev/dl/${TARBALL}"
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf "/tmp/${TARBALL}"
+rm "/tmp/${TARBALL}"
