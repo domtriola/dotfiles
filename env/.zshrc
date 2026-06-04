@@ -75,6 +75,10 @@ function recentmods() {
 ########################
 source "$HOME/.cargo/env"
 
+# Go
+########################
+export PATH="$PATH:$HOME/go/bin"
+
 # JavaScript
 ########################
 export NVM_DIR="$HOME/.nvm"
