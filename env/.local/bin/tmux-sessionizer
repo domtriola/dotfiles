@@ -6,6 +6,7 @@ search_roots=(
   "$HOME/src/community"
   "$HOME/src/work"
   "$HOME/src/work/static-sites"
+  "$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents"
 )
 
 # Find a potential tmux session for a specified directory
