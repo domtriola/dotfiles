@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 # Key repeat — lower interval = faster repeat
 gsettings set org.gnome.desktop.peripherals.keyboard repeat-interval 25
 gsettings set org.gnome.desktop.peripherals.keyboard delay 200

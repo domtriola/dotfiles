@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 # Terminal Prompt
 curl -sS https://starship.rs/install.sh | sh
 
@@ -12,6 +14,3 @@ if command -v hermes &>/dev/null; then
 else
   curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 fi
-
-# Terminal command security
-sudo npm install -g tirith

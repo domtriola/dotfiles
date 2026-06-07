@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 # CLI tools
 # ##############
 
@@ -33,3 +35,9 @@ brew install copilot-cli
 
 # For automating macOS with Lua scripts
 brew install hammerspoon --cask
+
+# Security
+# ####################
+
+# Terminal command security
+brew install sheeki03/tap/tirith
