@@ -33,8 +33,3 @@ brew install copilot-cli
 
 # For automating macOS with Lua scripts
 brew install hammerspoon --cask
-
-# Languages
-# ####################
-
-brew install go
