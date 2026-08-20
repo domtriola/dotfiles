@@ -17,6 +17,9 @@ brew install cheat
 # Example usage: `magick ./image.heic ./image.jpeg`
 brew install imagemagick
 
+# For psql and other postgres tools
+brew install postgresql
+
 # Development Environment
 # ##########################
 
