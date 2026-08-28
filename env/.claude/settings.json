@@ -5,6 +5,7 @@
       "Read(~/Documents/Books/)"
     ],
     "deny": [
+      "Bash(rm -rf *)",
       "Read(//)",
       "Read(//**/.env*)",
       "Read(//**/*.env)",
