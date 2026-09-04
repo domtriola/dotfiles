@@ -13,6 +13,7 @@ brew install ripgrep
 brew install wget
 brew install parallel
 brew install cheat
+brew install httpie
 
 # Example usage: `magick ./image.heic ./image.jpeg`
 brew install imagemagick
