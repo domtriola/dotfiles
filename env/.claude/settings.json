@@ -1,9 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "Read(~/src/)",
-      "Read(~/Documents/Books/)"
-    ],
+    "allow": ["Read(~/src/)", "Read(~/Documents/Books/)"],
     "deny": [
       "Bash(rm -rf *)",
       "Read(//)",
@@ -99,6 +96,7 @@
     ]
   },
   "model": "opus",
+  "remoteControlAtStartup": false,
   "hooks": {
     "PreToolUse": [
       {
@@ -241,9 +239,7 @@
         "/**/tokens.json",
         "/**/token.json"
       ],
-      "allowRead": [
-        "~/src/"
-      ]
+      "allowRead": ["~/src/"]
     }
   },
   "tui": "fullscreen"
