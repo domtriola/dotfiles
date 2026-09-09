@@ -3,7 +3,6 @@
     "allow": ["Read(~/src/)", "Read(~/Documents/Books/)"],
     "deny": [
       "Bash(rm -rf *)",
-      "Read(//)",
       "Read(//**/.env*)",
       "Read(//**/*.env)",
       "Read(//**/.envrc)",
@@ -147,7 +146,6 @@
     "enabled": true,
     "filesystem": {
       "denyRead": [
-        "/",
         "~/",
         "/**/.env*",
         "/**/*.env",
@@ -239,7 +237,7 @@
         "/**/tokens.json",
         "/**/token.json"
       ],
-      "allowRead": ["~/src/"]
+      "allowRead": ["~/src/", "~/.gitconfig", "~/.config/git/**"]
     }
   },
   "tui": "fullscreen"
