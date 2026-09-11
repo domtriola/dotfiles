@@ -8,6 +8,9 @@ curl -sS https://starship.rs/install.sh | sh
 # Ollama for local models
 curl -fsSL https://ollama.com/install.sh | sh
 
+# Pi agent harness
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+
 # Hermes Agent
 if command -v hermes &>/dev/null; then
   hermes update

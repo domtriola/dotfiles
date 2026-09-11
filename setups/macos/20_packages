@@ -28,20 +28,20 @@ brew install neovim
 brew install --cask ghostty
 brew install tmux
 
-# AI Agents
+# AI
 # ##############
 
 brew install --cask claude-code
 brew install copilot-cli
+
+# Sandboxing
+brew install docker/tap/sbx
+
+# Terminal command security
+brew install sheeki03/tap/tirith
 
 # Desktop Management
 # ####################
 
 # For automating macOS with Lua scripts
 brew install hammerspoon --cask
-
-# Security
-# ####################
-
-# Terminal command security
-brew install sheeki03/tap/tirith

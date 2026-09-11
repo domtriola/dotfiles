@@ -1,12 +1,9 @@
 {
   "permissions": {
-    "allow": [
-      "Read(~/src/)",
-      "Read(~/Documents/Books/)",
-      "Read(/tmp/claude*)"
-    ],
+    "allow": ["Read(~/src/)", "Read(~/Documents/Books/)", "Read(/tmp/claude*)"],
     "deny": [
       "Bash(rm -rf *)",
+      "Read(//)",
       "Read(//**/.env*)",
       "Read(//**/*.env)",
       "Read(//**/.envrc)",
@@ -149,6 +146,7 @@
     "enabled": true,
     "filesystem": {
       "denyRead": [
+        "/",
         "~/",
         "/**/.env*",
         "/**/*.env",
@@ -240,12 +238,7 @@
         "/**/tokens.json",
         "/**/token.json"
       ],
-      "allowRead": [
-        "~/src/",
-        "~/.gitconfig",
-        "~/.config/git/**",
-        "/tmp/claude*"
-      ]
+      "allowRead": ["~/src/"]
     }
   },
   "tui": "fullscreen",
