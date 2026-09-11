@@ -9,12 +9,12 @@ tmux send-keys "nvim" C-m
 
 # AI:
 # tmux neww -n ai
-# tmux send-keys "claude" C-m
+# tmux send-keys "sbx run claude --name project"
 
 # Server:
 # tmux neww -n server
 
-# Notes:
-# tmux send-keys 'obsidian vault="Vault" open file="File Name" newtab && obsidian command id=workspace:open-in-new-window' C-m
+# Tests:
+# tmux neww -n tests
 
 tmux select-window -t cli
