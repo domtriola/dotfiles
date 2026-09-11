@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(~/src/)",
-      "Read(~/Documents/Books/)"
+      "Read(~/Documents/Books/)",
+      "Read(/tmp/claude*)"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -242,7 +243,8 @@
       "allowRead": [
         "~/src/",
         "~/.gitconfig",
-        "~/.config/git/**"
+        "~/.config/git/**",
+        "/tmp/claude*"
       ]
     }
   },
