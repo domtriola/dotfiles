@@ -5,8 +5,6 @@ tmux rename-window cli
 
 # AI:
 tmux neww -n claude
-tmux send-keys "claude" C-m
-tmux neww -n copilot
-tmux send-keys "copilot" C-m
+tmux send-keys "claude"
 
 tmux select-window -t cli
