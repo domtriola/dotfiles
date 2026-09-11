@@ -6,6 +6,6 @@ tmux neww -n dev
 tmux send-keys "nvim" C-m
 
 tmux neww -n ai
-tmux send-keys "claude" C-m
+tmux send-keys "sbx run claude --name dotfiles --memory 4g"
 
 tmux select-window -t cli

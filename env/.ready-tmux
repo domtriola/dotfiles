@@ -8,8 +8,16 @@ tmux neww -n dev
 tmux send-keys "nvim" C-m
 
 # AI:
-# tmux neww -n ai
-# tmux send-keys "sbx run claude --name project"
+tmux neww -n ai
+#NOTE: Agents in the sandbox have full access to the project contents.
+# Never store secrets locally in a project. Don't assume that custom
+# settings will keep those secrets safe.
+#
+# Other notes:
+# Each VM is allocated the specified memory as a max capacity,
+# but actual usage is typically less than the max.
+# Run `sbx` to view usage info for all sandboxes.
+tmux send-keys "sbx run claude --name project --memory 4g"
 
 # Server:
 # tmux neww -n server
