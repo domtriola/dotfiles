@@ -2,51 +2,28 @@
 tags: [ vim ]
 ---
 
-# LazyVim commands
-K               display symbol documentation window
-KK              display and enter symbol documentation window
-
+# BURNDOWN: once commands are intuitive I should remove them from this cheatsheet
+# This will keep the cheatsheet succinct for easier reference of the truly hard to remember commands.
 
 # Movement
 
-w               next start of word
 W               next start of whitespace-delimited word
-e               next end of word
 E               next end of whitespace-delimited word
-b               previous start of word
 B               previous start of whitespace-delimited word
-gg              go to first line in file
-G               go to end of file
 
 # Insertion
 
-a               append after the cursor
-I               insert at the beginning of the line
 R               enter insert mode but replace instead of inserting chars
 :r {file}       insert from file
 
-# Editing
-
-yy              yank (copy) a line
-y{motion}       yank text that {motion} moves over
-yap             yank around paragraph
-p               paste after cursor
-P               paste before cursor
-<Del> or x      delete a character
 
 # Search and replace with the `:substitute` (aka `:s`) command
 
-:s/foo/bar/         replace the first match of 'foo' with 'bar' on the current line only
-:s/foo/bar/g        replace all matches (`g` flag) of 'foo' with 'bar' on the current line only
-:%s/foo/bar/g       replace all matches of 'foo' with 'bar' in the entire file (`:%s`)
 :%s/foo/bar/gc      ask to manually confirm (`c` flag) each replacement
 :'<,'>s/foo/bar/g   replace all matches in visual selection
 :5,10s/foo/bar/g    replace all matches within line numbers
 
 # Preceding a motion or edition with a number repeats it 'n' times
-# Examples:
-2dw         deletes 2 words
-5yy         copies 5 lines
 42G         go to line 42
 
 # Shell manipulations
@@ -88,25 +65,14 @@ q          " stop recording
 # Commands summary
 
 # Operators
-y               yank (copy)
-d               delete
-c               change (delete + enter insert mode)
-> / <           indent / dedent
 =               auto-indent
-gu / gU         lower / uppercase
 
 # Motions
-h j k l         left / down / up / right
-w b e           word forward / back / end
 0 ^ $           line start / first non-blank / end
-gg G            file start / end
 { }             paragraph backward / forward
 f t             find / till char (on line)
 n N             next / prev search match
 
-# Text object modifiers (scope, always precede a text object)
-a               around - includes surrounding whitespace or delimiters
-i               inner  - excludes surrounding whitespace or delimiters
 
 # Text objects (used after a modifier)
 w               word
