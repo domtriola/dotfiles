@@ -12,16 +12,37 @@ setup:
         - "sh"
         - "-c"
         - |
-          set -euo pipefail
+          set -eu
 
-          for agent_dir in "$HOME/.claude/skills" "$HOME/.gemini/skills" "$HOME/.agents/skills"; do
+          AGENT_DIRS="$HOME/.claude/skills $HOME/.gemini/skills $HOME/.agents/skills"
+          for agent_dir in $AGENT_DIRS; do
             mkdir -p "$agent_dir"
-            for skill_dir in "$HOME/skills"/*/; do
-              [ -d "$skill_dir" ] || continue
-              name="$(basename "$skill_dir")"
+          done
+
+          link_skill() {
+            skill_dir="$1"
+            name="$(basename "$skill_dir")"
+            for agent_dir in $AGENT_DIRS; do
               ln -sfn "$skill_dir" "$agent_dir/$name"
             done
+          }
+
+          # Tracked skills: ~/skills/<name>/SKILL.md
+          for skill_dir in "$HOME/skills"/*/; do
+            [ -f "$skill_dir/SKILL.md" ] || continue
+            link_skill "${skill_dir%/}"
           done
+
+          # Experimental skills: ~/skills/experimental/<name>/SKILL.md, with up
+          # to two levels of grouping (e.g. experimental/<vendor>/<topic>/<name>).
+          # Linked last so a copy of a shipped skill shadows the tracked one.
+          if [ -d "$HOME/skills/experimental" ]; then
+            find "$HOME/skills/experimental" -mindepth 2 -maxdepth 4 \
+              -name SKILL.md -type f |
+              while read -r skill_file; do
+                link_skill "$(dirname "$skill_file")"
+              done
+          fi
       description: "Symlink ~/skills/<name> into each agent's skills dir"
       user: "1000"
 
@@ -29,3 +50,5 @@ agentInstructions:
   content: |
     Skills are installed at ~/skills/<name>/ and symlinked into
     ~/.claude/skills/, ~/.gemini/skills/ and ~/.agents/skills/.
+    Untracked, experimental skills live under ~/skills/experimental/ and are
+    symlinked the same way; they shadow a tracked skill of the same name.

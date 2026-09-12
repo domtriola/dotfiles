@@ -2,6 +2,7 @@
 
 memory=4g
 name="$(basename "$PWD")"
+clone=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -13,6 +14,10 @@ while [[ $# -gt 0 ]]; do
     name="$2"
     shift 2
     ;;
+  --clone)
+    clone=(--clone)
+    shift
+    ;;
   *)
     shift
     ;;
@@ -22,4 +27,5 @@ done
 sbx run ~/src/personal/dotfiles/sbx/kits/sandboxes/my-claude \
   --name "$name" \
   --memory "$memory" \
+  "${clone[@]}" \
   --kit ~/src/personal/dotfiles/sbx/kits/mixins/agent-skills

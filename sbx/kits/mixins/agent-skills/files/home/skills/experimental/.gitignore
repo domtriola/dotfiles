@@ -1,0 +1,4 @@
+# Experimental skills are copied in by hand and are deliberately not tracked.
+# The directory itself is tracked (via this file) so the kit always ships it.
+*
+!.gitignore
