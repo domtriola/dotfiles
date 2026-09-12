@@ -100,7 +100,7 @@ echo "---------------------------"
 echo "Tmux configuration:"
 copy_file .tmux.conf $HOME
 copy_file .ready-tmux $HOME
-copy_dir .troot $HOME/.troot
+copy_dir troot $HOME/troot
 echo "---------------------------"
 
 echo "AWS configuration:"
