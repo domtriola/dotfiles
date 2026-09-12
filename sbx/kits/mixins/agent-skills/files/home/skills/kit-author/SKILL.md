@@ -26,3 +26,15 @@ substitute.**
    <https://github.com/docker/sbx-kits-contrib>
 5. **The TCK**, the conformance suite, if you want to test a kit:
    <https://github.com/docker/sbx-kits-contrib/tree/main/tck>
+
+## Local conventions
+
+### The `files/` tree is rooted at `/`, but `home/` means the agent's home
+
+`files/<path>` is copied to `/<path>` in the container, with one twist: the
+top-level `home/` directory maps onto the agent user's home directory, which is
+`/home/agent`. So write `files/home/.config/foo/bar.json` to land
+`/home/agent/.config/foo/bar.json`. Adding the `agent/` segment yourself
+(`files/home/agent/...`) silently produces `/home/agent/agent/...` — the kit
+installs without error and the files simply are not where anything looks for
+them.
