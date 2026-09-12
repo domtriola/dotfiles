@@ -1,0 +1,6 @@
+# Generated or vendored files. Formatting these creates noisy diffs and, for
+# the lockfile, can corrupt it. node_modules is ignored by Prettier already.
+
+# lockfiles
+lazy-lock.json
+pnpm-lock.yaml
