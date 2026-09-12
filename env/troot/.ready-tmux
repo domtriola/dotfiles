@@ -5,6 +5,6 @@ tmux rename-window cli
 
 # AI:
 tmux neww -n claude
-tmux send-keys "sbx run claude --name troot --memory 2g"
+tmux send-keys "my-claude --memory 2g"
 
 tmux select-window -t cli

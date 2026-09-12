@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+memory=4g
+name="$(basename "$PWD")"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --memory)
+    memory="$2"
+    shift 2
+    ;;
+  --name)
+    name="$2"
+    shift 2
+    ;;
+  *)
+    shift
+    ;;
+  esac
+done
+
+sbx run ~/src/personal/dotfiles/sbx/kits/sandboxes/my-claude \
+  --name "$name" \
+  --memory "$memory" \
+  --kit ~/src/personal/dotfiles/sbx/kits/mixins/agent-skills

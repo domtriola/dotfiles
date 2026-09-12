@@ -1,0 +1,20 @@
+---
+tags: [ sbx ]
+---
+
+# Auth
+# ###################################
+
+# Anthropic
+# Needs --name ?
+sbx run claude -- auth login
+
+# Github
+# NOTE: this grants full permissions of the account it authenticates.
+# So if authed as an admin that could grant the sandbox full write
+# permissions to remote resources.
+#
+# Use with caution. 
+# Consider creating accounts with minimally scoped access and connect
+# with those instead of an admin account.
+echo "$(gh auth token)" | sbx secret set -g github
