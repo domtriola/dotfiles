@@ -21,12 +21,12 @@ Three custom scripts work together to automate tmux project navigation:
 
 ### Custom key bindings (prefix is `Ctrl-a`)
 
-| Binding | Action |
-|---------|--------|
-| `Ctrl-a f` | Open tmux-sessionizer (fzf project picker) |
-| `Ctrl-a r` | Reload `~/.tmux.conf` |
-| `Ctrl-a \|` | Split pane horizontally (keeps current path) |
-| `Ctrl-a -` | Split pane vertically (keeps current path) |
-| `Ctrl-a c` | New window (keeps current path) |
-| `Ctrl-a h/j/k/l` | Navigate panes (vim-style) |
-| `Ctrl-a H/J/K/L` | Resize panes (vim-style, repeatable) |
+| Binding          | Action                                       |
+| ---------------- | -------------------------------------------- |
+| `Ctrl-a f`       | Open tmux-sessionizer (fzf project picker)   |
+| `Ctrl-a r`       | Reload `~/.tmux.conf`                        |
+| `Ctrl-a \|`      | Split pane horizontally (keeps current path) |
+| `Ctrl-a -`       | Split pane vertically (keeps current path)   |
+| `Ctrl-a c`       | New window (keeps current path)              |
+| `Ctrl-a h/j/k/l` | Navigate panes (vim-style)                   |
+| `Ctrl-a H/J/K/L` | Resize panes (vim-style, repeatable)         |
