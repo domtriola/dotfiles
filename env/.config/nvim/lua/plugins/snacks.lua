@@ -4,9 +4,9 @@ return {
     opts = {
       picker = {
         sources = {
-          files = { hidden = true },
-          grep = { hidden = true },
-          explorer = { hidden = true },
+          files = { hidden = true, ignored = false },
+          grep = { hidden = true, ignored = false },
+          explorer = { hidden = true, ignored = true },
         },
       },
     },
