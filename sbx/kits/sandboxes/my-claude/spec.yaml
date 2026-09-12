@@ -7,6 +7,13 @@ description: >-
 
 extends: claude
 
+agentInstructions:
+  filename: CLAUDE.md
+  content: |
+    # Global Instructions
+
+    Be concise, but use grammatically correct full sentences.
+
 sandbox:
   # ~/.claude/settings.json is a sandbox-reserved path: the runtime owns it and a
   # kit file placed there is discarded. Claude Code's --settings flag is the
