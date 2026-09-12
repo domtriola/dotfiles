@@ -3,9 +3,6 @@ kind: sandbox
 name: my-claude
 displayName: My Claude
 description: >-
-  Claude Code with the my settings mixed in.
+  Claude Code with my custom settings.
 
 extends: claude
-
-mixins:
-  - ../mixins/claude-settings
