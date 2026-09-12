@@ -1,0 +1,31 @@
+schemaVersion: "2"
+kind: mixin
+name: agent-skills
+displayName: Agent Skills
+description: >-
+  Ships this repo's personal agent skills into the sandbox and exposes them
+  to whichever coding agent is running.
+
+setup:
+  startup:
+    - command:
+        - "sh"
+        - "-c"
+        - |
+          set -euo pipefail
+
+          for agent_dir in "$HOME/.claude/skills" "$HOME/.gemini/skills" "$HOME/.agents/skills"; do
+            mkdir -p "$agent_dir"
+            for skill_dir in "$HOME/skills"/*/; do
+              [ -d "$skill_dir" ] || continue
+              name="$(basename "$skill_dir")"
+              ln -sfn "$skill_dir" "$agent_dir/$name"
+            done
+          done
+      description: "Symlink ~/skills/<name> into each agent's skills dir"
+      user: "1000"
+
+agentInstructions:
+  content: |
+    Skills are installed at ~/skills/<name>/ and symlinked into
+    ~/.claude/skills/, ~/.gemini/skills/ and ~/.agents/skills/.

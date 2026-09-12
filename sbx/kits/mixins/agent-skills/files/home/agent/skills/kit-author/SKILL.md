@@ -5,7 +5,7 @@ description: Write Docker Sandboxes kits (agents and mixins). Points at the live
 
 # Kit Author
 
-A kit is declarative. It is a `spec.yaml` plus an optional `files/` tree, which the
+A kit is a `spec.yaml` plus an optional `files/` tree, which the
 `sbx` engine turns into container customizations when a sandbox is created or when
 `kit add` runs. There are two kinds: `kind: sandbox` is a full agent, and
 `kind: mixin` is composed onto an agent with `--kit`.
