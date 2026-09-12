@@ -6,3 +6,10 @@ description: >-
   Claude Code with my custom settings.
 
 extends: claude
+
+sandbox:
+  # ~/.claude/settings.json is a sandbox-reserved path: the runtime owns it and a
+  # kit file placed there is discarded. Claude Code's --settings flag is the
+  # supported way to layer extra settings on top, so point it at a file this kit
+  # does own. The path must be absolute.
+  command: ["--settings", "/home/agent/.config/my-claude/settings.json"]
