@@ -26,9 +26,7 @@
         "parameters": [
           " * mapping - A table containing hotkey modifier/key details for each application to manage"
         ],
-        "returns": [
-          " * The AppWindowSwitcher object"
-        ],
+        "returns": [" * The AppWindowSwitcher object"],
         "signature": "AppWindowSwitcher:bindHotkeys(mapping) -> self",
         "stripped_doc": "",
         "type": "Method"
@@ -45,9 +43,7 @@
         "parameters": [
           " * Log level - `\"debug\"` to enable console debug output"
         ],
-        "returns": [
-          " * The AppWindowSwitcher object"
-        ],
+        "returns": [" * The AppWindowSwitcher object"],
         "signature": "AppWindowSwitcher:setLogLevel(level) -> self",
         "stripped_doc": "",
         "type": "Method"
@@ -76,9 +72,7 @@
         "parameters": [
           " * mapping - A table containing hotkey modifier/key details for each application to manage"
         ],
-        "returns": [
-          " * The AppWindowSwitcher object"
-        ],
+        "returns": [" * The AppWindowSwitcher object"],
         "signature": "AppWindowSwitcher:bindHotkeys(mapping) -> self",
         "stripped_doc": "",
         "type": "Method"
@@ -95,9 +89,7 @@
         "parameters": [
           " * Log level - `\"debug\"` to enable console debug output"
         ],
-        "returns": [
-          " * The AppWindowSwitcher object"
-        ],
+        "returns": [" * The AppWindowSwitcher object"],
         "signature": "AppWindowSwitcher:setLogLevel(level) -> self",
         "stripped_doc": "",
         "type": "Method"
