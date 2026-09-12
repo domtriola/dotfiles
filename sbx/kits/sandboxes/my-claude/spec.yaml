@@ -1,0 +1,11 @@
+schemaVersion: "2"
+kind: sandbox
+name: my-claude
+displayName: My Claude
+description: >-
+  Claude Code with the my settings mixed in.
+
+extends: claude
+
+mixins:
+  - ../mixins/claude-settings
