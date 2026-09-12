@@ -1,0 +1,13 @@
+---
+tags: [ sbx ]
+---
+
+# Auth
+# ###################################
+
+# Anthropic
+# Needs --name ?
+sbx run claude -- auth login
+
+# Github
+echo "$(gh auth token)" | sbx secret set -g github
