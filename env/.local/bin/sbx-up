@@ -16,11 +16,12 @@
 #   }
 #
 # `agent` names a kit in sbx/kits/sandboxes and `kits` names mixins in
-# sbx/kits/mixins; a name containing a `/` is treated as a path instead.
+# sbx/kits/mixins; a name containing a `/` is treated as a path instead. The
+# dotfiles checkout holding them can be moved with SBX_UP_DOTFILES.
 
 set -euo pipefail
 
-dotfiles="$($HOME/src/personal/dotfiles)"
+dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
 root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
 config="$root/.sbx.json"
 
