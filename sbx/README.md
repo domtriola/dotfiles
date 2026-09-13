@@ -7,18 +7,18 @@ This folder holds my custom Docker Sandboxes kits.
 
 ## Starting a sandbox
 
-Run `sbx-up` (from `env/.local/bin`) anywhere inside a project. It opens a tmux
-window named `sbx` and starts a sandbox for that project and branch, removing
-any existing sandbox of the same name first so you always get fresh state.
+Run `sbx-up` (from `env/.local/bin`) anywhere inside a project. It opens a new
+tmux window and starts a sandbox for that project and branch, removing any
+existing sandbox of the same name first so you always get fresh state.
 
 The default branch gets the bare project name; every other branch is suffixed,
 so branches can run side by side:
 
-| Branch   | Sandbox name      | tmux window  |
-| -------- | ----------------- | ------------ |
-| `main`   | `dotfiles`        | `sbx`        |
-| `feat`   | `dotfiles-feat`   | `sbx-feat`   |
-| `feat/x` | `dotfiles-feat-x` | `sbx-feat-x` |
+| Branch    | Sandbox name       |
+| --------- | ------------------ |
+| `main`    | `dotfiles`         |
+| `sbx-bin` | `dotfiles-sbx-bin` |
+| `feat/x`  | `dotfiles-feat-x`  |
 
 The default branch is read from `origin/HEAD`, so run
 `git remote set-head origin --auto` in any repo where that is not set.
