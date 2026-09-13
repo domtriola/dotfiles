@@ -19,7 +19,7 @@
 # sbx/kits/mixins; a name containing a `/` is treated as a path instead. The
 # dotfiles checkout holding them can be moved with SBX_UP_DOTFILES.
 
-set -euo pipefail
+set -euox pipefail
 
 dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
 root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
@@ -54,9 +54,13 @@ while IFS= read -r arg; do
   run+=("$arg")
 done <<<"$args"
 
-sbx rm "$name" >/dev/null 2>&1 || true
+# --force skips the confirmation prompt and removes a sandbox that is in use;
+# closing stdin keeps any future prompt from hanging the script.
+sbx rm --force "$name" </dev/null >/dev/null 2>&1 || true
 
 if [[ -n "${TMUX:-}" ]]; then
+  # A window left over from the previous sandbox is now attached to nothing.
+  tmux kill-window -t "$name" 2>/dev/null || true
   exec tmux new-window -n "$name" "$(printf '%q ' "${run[@]}")"
 fi
 
