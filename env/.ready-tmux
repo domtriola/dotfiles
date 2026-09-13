@@ -8,13 +8,12 @@ tmux neww -n dev
 tmux send-keys "nvim" C-m
 
 # AI:
-tmux neww -n ai
-
+# Run `sbx-up` to start the sandbox; it opens its own window.
+#
 #NOTE: Never store secrets locally in the project.
 # Agents in the sandbox have full access to the project contents
 # and run with full privileges. Don't rely on custom agent settings
 # to secure secrets.
-tmux send-keys "my-claude"
 
 # Server:
 # tmux neww -n server
