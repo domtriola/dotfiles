@@ -3,7 +3,7 @@ tags: [ sbx ]
 ---
 
 # Auth
-# ###################################
+# ####################################
 
 # Anthropic
 # Needs --name ?
@@ -18,3 +18,16 @@ sbx run claude -- auth login
 # Consider creating accounts with minimally scoped access and connect
 # with those instead of an admin account.
 echo "$(gh auth token)" | sbx secret set -g github
+
+
+# Access
+# ####################################
+
+# Access sandbox port from outside sandbox
+sbx ports my-sandbox --publish 1234:1234
+
+# Grant sandbox network access
+sbx policy allow network example.com
+sbx policy allow network --sandbox my-sandbox *.example.com
+
+
