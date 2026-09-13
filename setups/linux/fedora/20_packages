@@ -11,6 +11,7 @@ sudo dnf upgrade
 
 sudo dnf install -y \
   zsh \
+  jq \
   fzf \
   autojump-zsh \
   wget \

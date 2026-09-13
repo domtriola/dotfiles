@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+# Usage: sbx-up
+#
+# Starts a Docker sandbox for the current project in a new tmux window, named
+# after the project and the checked-out branch. Any existing sandbox of that
+# name is removed first, so the sandbox always starts from fresh state.
+#
+# Optional per-project settings live in a `.sbx.json` at the project root:
+#
+#   {
+#     "agent": "my-claude",
+#     "kits": ["agent-skills"],
+#     "memory": "8g",
+#     "clone": true
+#   }
+#
+# `agent` names a kit in sbx/kits/sandboxes and `kits` names mixins in
+# sbx/kits/mixins; a name containing a `/` is treated as a path instead. The
+# dotfiles checkout holding them can be moved with SBX_UP_DOTFILES.
+
+set -euox pipefail
+
+dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
+root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
+config="$root/.sbx.json"
+
+# The default branch gets the bare project name; every other branch is suffixed.
+name="$(basename "$root")"
+branch="$(git branch --show-current 2>/dev/null || true)"
+default="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+if [[ -n "$branch" && "$branch" != "${default#origin/}" ]]; then
+  name="$name-$branch"
+fi
+name="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-')"
+
+# jq applies the defaults and builds the `sbx` arguments in one pass.
+if ! args="$(jq -r --arg dotfiles "$dotfiles" --arg name "$name" '
+  def kit($kind):
+    if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
+
+  {agent: "my-claude", kits: ["agent-skills"], memory: "4g", clone: false} * .
+  | ["run", (.agent | kit("sandboxes")), "--name", $name, "--memory", .memory]
+    + (if .clone then ["--clone"] else [] end)
+    + (.kits | map("--kit", kit("mixins")))
+  | .[]
+' <<<"$([[ -f "$config" ]] && cat "$config" || echo '{}')")"; then
+  printf 'sbx-up: could not read %s\n' "$config" >&2
+  exit 1
+fi
+
+run=(sbx)
+while IFS= read -r arg; do
+  run+=("$arg")
+done <<<"$args"
+
+# --force skips the confirmation prompt and removes a sandbox that is in use;
+# closing stdin keeps any future prompt from hanging the script.
+sbx rm --force "$name" </dev/null >/dev/null 2>&1 || true
+
+if [[ -n "${TMUX:-}" ]]; then
+  # A window left over from the previous sandbox is now attached to nothing.
+  tmux kill-window -t "$name" 2>/dev/null || true
+  exec tmux new-window -n "$name" "$(printf '%q ' "${run[@]}")"
+fi
+
+exec "${run[@]}"

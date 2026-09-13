@@ -4,7 +4,4 @@
 tmux rename-window cli
 
 # AI:
-tmux neww -n claude
-tmux send-keys "my-claude --memory 2g"
-
-tmux select-window -t cli
+# Run `sbx-up` to start the sandbox; it opens its own window.
