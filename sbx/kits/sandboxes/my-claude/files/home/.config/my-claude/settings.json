@@ -1,6 +1,9 @@
 {
+  "model": "opus",
   "statusLine": {
     "type": "command",
     "command": "bash $HOME/.local/bin/statusline.sh"
-  }
+  },
+  "tui": "fullscreen",
+  "remoteControlAtStartup": false
 }
