@@ -25,14 +25,20 @@ dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
 root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
 config="$root/.sbx.json"
 
-# The default branch gets the bare project name; every other branch is suffixed.
-name="$(basename "$root")"
+slug() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-'
+}
+
+# The default branch gets an unsuffixed name; every other branch is suffixed.
 branch="$(git branch --show-current 2>/dev/null || true)"
 default="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+suffix=""
 if [[ -n "$branch" && "$branch" != "${default#origin/}" ]]; then
-  name="$name-$branch"
+  suffix="-$branch"
 fi
-name="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-')"
+
+name="$(slug "$(basename "$root")$suffix")"
+window="$(slug "sbx$suffix")"
 
 # jq applies the defaults and builds the `sbx` arguments in one pass.
 if ! args="$(jq -r --arg dotfiles "$dotfiles" --arg name "$name" '
@@ -60,8 +66,8 @@ sbx rm --force "$name" </dev/null >/dev/null 2>&1 || true
 
 if [[ -n "${TMUX:-}" ]]; then
   # A window left over from the previous sandbox is now attached to nothing.
-  tmux kill-window -t "$name" 2>/dev/null || true
-  exec tmux new-window -n "$name" "$(printf '%q ' "${run[@]}")"
+  tmux kill-window -t "$window" 2>/dev/null || true
+  exec tmux new-window -n "$window" "$(printf '%q ' "${run[@]}")"
 fi
 
 exec "${run[@]}"
