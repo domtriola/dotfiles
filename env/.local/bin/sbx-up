@@ -19,11 +19,18 @@
 # sbx/kits/mixins; a name containing a `/` is treated as a path instead. The
 # dotfiles checkout holding them can be moved with SBX_UP_DOTFILES.
 
-set -euox pipefail
+set -euo pipefail
 
 dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
 root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
 config="$root/.sbx.json"
+
+for dep in sbx jq; do
+  if ! command -v "$dep" >/dev/null 2>&1; then
+    printf 'sbx-up: %s is not installed\n' "$dep" >&2
+    exit 1
+  fi
+done
 
 slug() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-'
@@ -61,13 +68,34 @@ while IFS= read -r arg; do
 done <<<"$args"
 
 # --force skips the confirmation prompt and removes a sandbox that is in use;
-# closing stdin keeps any future prompt from hanging the script.
-sbx rm --force "$name" </dev/null >/dev/null 2>&1 || true
-
-if [[ -n "${TMUX:-}" ]]; then
-  # A window left over from the previous sandbox is now attached to nothing.
-  tmux kill-window -t "$window" 2>/dev/null || true
-  exec tmux new-window -n "$window" "$(printf '%q ' "${run[@]}")"
+# closing stdin keeps any future prompt from hanging the script. A missing
+# sandbox is the common case and not worth reporting; anything else is.
+if ! removal="$(sbx rm --force "$name" </dev/null 2>&1)"; then
+  if ! grep -qiE 'not found|no such|does not exist|unknown' <<<"$removal"; then
+    printf 'sbx-up: could not remove the existing %s sandbox, continuing anyway:\n%s\n' \
+      "$name" "$removal" >&2
+  fi
 fi
 
-exec "${run[@]}"
+# Run the sandbox through the shell so a failure leaves the error on screen
+# instead of closing the window with it.
+launch="$(printf '%q ' "${run[@]}")"
+launch+='|| { status=$?; printf "\nsbx-up: sbx exited with status %s\n" "$status"; '
+launch+='printf "Press enter to close this window... "; read -r _; }'
+
+if [[ -z "${TMUX:-}" ]]; then
+  exec "${run[@]}"
+fi
+
+# A window left over from the previous sandbox is now attached to nothing. Only
+# an exact name match is killed, and never the window we were called from: tmux
+# resolves a target it cannot match as a window against sessions and clients
+# too, so a bare `kill-window -t "$window"` can take out an unrelated window.
+current="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
+while read -r id existing; do
+  if [[ "$existing" == "$window" && "$id" != "$current" ]]; then
+    tmux kill-window -t "$id" || true
+  fi
+done < <(tmux list-windows -F '#{window_id} #{window_name}' 2>/dev/null || true)
+
+exec tmux new-window -n "$window" "$launch"
