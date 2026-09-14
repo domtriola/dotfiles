@@ -32,8 +32,8 @@ is_profile() {
 # profile_os prints the operating system a profile requires.
 profile_os() {
   case "$1" in
-    dev-mac) echo "mac" ;;
-    dev-linux | travel-qubes | sbx-linux) echo "linux" ;;
+  dev-mac) echo "mac" ;;
+  dev-linux | travel-qubes | sbx-linux) echo "linux" ;;
   esac
 }
 

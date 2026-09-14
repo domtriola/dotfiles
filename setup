@@ -38,23 +38,23 @@ profile_arg=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dry)
-      dry="1"
-      ;;
-    --profile)
-      shift
-      profile_arg="${1:-}"
-      if [[ -z "$profile_arg" ]]; then
-        echo "setup: --profile needs a name (one of: $(profile_list))" >&2
-        exit 1
-      fi
-      ;;
-    --profile=*)
-      profile_arg="${1#--profile=}"
-      ;;
-    *)
-      filter="$1"
-      ;;
+  --dry)
+    dry="1"
+    ;;
+  --profile)
+    shift
+    profile_arg="${1:-}"
+    if [[ -z "$profile_arg" ]]; then
+      echo "setup: --profile needs a name (one of: $(profile_list))" >&2
+      exit 1
+    fi
+    ;;
+  --profile=*)
+    profile_arg="${1#--profile=}"
+    ;;
+  *)
+    filter="$1"
+    ;;
   esac
   shift
 done
