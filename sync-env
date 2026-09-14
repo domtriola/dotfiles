@@ -1,26 +1,74 @@
 #!/usr/bin/env bash
 #
-# Usage: ./sync-env [--dry]
+# Usage: ./sync-env [--profile <name>] [--dry]
 #
-# Copies environment config files and directories from ./env/ into $HOME.
+# Copies the environment files that this machine's profile asks for from ./env/
+# into $HOME. The list lives in setups/<profile>/env.manifest.
+#
+# Manifest directives, one per line. Blank lines, and lines whose first
+# non-blank character is #, are ignored:
+#
+#   group   <label>           print a heading
+#   file    <src> <dest-dir>  copy one file into the <dest-dir> directory
+#   dir     <src> <dest>      replace <dest> with a copy of the <src> directory
+#   subdirs <src> <dest>      replace each immediate subdirectory of <src>
+#                             inside <dest>, leaving the rest of <dest> alone
+#
+# <src> is relative to ./env/ and must exist. <dest> may use $HOME, and must
+# be $HOME or a path below it.
+#
+# The whole manifest is checked before anything is copied, so a mistake in it
+# stops the run rather than leaving $HOME half synced.
+#
+# To test against a fake home:
+# mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./sync-env
 #
 # Arguments:
-#   --dry  Print what would be copied without making any changes.
+#   --profile  The use-case of this machine (dev-mac, dev-linux, travel-qubes,
+#              sbx-linux). Only needed the first time: the name is saved and
+#              reused. $DOTFILES_PROFILE overrides both, without saving.
+#   --dry      Print what would be copied without making any changes.
 
 set -eo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-dry="0"
+source "$script_dir/setups/lib/platform.sh"
+source "$script_dir/setups/lib/profile.sh"
 
 # Location of environment files
-DEV_ENV="env"
+DEV_ENV="$script_dir/env"
 
-while [[ $# > 0 ]]; do
-  if [[ $1 == "--dry" ]]; then
+dry="0"
+profile_arg=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --dry)
     dry="1"
-  fi
+    ;;
+  --profile)
+    shift
+    profile_arg="${1:-}"
+    if [[ -z "$profile_arg" ]]; then
+      echo "sync-env: --profile needs a name (one of: $(profile_list))" >&2
+      exit 1
+    fi
+    ;;
+  --profile=*)
+    profile_arg="${1#--profile=}"
+    ;;
+  *)
+    echo "sync-env: unknown argument '$1'" >&2
+    exit 1
+    ;;
+  esac
   shift
 done
+
+die() {
+  printf 'sync-env: %s\n' "$1" >&2
+  exit 1
+}
 
 log() {
   if [[ $dry == "1" ]]; then
@@ -39,95 +87,121 @@ execute() {
   "$@"
 }
 
-copy_subdirs() {
-  from=$1
-  to=$2
+profile="$(resolve_profile "$profile_arg" "$dry")"
+manifest="$script_dir/setups/$profile/env.manifest"
 
-  pushd $from >/dev/null
-  dirs=$(find . -mindepth 1 -maxdepth 1 -type d)
-  for dir in $dirs; do
-    execute rm -rf $to/$dir
-    execute cp -r $dir $to/$dir
-  done
-  popd >/dev/null
+[[ -f "$manifest" ]] || die "no manifest for profile '$profile' at $manifest"
+
+# ---------------------------------------------------
+# Pass 1: read and check the manifest
+# ---------------------------------------------------
+
+# Each action is "<directive>|<absolute src>|<absolute dest>". A group carries
+# its label in the src field.
+actions=()
+lineno=0
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+  lineno=$((lineno + 1))
+  where="$manifest:$lineno"
+
+  # Blank lines and whole-line comments.
+  [[ "$line" =~ ^[[:space:]]*(#.*)?$ ]] && continue
+
+  read -r directive rest <<<"$line"
+
+  if [[ "$directive" == "group" ]]; then
+    [[ -n "$rest" ]] || die "$where: group needs a label"
+    actions+=("group|$rest|")
+    continue
+  fi
+
+  read -r src dest extra <<<"$rest"
+
+  case "$directive" in
+  file | dir | subdirs) ;;
+  *) die "$where: unknown directive '$directive'" ;;
+  esac
+  [[ -n "$src" && -n "$dest" ]] || die "$where: $directive needs a source and a destination"
+  [[ -z "$extra" ]] || die "$where: too many fields ('$extra')"
+  [[ "$src" != /* ]] || die "$where: source '$src' must be relative to env/"
+  [[ "/$src/" != */../* ]] || die "$where: source '$src' must not leave env/"
+
+  dest="${dest//\$HOME/$HOME}"
+  [[ "$dest" != *'$'* ]] || die "$where: destination '$dest' has an unknown variable"
+  [[ "$dest" == "$HOME" || "$dest" == "$HOME"/* ]] ||
+    die "$where: destination '$dest' is outside \$HOME"
+
+  src="$DEV_ENV/$src"
+
+  case "$directive" in
+  file)
+    [[ -f "$src" ]] || die "$where: '$src' is not a file"
+    ;;
+  dir | subdirs)
+    [[ -d "$src" ]] || die "$where: '$src' is not a directory"
+    # dir and subdirs both remove a path before copying, so neither may
+    # target $HOME itself.
+    [[ "$dest" != "$HOME" ]] || die "$where: $directive cannot target \$HOME itself"
+    ;;
+  esac
+
+  actions+=("$directive|$src|$dest")
+done <"$manifest"
+
+[[ ${#actions[@]} -gt 0 ]] || die "$manifest lists nothing to copy"
+
+# ---------------------------------------------------
+# Pass 2: copy
+# ---------------------------------------------------
+
+copy_file() {
+  local src="$1" dest="$2" name
+  name="$(basename "$src")"
+
+  execute mkdir -p "$dest"
+  execute rm -f "$dest/$name"
+  execute cp "$src" "$dest/$name"
 }
 
 copy_dir() {
-  from=$1
-  to=$2
+  local src="$1" dest="$2"
 
-  execute rm -rf $to
-  execute cp -r $from $to
+  execute mkdir -p "$(dirname "$dest")"
+  execute rm -rf "$dest"
+  execute cp -r "$src" "$dest"
 }
 
-copy_file() {
-  from=$1
-  to=$2
-  name=$(basename $from)
+copy_subdirs() {
+  local src="$1" dest="$2" sub name
 
-  execute mkdir -p $to
-  execute rm -f $to/$name
-  execute cp $from $to/$name
+  execute mkdir -p "$dest"
+  while IFS= read -r sub; do
+    name="$(basename "$sub")"
+    execute rm -rf "$dest/$name"
+    execute cp -r "$sub" "$dest/$name"
+  done < <(find "$src" -mindepth 1 -maxdepth 1 -type d | sort)
 }
 
 log "------------ sync-env ------------"
+log "profile: $profile"
 
-cd $script_dir/$DEV_ENV
+for action in "${actions[@]}"; do
+  directive="${action%%|*}"
+  rest="${action#*|}"
+  src="${rest%%|*}"
+  dest="${rest#*|}"
 
-# ---------------------------------------------------
-# Files to copy into $HOME
-# ---------------------------------------------------
-
-echo "General directories:"
-copy_subdirs .config $HOME/.config
-# Binaries:
-copy_file .local/bin/init-tmux $HOME/.local/bin
-copy_file .local/bin/ready-tmux $HOME/.local/bin
-copy_file .local/bin/tmux-sessionizer $HOME/.local/bin
-copy_file .local/bin/troot $HOME/.local/bin
-copy_file .local/bin/sbx-up $HOME/.local/bin
-copy_file .local/bin/sbx-pull $HOME/.local/bin
-copy_file .local/bin/hermes-backup $HOME/.local/bin
-echo "---------------------------"
-
-echo "Shell configuration files:"
-copy_file .zshrc $HOME
-copy_file .zprofile $HOME
-copy_file .bash_profile $HOME
-copy_file .bashrc $HOME
-copy_dir .bashrc.d $HOME/.bashrc.d
-echo "---------------------------"
-
-echo "Tmux configuration:"
-copy_file .tmux.conf $HOME
-copy_file .ready-tmux $HOME
-copy_dir troot $HOME/troot
-echo "---------------------------"
-
-echo "AWS configuration:"
-copy_file .aws/config $HOME/.aws
-echo "---------------------------"
-
-if [[ "$OSTYPE" == darwin* ]]; then
-  echo "Hammerspoon configuration:"
-  copy_subdirs .hammerspoon $HOME/.hammerspoon
-  copy_file .hammerspoon/init.lua $HOME/.hammerspoon
-  echo "---------------------------"
-fi
-
-echo "Claude settings:"
-copy_file .claude/CLAUDE.md $HOME/.claude
-copy_file .claude/settings.json $HOME/.claude
-copy_file .claude/statusline.sh $HOME/.claude
-echo "---------------------------"
-
-echo "Misc configs:"
-# Git config
-copy_file .gitconfig $HOME
-# This file is used by nvim-lint:
-copy_file .markdownlint.json $HOME
-
-# ---------------------------------------------------
+  case "$directive" in
+  group)
+    echo "---------------------------"
+    echo "$src:"
+    ;;
+  file) copy_file "$src" "$dest" ;;
+  dir) copy_dir "$src" "$dest" ;;
+  subdirs) copy_subdirs "$src" "$dest" ;;
+  esac
+done
 
 echo "----------------------------------------"
 echo "Environment setup complete"
