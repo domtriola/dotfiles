@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#
+# Tools installed from their own installers rather than from Homebrew.
+# Runs after 15_languages, because the pi agent needs npm.
+
+set -x
+
+# Terminal Prompt
+curl -sS https://starship.rs/install.sh | sh
+
+# Pi agent harness
+npm install -g --ignore-scripts @earendil-works/pi-coding-agent

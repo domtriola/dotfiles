@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# Tools installed from their own installers rather than from dnf.
+# Runs after 15_languages, because the pi agent needs npm.
 
 set -x
 

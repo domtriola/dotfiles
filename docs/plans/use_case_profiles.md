@@ -144,8 +144,14 @@ difference is `shared/20_packages` replaced by the per-profile copy.
   `fedora/10_settings`. No package install.
 - Remove the `uname -r | grep qubes` branch from `dev-linux/20_packages`, since
   the profile now carries that distinction.
-- `sbx-linux/20_packages`: `apt-get` install of `jq fzf ripgrep tree neovim
-tmux`, guarded so it is a no-op when the tools are already present.
+- `sbx-linux/20_packages`: an `apt-get` install, guarded so it is a no-op when
+  the tools are already present. Packages: jq, fzf, ripgrep, tree, neovim, tmux
+  and starship.
+  Starship comes from apt here, and not from its own installer, because the
+  sandbox network policy blocks `starship.rs` by default. Ubuntu 26.04 packages
+  starship 1.22.1, and `apt-get` reaches `ports.ubuntu.com` from the sandbox.
+  For the same reason, `sbx-linux` gets no `25_tools`: every tool in that file
+  comes from a domain the sandbox does not allow.
 
 **Test:** run `sbx-linux` inside a throwaway sandbox (fully disposable). Dry-run
 `travel-qubes` on the Qubes appVM, then run it for real (settings only, so it is

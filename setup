@@ -4,12 +4,12 @@
 #
 # Discovers and executes the scripts for this machine's profile under ./setups/.
 #
-# Execution order:
-#   1. setups/shared/     (every profile, for now)
-#   2. setups/<profile>/  (dev-mac, dev-linux, travel-qubes or sbx-linux)
+# Every profile owns its scripts: setups/<profile>/ (dev-mac, dev-linux,
+# travel-qubes or sbx-linux). There is no shared directory, because each
+# machine installs what its use-case needs and duplication is accepted.
 #
-# Within each directory, scripts run in filename order. Use numeric
-# prefixes (00_, 10_, 20_) to control ordering.
+# Scripts run in filename order. Use numeric prefixes (00_, 10_, 20_) to
+# control ordering.
 #
 # Arguments:
 #   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
@@ -106,7 +106,6 @@ log "profile: $profile"
 
 cd "$script_dir"
 
-run_dir "$script_dir/setups/shared"
 run_dir "$script_dir/setups/$profile"
 
 echo "----------------------------------------"

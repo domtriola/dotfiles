@@ -34,6 +34,9 @@ brew install tmux
 brew install --cask claude-code
 brew install copilot-cli
 
+# Local models
+brew install ollama
+
 # Sandboxing
 brew install docker/tap/sbx
 
