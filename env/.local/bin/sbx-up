@@ -6,6 +6,10 @@
 # after the project and the checked-out branch. Any existing sandbox of that
 # name is removed first, so the sandbox always starts from fresh state.
 #
+# When run inside tmux, a second window opens a plain shell into the same
+# sandbox via `sbx exec`, for editing or running git commands without going
+# through the agent.
+#
 # Optional per-project settings live in a `.sbx.json` at the project root:
 #
 #   {
@@ -46,6 +50,7 @@ fi
 
 name="$(slug "$(basename "$root")$suffix")"
 window="$(slug "sbx$suffix")"
+shell_window="$(slug "shell$suffix")"
 
 # jq applies the defaults and builds the `sbx` arguments in one pass.
 if ! args="$(jq -r --arg dotfiles "$dotfiles" --arg name "$name" '
@@ -87,15 +92,35 @@ if [[ -z "${TMUX:-}" ]]; then
   exec "${run[@]}"
 fi
 
-# A window left over from the previous sandbox is now attached to nothing. Only
-# an exact name match is killed, and never the window we were called from: tmux
-# resolves a target it cannot match as a window against sessions and clients
-# too, so a bare `kill-window -t "$window"` can take out an unrelated window.
+# Windows left over from the previous sandbox are now attached to nothing.
+# Only an exact name match is killed, and never the window we were called
+# from: tmux resolves a target it cannot match as a window against sessions
+# and clients too, so a bare `kill-window -t "$window"` can take out an
+# unrelated window.
 current="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
 while read -r id existing; do
-  if [[ "$existing" == "$window" && "$id" != "$current" ]]; then
+  if [[ ("$existing" == "$window" || "$existing" == "$shell_window") && "$id" != "$current" ]]; then
     tmux kill-window -t "$id" || true
   fi
 done < <(tmux list-windows -F '#{window_id} #{window_name}' 2>/dev/null || true)
 
-exec tmux new-window -n "$window" "$launch"
+tmux new-window -n "$window" "$launch"
+
+# The sandbox isn't reachable via `sbx exec` until `sbx run` above finishes
+# creating and starting the container, so poll for it rather than racing it.
+# Bounded at 2 minutes so a sandbox that fails to start doesn't spin forever.
+name_q="$(printf '%q' "$name")"
+shell_launch="attempts=0
+until sbx exec $name_q -- true >/dev/null 2>&1; do
+  attempts=\$((attempts + 1))
+  if (( attempts >= 120 )); then
+    printf 'sbx-up: timed out waiting for the %s sandbox\n' $name_q
+    printf 'Press enter to close this window... '
+    read -r _
+    exit 1
+  fi
+  sleep 1
+done
+exec sbx exec $name_q -- bash"
+
+exec tmux new-window -n "$shell_window" "$shell_launch"
