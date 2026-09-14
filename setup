@@ -2,14 +2,11 @@
 #
 # Usage: ./setup [<pattern>] [--profile <name>] [--dry]
 #
-# Discovers and executes platform-appropriate scripts under ./setups/.
+# Discovers and executes the scripts for this machine's profile under ./setups/.
 #
 # Execution order:
-#   1. setups/shared/         (cross-platform installers, all OSes)
-#   2. setups/macos/          (macOS only)
-#      - or -
-#      setups/linux/common/   (any Linux)
-#      setups/linux/<distro>/ (Fedora, Ubuntu, ...)
+#   1. setups/shared/     (every profile, for now)
+#   2. setups/<profile>/  (dev-mac, dev-linux, travel-qubes or sbx-linux)
 #
 # Within each directory, scripts run in filename order. Use numeric
 # prefixes (00_, 10_, 20_) to control ordering.
@@ -110,17 +107,7 @@ log "profile: $profile"
 cd "$script_dir"
 
 run_dir "$script_dir/setups/shared"
-
-if is_mac; then
-  run_dir "$script_dir/setups/macos"
-elif is_linux; then
-  run_dir "$script_dir/setups/linux"
-  if is_fedora; then
-    run_dir "$script_dir/setups/linux/fedora"
-  elif is_ubuntu; then
-    run_dir "$script_dir/setups/linux/ubuntu"
-  fi
-fi
+run_dir "$script_dir/setups/$profile"
 
 echo "----------------------------------------"
 echo "All scripts executed"

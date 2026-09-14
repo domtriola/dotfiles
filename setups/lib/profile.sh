@@ -53,7 +53,8 @@ detect_profile() {
 }
 
 # assert_profile_compatible stops a profile from running on the wrong OS, so a
-# stale profile file cannot call brew on Linux, or dnf on a Mac.
+# stale profile file cannot call brew on Linux, or dnf on a Mac. A dry run only
+# warns, so any profile can be previewed from any machine.
 assert_profile_compatible() {
   local profile="$1" want
   want="$(profile_os "$profile")"
@@ -134,7 +135,10 @@ resolve_profile() {
     printf "Unknown profile '%s'. Known profiles: %s\n" "$profile" "$(profile_list)" >&2
     return 1
   fi
-  assert_profile_compatible "$profile" || return 1
+  if ! assert_profile_compatible "$profile"; then
+    [[ "$dry" == "1" ]] || return 1
+    printf 'Continuing anyway, because a dry run changes nothing.\n' >&2
+  fi
 
   if [[ "$persist" == "1" && "$dry" != "1" ]]; then
     persist_profile "$profile"
