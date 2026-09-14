@@ -11,8 +11,10 @@ agentInstructions:
   filename: CLAUDE.md
   content: |
     # Global Instructions
-
+    ## Language
     Be concise, but use grammatically correct full sentences.
+    Use ASD-STE100 Simplified Technical English.
+    Prefer parentheses over em dashes.
 
 sandbox:
   # ~/.claude/settings.json is a sandbox-reserved path: the runtime owns it and a

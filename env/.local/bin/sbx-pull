@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+#
+# Usage: sbx-pull [--rebase]
+#
+# Fetches commits made inside a --clone sandbox and fast-forwards the current
+# branch onto them. Pass --rebase to rebase onto the fetched commits instead
+# of fast-forwarding (useful once the sandbox has diverged from your branch,
+# e.g. after you also committed on the host).
+#
+# The sandbox name is derived the same way sbx-up derives it, so this only
+# works when run from the same project root and branch used to start the
+# sandbox, and only while that sandbox is still running (its git-daemon dies
+# with it).
+
+set -euo pipefail
+
+mode="ff"
+case "${1:-}" in
+  --rebase) mode="rebase" ;;
+  "") ;;
+  *)
+    printf 'sbx-pull: unknown argument: %s\n' "$1" >&2
+    exit 1
+    ;;
+esac
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  printf 'sbx-pull: not inside a git repository\n' >&2
+  exit 1
+}
+
+slug() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-'
+}
+
+branch="$(git branch --show-current 2>/dev/null || true)"
+if [[ -z "$branch" ]]; then
+  printf 'sbx-pull: not on a branch (detached HEAD)\n' >&2
+  exit 1
+fi
+
+default="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+suffix=""
+if [[ "$branch" != "${default#origin/}" ]]; then
+  suffix="-$branch"
+fi
+
+name="$(slug "$(basename "$root")$suffix")"
+remote="sandbox-$name"
+
+if ! git remote get-url "$remote" >/dev/null 2>&1; then
+  printf 'sbx-pull: no "%s" remote; is the %s sandbox running with --clone?\n' "$remote" "$name" >&2
+  exit 1
+fi
+
+if ! git fetch "$remote"; then
+  printf 'sbx-pull: could not fetch from %s; is the %s sandbox still up?\n' "$remote" "$name" >&2
+  exit 1
+fi
+
+# Use the remote-tracking ref, not FETCH_HEAD. Fetching by remote name alone
+# marks every FETCH_HEAD entry "not-for-merge", and `git merge` reads that file
+# and skips such entries, so it reports "Already up to date" while `git log`
+# (which resolves FETCH_HEAD as an ordinary rev) shows the new commits. The full
+# refs/remotes path also cannot be mistaken for a local branch of the same name.
+target="refs/remotes/$remote/$branch"
+if ! git rev-parse --verify --quiet "$target" >/dev/null; then
+  printf 'sbx-pull: %s has no %s branch. Did the agent commit on a different branch?\n' \
+    "$remote" "$branch" >&2
+  printf 'Branches it does have:\n' >&2
+  git branch --remotes --list "$remote/*" >&2
+  exit 1
+fi
+
+if git merge-base --is-ancestor "$target" HEAD; then
+  echo "sbx-pull: already up to date."
+  exit 0
+fi
+
+echo "sbx-pull: incoming commits from $remote/$branch:"
+git --no-pager log "HEAD..$target" --oneline
+
+if [[ "$mode" == rebase ]]; then
+  exec git rebase "$target"
+fi
+
+if ! git merge --ff-only "$target"; then
+  printf '\nsbx-pull: %s has diverged from %s; fast-forward not possible.\n' "$branch" "$remote" >&2
+  printf 'Merge or rebase manually, e.g.: git merge %s  (or) sbx-pull --rebase\n' "$target" >&2
+  exit 1
+fi
