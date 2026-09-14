@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: ./setup [<pattern>] [--dry]
+# Usage: ./setup [<pattern>] [--profile <name>] [--dry]
 #
 # Discovers and executes platform-appropriate scripts under ./setups/.
 #
@@ -17,29 +17,52 @@
 # Arguments:
 #   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
 #              If omitted, all scripts are run.
-#   --dry      Print what would be executed without running anything.
+#   --profile  The use-case of this machine (dev-mac, dev-linux, travel-qubes,
+#              sbx-linux). Only needed the first time: the name is saved and
+#              reused. $DOTFILES_PROFILE overrides both, without saving.
+#   --dry      Print what would be executed without running anything. A dry run
+#              never writes the profile file and never prompts.
 #
 # Examples:
-#   ./setup                   # run all platform-appropriate scripts
-#   ./setup packages          # run only scripts matching "packages"
-#   ./setup packages --dry    # preview which scripts would run
+#   ./setup                          # run all platform-appropriate scripts
+#   ./setup packages                 # run only scripts matching "packages"
+#   ./setup packages --dry           # preview which scripts would run
+#   ./setup --profile dev-mac --dry  # preview a profile, saving nothing
 
 set -eo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 source "$script_dir/setups/lib/platform.sh"
+source "$script_dir/setups/lib/profile.sh"
 
 filter=""
 dry="0"
+profile_arg=""
 
 while [[ $# -gt 0 ]]; do
-  if [[ $1 == "--dry" ]]; then
-    dry="1"
-  else
-    filter="$1"
-  fi
+  case "$1" in
+    --dry)
+      dry="1"
+      ;;
+    --profile)
+      shift
+      profile_arg="${1:-}"
+      if [[ -z "$profile_arg" ]]; then
+        echo "setup: --profile needs a name (one of: $(profile_list))" >&2
+        exit 1
+      fi
+      ;;
+    --profile=*)
+      profile_arg="${1#--profile=}"
+      ;;
+    *)
+      filter="$1"
+      ;;
+  esac
   shift
 done
+
+profile="$(resolve_profile "$profile_arg" "$dry")"
 
 log() {
   if [[ $dry == "1" ]]; then
@@ -82,6 +105,7 @@ run_dir() {
 }
 
 log "$script_dir -- $filter"
+log "profile: $profile"
 
 cd "$script_dir"
 
