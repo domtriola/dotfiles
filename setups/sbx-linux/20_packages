@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# The small CLI set that the shell, tmux and nvim configs expect.
+#
+# Everything comes from apt. A Docker Sandbox denies most third-party installer
+# domains by default (starship.rs, for one), while apt reaches ports.ubuntu.com.
+#
+# This runs on every sandbox start, so it does nothing when the tools are
+# already there, and only refreshes the package lists when it has work to do.
+
+set -eo pipefail
+
+# <package>:<command that proves the package is present>
+packages=(
+  jq:jq
+  fzf:fzf
+  ripgrep:rg
+  tree:tree
+  neovim:nvim
+  tmux:tmux
+  starship:starship
+)
+
+missing=()
+for entry in "${packages[@]}"; do
+  if ! command -v "${entry#*:}" >/dev/null 2>&1; then
+    missing+=("${entry%%:*}")
+  fi
+done
+
+if [[ ${#missing[@]} -eq 0 ]]; then
+  echo "All packages are already installed."
+  exit 0
+fi
+
+echo "Installing: ${missing[*]}"
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
