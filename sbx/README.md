@@ -17,10 +17,10 @@ commands there without going through the agent.
 The default branch gets the bare project name; every other branch is suffixed,
 so branches can run side by side:
 
-| Branch   | Sandbox name      | tmux windows           |
-| -------- | ----------------- | ----------------------- |
-| `main`   | `dotfiles`        | `sbx`, `shell`           |
-| `feat`   | `dotfiles-feat`   | `sbx-feat`, `shell-feat` |
+| Branch   | Sandbox name      | tmux windows                 |
+| -------- | ----------------- | ---------------------------- |
+| `main`   | `dotfiles`        | `sbx`, `shell`               |
+| `feat`   | `dotfiles-feat`   | `sbx-feat`, `shell-feat`     |
 | `feat/x` | `dotfiles-feat-x` | `sbx-feat-x`, `shell-feat-x` |
 
 The default branch is read from `origin/HEAD`, so run
