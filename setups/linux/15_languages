@@ -2,6 +2,8 @@
 
 set -x
 
+# Go
+# #######################################
 GO_VERSION="1.26.3"
 ARCH="linux-amd64"
 TARBALL="go${GO_VERSION}.${ARCH}.tar.gz"
@@ -10,3 +12,17 @@ wget -O "/tmp/${TARBALL}" "https://go.dev/dl/${TARBALL}"
 sudo rm -rf /usr/local/go
 sudo tar -C /usr/local -xzf "/tmp/${TARBALL}"
 rm "/tmp/${TARBALL}"
+
+# Python
+# #######################################
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# JavaScript
+# #######################################
+# Install nvm (null PROFILE prevents script from writing to shell config)
+PROFILE=/dev/null bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash'
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+nvm install 24
