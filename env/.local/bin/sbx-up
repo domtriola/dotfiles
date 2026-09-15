@@ -52,20 +52,30 @@ name="$(slug "$(basename "$root")$suffix")"
 window="$(slug "sbx$suffix")"
 shell_window="$(slug "shell$suffix")"
 
+config_json="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
+defaults='{"agent": "my-claude", "kits": ["agent-skills"], "memory": "4g", "clone": false}'
+
 # jq applies the defaults and builds the `sbx` arguments in one pass.
-if ! args="$(jq -r --arg dotfiles "$dotfiles" --arg name "$name" '
+if ! args="$(jq -r --arg dotfiles "$dotfiles" --arg name "$name" \
+  --argjson defaults "$defaults" '
   def kit($kind):
     if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
 
-  {agent: "my-claude", kits: ["agent-skills"], memory: "4g", clone: false} * .
+  ($defaults * .)
   | ["run", (.agent | kit("sandboxes")), "--name", $name, "--memory", .memory]
     + (if .clone then ["--clone"] else [] end)
     + (.kits | map("--kit", kit("mixins")))
   | .[]
-' <<<"$([[ -f "$config" ]] && cat "$config" || echo '{}')")"; then
+' <<<"$config_json")"; then
   printf 'sbx-up: could not read %s\n' "$config" >&2
   exit 1
 fi
+
+# The dotfiles kit configures the sandbox after it starts, so the shell window
+# waits for it rather than opening on a half-configured sandbox.
+uses_dotfiles="$(jq -r --argjson defaults "$defaults" \
+  '($defaults * .) | .kits | any(test("(^|/)dotfiles$"))' \
+  <<<"$config_json" 2>/dev/null || echo false)"
 
 run=(sbx)
 while IFS= read -r arg; do
@@ -121,6 +131,30 @@ until sbx exec $name_q -- true >/dev/null 2>&1; do
   fi
   sleep 1
 done
-exec sbx exec $name_q -- bash"
+"
+
+# The dotfiles kit clones and installs after the sandbox answers, which takes
+# about twenty seconds. Without this wait the shell opens on a sandbox that has
+# no starship, tmux or nvim yet. A timeout here is not fatal: the shell still
+# opens, with the end of the kit's log to say what went wrong.
+if [[ "$uses_dotfiles" == "true" ]]; then
+  shell_launch+="printf 'sbx-up: waiting for the dotfiles kit... '
+attempts=0
+until sbx exec $name_q -- sh -c 'test -f \"\$HOME/.dotfiles-kit.done\"' >/dev/null 2>&1; do
+  attempts=\$((attempts + 1))
+  if (( attempts >= 120 )); then
+    printf 'timed out.\n'
+    sbx exec $name_q -- sh -c 'tail -n 20 \"\$HOME/.dotfiles-kit.log\"' 2>/dev/null || true
+    break
+  fi
+  sleep 1
+done
+if (( attempts < 120 )); then printf 'ready.\n'; fi
+"
+fi
+
+# A login shell, so ~/.bash_profile runs and the prompt and PATH match my
+# other machines.
+shell_launch+="exec sbx exec $name_q -- bash -l"
 
 exec tmux new-window -n "$shell_window" "$shell_launch"

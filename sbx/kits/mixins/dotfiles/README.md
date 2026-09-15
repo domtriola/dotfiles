@@ -43,6 +43,26 @@ mirrors for apt. The mirror differs by architecture, so all three are listed
 (`ports.ubuntu.com` serves arm64, `archive.ubuntu.com` and
 `security.ubuntu.com` serve amd64).
 
+## Knowing when it has finished
+
+The hook takes about twenty seconds: a clone, then roughly 13 MB of packages.
+A shell opened before it finishes has the dotfiles but not yet the tools.
+
+Two files under `$HOME` report the state:
+
+| File                   | Meaning                                               |
+| ---------------------- | ----------------------------------------------------- |
+| `~/.dotfiles-kit.log`  | Everything the hook printed. Rewritten on each start. |
+| `~/.dotfiles-kit.done` | Written only after the last step succeeds.            |
+
+`sbx-up` waits for the sentinel before it opens its shell window. To check by
+hand, use the absolute path, since a `~` in an `sbx exec` command is expanded by
+the host shell and never reaches the container:
+
+```console
+sbx exec <name> -- cat /home/agent/.dotfiles-kit.log
+```
+
 ## Notes
 
 - **A failure stops the sandbox.** A sandbox that starts silently without the

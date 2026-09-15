@@ -36,9 +36,6 @@ setup:
     # the startup hook needs it. Runs as root, once, at sandbox creation.
     - command: |
         set -eu
-        # TEMPORARY probe: is an install-phase write to /usr visible to
-        # `sbx exec`? Startup-phase writes there are not. Remove once answered.
-        touch /usr/local/bin/dotfiles-install-marker
         command -v git >/dev/null && exit 0
         if ! command -v apt-get >/dev/null; then
           echo "dotfiles: git is missing and this image has no apt-get" >&2
@@ -62,6 +59,12 @@ setup:
           # log is also repeated on the original stdout, where the engine
           # collects it.
           log="$HOME/.dotfiles-kit.log"
+          # The sentinel appears only after the last step succeeds. sbx-up
+          # waits for it before it opens a shell, so that shell starts with
+          # the tools and the configuration already in place. It is removed
+          # first, so a restart never leaves a stale one behind.
+          done_file="$HOME/.dotfiles-kit.done"
+          rm -f "$done_file"
           : >"$log"
           exec 3>&1
           exec >>"$log" 2>&1
@@ -71,9 +74,6 @@ setup:
           echo "user=$(id -un) uid=$(id -u) shell=$0"
           echo "PATH=$PATH"
           echo "sudo: $(command -v sudo || echo 'not found')"
-
-          # TEMPORARY probe, paired with the one in the install step above.
-          sudo touch /usr/local/bin/dotfiles-startup-marker
 
           repo="${DOTFILES_REPO:-https://github.com/domtriola/dotfiles}"
           ref="${DOTFILES_REF:-main}"
@@ -97,6 +97,9 @@ setup:
           profile="${DOTFILES_PROFILE:-sbx-linux}"
           ./sync-env --profile "$profile"
           ./setup --profile "$profile"
+
+          : >"$done_file"
+          echo "--- dotfiles kit finished ---"
       description: "Clone the dotfiles and run sync-env and setup"
       user: "1000"
 
