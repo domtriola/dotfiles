@@ -7,7 +7,7 @@
 # name is removed first, so the sandbox always starts from fresh state.
 #
 # When run inside tmux, a second window opens a plain shell into the same
-# sandbox via `sbx exec -it`, for editing or running git commands without going
+# sandbox via `sbx exec -it` for editing or running git commands without going
 # through the agent. It waits for the sandbox to be configured first; see
 # sbx-wait, which draws that wait.
 #
@@ -20,9 +20,8 @@
 #     "clone": true
 #   }
 #
-# `agent` names a kit in sbx/kits/sandboxes and `kits` names mixins in
-# sbx/kits/mixins; a name containing a `/` is treated as a path instead. The
-# dotfiles checkout holding them can be moved with SBX_UP_DOTFILES.
+# For a list of available "agents", see sbx/kits/sandboxes.
+# For a list of available "kits", see sbx/kits/mixins.
 
 set -euo pipefail
 
@@ -68,7 +67,7 @@ window="$(slug "sbx$suffix")"
 shell_window="$(slug "shell$suffix")"
 
 config_json="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
-defaults='{"agent": "my-claude", "kits": ["agent-skills"], "memory": "4g", "clone": false}'
+defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g", "clone": false}'
 
 # jq applies the defaults and builds the `sbx` arguments in one pass.
 if ! args="$(jq -r --arg dotfiles "$dotfiles" --arg name "$name" \
