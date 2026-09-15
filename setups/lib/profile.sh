@@ -16,7 +16,7 @@
 
 PROFILE_FILE="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
 
-PROFILES=(dev-mac dev-linux travel-qubes sbx-linux)
+PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux)
 
 # profile_list prints the known profiles on one line, for error messages.
 profile_list() { echo "${PROFILES[*]}"; }
@@ -33,7 +33,7 @@ is_profile() {
 profile_os() {
   case "$1" in
   dev-mac) echo "mac" ;;
-  dev-linux | travel-qubes | sbx-linux) echo "linux" ;;
+  dev-linux | infosec-qubes | sbx-linux) echo "linux" ;;
   esac
 }
 
@@ -46,7 +46,7 @@ detect_profile() {
   elif is_sandbox; then
     echo "sbx-linux"
   elif is_qubes; then
-    echo "travel-qubes"
+    echo "infosec-qubes"
   elif is_linux; then
     echo "dev-linux"
   fi

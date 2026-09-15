@@ -24,7 +24,7 @@
 # mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./sync-env
 #
 # Arguments:
-#   --profile  The use-case of this machine (dev-mac, dev-linux, travel-qubes,
+#   --profile  The use-case of this machine (dev-mac, dev-linux, infosec-qubes,
 #              sbx-linux). Only needed the first time: the name is saved and
 #              reused. $DOTFILES_PROFILE overrides both, without saving.
 #   --dry      Print what would be copied without making any changes.

@@ -11,12 +11,12 @@ Every machine has a profile. A profile names what the machine is **for**, not
 which operating system it runs. It decides which scripts `./setup` runs and
 which files `./sync-env` copies.
 
-| Profile        | Machine                                      |
-| -------------- | -------------------------------------------- |
-| `dev-mac`      | macOS workstation                            |
-| `dev-linux`    | Fedora dev box                               |
-| `travel-qubes` | Qubes appVM, minimal, installs nothing       |
-| `sbx-linux`    | Docker Sandbox, set up by the `dotfiles` kit |
+| Profile         | Machine                                      |
+| --------------- | -------------------------------------------- |
+| `dev-mac`       | macOS workstation                            |
+| `dev-linux`     | Fedora dev box                               |
+| `infosec-qubes` | Qubes appVM, minimal, installs nothing       |
+| `sbx-linux`     | Docker Sandbox, set up by the `dotfiles` kit |
 
 Each profile owns a directory under `setups/`:
 
