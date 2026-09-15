@@ -13,7 +13,7 @@ environment:
     # the kit is loaded from this working tree, so the change takes effect on
     # the next sandbox start.
     DOTFILES_REPO: "https://github.com/domtriola/dotfiles"
-    DOTFILES_REF: "main"
+    DOTFILES_REF: "sbx-dotfiles"
     # Both the clone below and any later run of ./setup or ./sync-env inside
     # the sandbox use this profile.
     DOTFILES_PROFILE: "sbx-linux"
@@ -53,6 +53,22 @@ setup:
         - |
           set -eu
 
+          # Everything this hook prints goes to a log that outlives the start.
+          # The engine does not stop a sandbox whose startup hook fails, so a
+          # failure has to leave evidence somewhere readable. On failure the
+          # log is also repeated on the original stdout, where the engine
+          # collects it.
+          log="$HOME/.dotfiles-kit.log"
+          : >"$log"
+          exec 3>&1
+          exec >>"$log" 2>&1
+          trap 'status=$?; [ "$status" = 0 ] || { echo "dotfiles kit failed (exit $status):" >&3; cat "$log" >&3; }' EXIT
+
+          echo "--- dotfiles kit, $(date -u +%Y-%m-%dT%H:%M:%SZ) ---"
+          echo "user=$(id -un) uid=$(id -u) shell=$0"
+          echo "PATH=$PATH"
+          echo "sudo: $(command -v sudo || echo 'not found')"
+
           repo="${DOTFILES_REPO:-https://github.com/domtriola/dotfiles}"
           ref="${DOTFILES_REF:-main}"
           dest="$HOME/src/personal/dotfiles"
@@ -69,11 +85,12 @@ setup:
 
           cd "$dest"
 
-          # Both are idempotent. A failure here stops the sandbox: a sandbox
-          # that silently starts without the dotfiles is harder to diagnose
-          # than one that refuses to start.
-          ./sync-env
-          ./setup
+          # Both are idempotent. The profile is named on the command line
+          # rather than left to $DOTFILES_PROFILE, so the hook does not depend
+          # on the variable reaching this shell.
+          profile="${DOTFILES_PROFILE:-sbx-linux}"
+          ./sync-env --profile "$profile"
+          ./setup --profile "$profile"
       description: "Clone the dotfiles and run sync-env and setup"
       user: "1000"
 
