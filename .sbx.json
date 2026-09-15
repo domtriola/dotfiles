@@ -1,3 +1,4 @@
 {
-  "memory": "2g"
+  "memory": "2g",
+  "kits": ["dotfiles", "agent-skills"]
 }
