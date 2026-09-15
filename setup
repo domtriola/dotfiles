@@ -1,45 +1,65 @@
 #!/usr/bin/env bash
 #
-# Usage: ./setup [<pattern>] [--dry]
+# Usage: ./setup [<pattern>] [--profile <name>] [--dry]
 #
-# Discovers and executes platform-appropriate scripts under ./setups/.
+# Discovers and executes the scripts for this machine's profile under ./setups/.
 #
-# Execution order:
-#   1. setups/shared/         (cross-platform installers, all OSes)
-#   2. setups/macos/          (macOS only)
-#      - or -
-#      setups/linux/common/   (any Linux)
-#      setups/linux/<distro>/ (Fedora, Ubuntu, ...)
+# Every profile owns its scripts: setups/<profile>/ (dev-mac, dev-linux,
+# infosec-qubes or sbx-linux). There is no shared directory, because each
+# machine installs what its use-case needs and duplication is accepted.
 #
-# Within each directory, scripts run in filename order. Use numeric
-# prefixes (00_, 10_, 20_) to control ordering.
+# Scripts run in filename order. Use numeric prefixes (00_, 10_, 20_) to
+# control ordering.
 #
 # Arguments:
 #   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
 #              If omitted, all scripts are run.
-#   --dry      Print what would be executed without running anything.
+#   --profile  The use-case of this machine (dev-mac, dev-linux, infosec-qubes,
+#              sbx-linux). Only needed the first time: the name is saved and
+#              reused. $DOTFILES_PROFILE overrides both, without saving.
+#   --dry      Print what would be executed without running anything. A dry run
+#              never writes the profile file and never prompts.
 #
 # Examples:
-#   ./setup                   # run all platform-appropriate scripts
-#   ./setup packages          # run only scripts matching "packages"
-#   ./setup packages --dry    # preview which scripts would run
+#   ./setup                          # run all platform-appropriate scripts
+#   ./setup packages                 # run only scripts matching "packages"
+#   ./setup packages --dry           # preview which scripts would run
+#   ./setup --profile dev-mac --dry  # preview a profile, saving nothing
 
 set -eo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 source "$script_dir/setups/lib/platform.sh"
+source "$script_dir/setups/lib/profile.sh"
 
 filter=""
 dry="0"
+profile_arg=""
 
 while [[ $# -gt 0 ]]; do
-  if [[ $1 == "--dry" ]]; then
+  case "$1" in
+  --dry)
     dry="1"
-  else
+    ;;
+  --profile)
+    shift
+    profile_arg="${1:-}"
+    if [[ -z "$profile_arg" ]]; then
+      echo "setup: --profile needs a name (one of: $(profile_list))" >&2
+      exit 1
+    fi
+    ;;
+  --profile=*)
+    profile_arg="${1#--profile=}"
+    ;;
+  *)
     filter="$1"
-  fi
+    ;;
+  esac
   shift
 done
+
+profile="$(resolve_profile "$profile_arg" "$dry")"
 
 log() {
   if [[ $dry == "1" ]]; then
@@ -82,21 +102,11 @@ run_dir() {
 }
 
 log "$script_dir -- $filter"
+log "profile: $profile"
 
 cd "$script_dir"
 
-run_dir "$script_dir/setups/shared"
-
-if is_mac; then
-  run_dir "$script_dir/setups/macos"
-elif is_linux; then
-  run_dir "$script_dir/setups/linux"
-  if is_fedora; then
-    run_dir "$script_dir/setups/linux/fedora"
-  elif is_ubuntu; then
-    run_dir "$script_dir/setups/linux/ubuntu"
-  fi
-fi
+run_dir "$script_dir/setups/$profile"
 
 echo "----------------------------------------"
 echo "All scripts executed"

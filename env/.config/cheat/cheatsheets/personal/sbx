@@ -6,7 +6,8 @@ tags: [ sbx ]
 # ####################################
 
 # Anthropic
-# Needs --name ?
+# Replace `claude` with the name of a running sandbox to re-auth in
+# that box without restarting it.
 sbx run claude -- auth login
 
 # Github

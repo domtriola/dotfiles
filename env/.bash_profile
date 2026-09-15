@@ -11,7 +11,7 @@ fi
 ##################################
 # Security
 ##################################
-eval "$(tirith init --shell bash)"
+command -v tirith >/dev/null && eval "$(tirith init --shell bash)"
 
 ##################################
 # CLI Defaults
@@ -30,10 +30,6 @@ export CLICOLOR=1
 export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:/home/user/go/bin
 
-# Rust
-########################
-source "$HOME/.cargo/env"
-
 # JavaScript
 ########################
 export NVM_DIR="$HOME/.nvm"
@@ -43,4 +39,4 @@ export NVM_DIR="$HOME/.nvm"
 # Starship
 # (Keep at bottom)
 ##################################
-eval "$(starship init bash)"
+command -v starship >/dev/null && eval "$(starship init bash)"

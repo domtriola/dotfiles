@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# The small CLI set that the shell, tmux and nvim configs expect.
+#
+# Everything comes from apt. A Docker Sandbox denies most third-party installer
+# domains by default (starship.rs, for one), while apt reaches ports.ubuntu.com.
+#
+# This runs on every sandbox start, so it does nothing when the tools are
+# already there, and only refreshes the package lists when it has work to do.
+
+set -eo pipefail
+
+# <package>:<command that proves the package is present>
+#
+# gcc and libc6-dev are here for nvim-treesitter, which compiles each parser
+# it installs. The sandbox image ships a bare gcc with no libc headers, so
+# without libc6-dev every compile fails on "stdint.h: No such file or
+# directory" and every nvim start reports a failed parser build.
+#
+# A probe starting with "/" is checked with `test -e` instead of `command -v`,
+# for packages like libc6-dev that install headers, not a binary.
+packages=(
+  jq:jq
+  fzf:fzf
+  ripgrep:rg
+  tree:tree
+  neovim:nvim
+  tmux:tmux
+  starship:starship
+  gcc:gcc
+  libc6-dev:/usr/include/stdint.h
+)
+
+missing=()
+for entry in "${packages[@]}"; do
+  probe=${entry#*:}
+  if [[ $probe == /* ]]; then
+    [[ -e $probe ]] && continue
+  else
+    command -v "$probe" >/dev/null 2>&1 && continue
+  fi
+  missing+=("${entry%%:*}")
+done
+
+if [[ ${#missing[@]} -eq 0 ]]; then
+  echo "All packages are already installed."
+  exit 0
+fi
+
+echo "Installing: ${missing[*]}"
+
+# Another apt-get often runs while a sandbox starts, and the loser of that race
+# gets "Could not get lock /var/lib/apt/lists/lock".
+#
+# DPkg::Lock::Timeout makes apt wait for the dpkg locks, but not for the lists
+# lock that `apt-get update` takes, so the retry below covers that one.
+apt_opts=(-o DPkg::Lock::Timeout=120)
+
+install_packages() {
+  sudo apt-get "${apt_opts[@]}" update -qq &&
+    sudo DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" \
+      install -y --no-install-recommends "$@"
+}
+
+attempt=1
+attempts=4
+until install_packages "${missing[@]}"; do
+  if [[ $attempt -ge $attempts ]]; then
+    echo "apt failed after $attempts attempts." >&2
+    exit 1
+  fi
+  echo "apt attempt $attempt failed, another apt may be running. Retrying in 10s."
+  attempt=$((attempt + 1))
+  sleep 10
+done

@@ -1,0 +1,177 @@
+schemaVersion: "2"
+kind: mixin
+name: dotfiles
+displayName: Dotfiles
+description: >-
+  Clones my dotfiles and runs them with the sbx-linux profile, so a sandbox
+  gets the same shell, tmux, nvim and git configuration as my other machines.
+sourceURL: https://github.com/domtriola/dotfiles
+
+environment:
+  variables:
+    # The clone source:
+    DOTFILES_REPO: "https://github.com/domtriola/dotfiles"
+    # Edit DOTFILES_REF to try a branch before it merges.
+    DOTFILES_REF: "main"
+    DOTFILES_PROFILE: "sbx-linux"
+    # Set to 0 to skip the background nvim plugin install. It costs about
+    # 370 MB of disk and a couple of minutes, neither of which the shell
+    # window waits for.
+    DOTFILES_NVIM_PREWARM: "1"
+
+permissions:
+  network:
+    allow:
+      # git clone over HTTPS
+      - github.com
+      # apt, for the packages setups/sbx-linux/20_packages installs. The
+      # mirror differs by architecture: ports for arm64, the other two for
+      # amd64.
+      - ports.ubuntu.com
+      - archive.ubuntu.com
+      - security.ubuntu.com
+
+setup:
+  install:
+    # git is not part of the kit tool floor, so make sure it is there before
+    # the startup hook needs it. Runs as root, once, at sandbox creation.
+    - command: |
+        set -eu
+        command -v git >/dev/null && exit 0
+        if ! command -v apt-get >/dev/null; then
+          echo "dotfiles: git is missing and this image has no apt-get" >&2
+          exit 1
+        fi
+        apt-get update -qq
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          git ca-certificates
+      description: "Ensure git is available for the dotfiles clone"
+
+  startup:
+    - command:
+        - "sh"
+        - "-c"
+        - |
+          set -eu
+
+          # Four files under $HOME report what this hook is doing. They are the
+          # only channel it has: the engine does not stop a sandbox whose
+          # startup hook fails, so a failure has to leave evidence somewhere
+          # readable.
+          #
+          #   .dotfiles-kit.log          everything this hook printed
+          #   .dotfiles-kit.status       the current step, then ready | failed
+          #   .dotfiles-kit.done         written only after the last step
+          #   .dotfiles-kit.nvim-status  the background nvim warm-up
+          #
+          # sbx-wait polls the status file, so its shell window can name the
+          # step it is waiting on and stop early when the hook fails. The
+          # stale ones are removed first, so a restart never reports the
+          # previous start's result.
+          log="$HOME/.dotfiles-kit.log"
+          status_file="$HOME/.dotfiles-kit.status"
+          done_file="$HOME/.dotfiles-kit.done"
+          nvim_status="$HOME/.dotfiles-kit.nvim-status"
+          nvim_log="$HOME/.dotfiles-kit.nvim.log"
+          rm -f "$done_file" "$nvim_status"
+          : >"$log"
+
+          # Keep the engine's stdout on fd 3, to repeat the log there on a
+          # failure, and send everything else to the log.
+          exec 3>&1
+          exec >>"$log" 2>&1
+
+          finish() {
+            code=$?
+            if [ "$code" = 0 ]; then
+              echo ready >"$status_file"
+            else
+              echo failed >"$status_file"
+              echo "dotfiles kit failed (exit $code):" >&3
+              cat "$log" >&3
+            fi
+          }
+          trap finish EXIT
+
+          # step names the current stage for both readers of the state.
+          step() {
+            printf '%s\n' "$1" >"$status_file"
+            echo "--- $1 ---"
+          }
+
+          step "starting the dotfiles kit"
+          echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "user=$(id -un) uid=$(id -u) shell=$0"
+          echo "PATH=$PATH"
+          echo "sudo: $(command -v sudo || echo 'not found')"
+
+          repo="${DOTFILES_REPO:-https://github.com/domtriola/dotfiles}"
+          ref="${DOTFILES_REF:-main}"
+          dest="$HOME/src/personal/dotfiles"
+
+          step "cloning the dotfiles"
+          # A shallow fetch of one ref keeps the start fast. The checkout is
+          # detached on purpose: it is a copy to run, not one to commit from.
+          if [ -d "$dest/.git" ]; then
+            git -C "$dest" fetch --depth 1 "$repo" "$ref"
+            git -C "$dest" checkout --force --detach FETCH_HEAD
+          else
+            mkdir -p "$(dirname "$dest")"
+            git clone --depth 1 --branch "$ref" "$repo" "$dest"
+          fi
+
+          cd "$dest"
+
+          # Both are idempotent. The profile is named on the command line
+          # rather than left to $DOTFILES_PROFILE, so the hook does not depend
+          # on the variable reaching this shell.
+          profile="${DOTFILES_PROFILE:-sbx-linux}"
+
+          step "copying the config files"
+          ./sync-env --profile "$profile"
+
+          step "installing the packages"
+          ./setup --profile "$profile"
+
+          # LazyVim clones about forty plugins on the first nvim start, which
+          # takes minutes. Doing it here instead means nvim is usually warm by
+          # the time a shell opens, and doing it in the background means the
+          # shell does not wait for it. Its own status file lets sbx-wait warn
+          # when it is not warm yet.
+          #
+          # setsid detaches it from this hook's process group, so it survives
+          # the hook exiting a second later.
+          if [ "${DOTFILES_NVIM_PREWARM:-1}" = 1 ] && command -v nvim >/dev/null 2>&1; then
+            step "starting the nvim plugin install"
+            echo "installing the nvim plugins" >"$nvim_status"
+            NVIM_STATUS="$nvim_status" setsid nohup sh -c '
+              if nvim --headless "+Lazy! install" +qa; then
+                echo ready >"$NVIM_STATUS"
+              else
+                echo failed >"$NVIM_STATUS"
+              fi
+            ' >"$nvim_log" 2>&1 </dev/null &
+          fi
+
+          : >"$done_file"
+          echo "--- dotfiles kit finished ---"
+      description: "Clone the dotfiles and run sync-env and setup"
+      user: "1000"
+
+agentInstructions:
+  content: |
+    My dotfiles are cloned to ~/src/personal/dotfiles and applied on every
+    sandbox start, with the `sbx-linux` profile ($DOTFILES_PROFILE).
+
+    - `./sync-env` copies the files listed in
+      `setups/sbx-linux/env.manifest` into $HOME.
+    - `./setup` runs the scripts in `setups/sbx-linux/`, which install a small
+      CLI set with apt.
+    - The nvim plugins are then installed in the background. Until
+      `~/.dotfiles-kit.nvim-status` reads `ready`, nvim is still warming up.
+
+    The state of the last start is in `~/.dotfiles-kit.log` and
+    `~/.dotfiles-kit.status`.
+
+    The checkout is shallow and detached, and it is replaced on every start.
+    Do not commit from it.

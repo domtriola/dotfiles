@@ -5,6 +5,14 @@ if [ -f /etc/bashrc ]; then
   . /etc/bashrc
 fi
 
+# Environment file for Docker Sandbox
+# https://docs.docker.com/ai/sandboxes/customize/kit-examples/#customize-the-shell-environment
+# Never source completion scripts from sandbox-persistent.sh: they break every later command.
+if [ -f /etc/sandbox-persistent.sh ]; then
+  . /etc/sandbox-persistent.sh
+  export BASH_ENV=/etc/sandbox-persistent.sh
+fi
+
 # User specific environment
 if ! [[ "$PATH" =~ "$HOME/.local/bin:$HOME/bin:" ]]; then
   PATH="$HOME/.local/bin:$HOME/bin:$PATH"

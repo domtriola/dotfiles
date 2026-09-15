@@ -101,23 +101,23 @@ Report every tirith finding to the user with your assessment of whether it's ben
 
 ### Step 3: Flag by Category (Manual Review)
 
-| Category | Pattern to find | Severity |
-|----------|----------------|----------|
-| Code execution from untrusted data | Instructions to generate **and run** scripts where input comes from uploads, web scrapes, or third-party APIs | HIGH |
-| Safety bypass | "ignore previous instructions", override system prompt, disable safety | HIGH |
-| Data exfiltration | Sending user data to external URLs not disclosed to the user | HIGH |
-| Document-as-instructions | Treating uploaded file content as agent commands rather than data to analyze | HIGH |
-| URL fetch — user-supplied | Fetching a URL the user provides as an argument | MED |
-| URL fetch — external search | Browsing sites found via web search results | MED |
-| Auto file write | Writing files without an explicit user confirmation step | MED |
-| User-controlled filenames | Filenames derived from user input or document content (path traversal: `../../`) | MED |
+| Category                           | Pattern to find                                                                                               | Severity |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------- |
+| Code execution from untrusted data | Instructions to generate **and run** scripts where input comes from uploads, web scrapes, or third-party APIs | HIGH     |
+| Safety bypass                      | "ignore previous instructions", override system prompt, disable safety                                        | HIGH     |
+| Data exfiltration                  | Sending user data to external URLs not disclosed to the user                                                  | HIGH     |
+| Document-as-instructions           | Treating uploaded file content as agent commands rather than data to analyze                                  | HIGH     |
+| URL fetch — user-supplied          | Fetching a URL the user provides as an argument                                                               | MED      |
+| URL fetch — external search        | Browsing sites found via web search results                                                                   | MED      |
+| Auto file write                    | Writing files without an explicit user confirmation step                                                      | MED      |
+| User-controlled filenames          | Filenames derived from user input or document content (path traversal: `../../`)                              | MED      |
 
 ### Step 4: Apply Trust Filter
 
 Before reporting, ask: **does this finding survive the trusted-user assumption?**
 
-- Agent running code *the user asked for* on *the user's own data* → reduce to LOW
-- Agent running code where *data source is a third party* (customer feedback CSV, scraped competitor page) → stays HIGH
+- Agent running code _the user asked for_ on _the user's own data_ → reduce to LOW
+- Agent running code where _data source is a third party_ (customer feedback CSV, scraped competitor page) → stays HIGH
 - Fetching URLs the user supplies where site content is adversarial → stays MED
 - Auto file writes to user's own workspace → reduce to LOW with trusted user
 - Safety bypasses, exfiltration, document-as-instructions → HIGH regardless of trust
@@ -136,11 +136,11 @@ End with a one-sentence **Bottom Line** on overall risk level.
 
 ## Common False Positives
 
-| Looks bad | Why it's usually fine |
-|-----------|-----------------------|
-| "Generate a Python script" | Risk only if skill also says to *run* it |
-| "Read uploaded CSV" | Reading ≠ execution; flag only if data influences code that executes |
-| "Use web search" | Low risk unless search results are treated as instructions |
-| "Save as markdown" | Fine unless filename is derived from user-controlled input |
-| Tirith `confusable_text` hit | Check the character name and surrounding context — math notation in a formula differs from a lookalike inside a code identifier or URL |
-| Tirith `variation_selector` hit | Check whether there's an adjacent emoji explaining the VS — if not, investigate |
+| Looks bad                       | Why it's usually fine                                                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| "Generate a Python script"      | Risk only if skill also says to _run_ it                                                                                               |
+| "Read uploaded CSV"             | Reading ≠ execution; flag only if data influences code that executes                                                                   |
+| "Use web search"                | Low risk unless search results are treated as instructions                                                                             |
+| "Save as markdown"              | Fine unless filename is derived from user-controlled input                                                                             |
+| Tirith `confusable_text` hit    | Check the character name and surrounding context — math notation in a formula differs from a lookalike inside a code identifier or URL |
+| Tirith `variation_selector` hit | Check whether there's an adjacent emoji explaining the VS — if not, investigate                                                        |
