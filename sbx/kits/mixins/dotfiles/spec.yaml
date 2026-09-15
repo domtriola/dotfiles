@@ -12,7 +12,7 @@ environment:
     # The clone source:
     DOTFILES_REPO: "https://github.com/domtriola/dotfiles"
     # Edit DOTFILES_REF to try a branch before it merges.
-    DOTFILES_REF: "sbx-dotfiles"
+    DOTFILES_REF: "main"
     DOTFILES_PROFILE: "sbx-linux"
     # Set to 0 to skip the background nvim plugin install. It costs about
     # 370 MB of disk and a couple of minutes, neither of which the shell
