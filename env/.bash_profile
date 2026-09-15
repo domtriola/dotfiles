@@ -30,10 +30,6 @@ export CLICOLOR=1
 export PATH=$PATH:/usr/local/go/bin
 export PATH=$PATH:/home/user/go/bin
 
-# Rust
-########################
-[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
-
 # JavaScript
 ########################
 export NVM_DIR="$HOME/.nvm"

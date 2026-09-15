@@ -71,10 +71,6 @@ function recentmods() {
 # Language Setups
 ##################################
 
-# Rust
-########################
-[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
-
 # Go
 ########################
 export PATH="$PATH:$HOME/go/bin"

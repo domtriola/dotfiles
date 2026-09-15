@@ -5,10 +5,9 @@ if [ -f /etc/bashrc ]; then
   . /etc/bashrc
 fi
 
-# Docker Sandbox: the runtime keeps its environment in this file and expects
-# every shell to load it. This file replaces the one the sandbox ships, so it
-# has to keep that behaviour. Never source completion scripts from there: they
-# break every later command.
+# Environment file for Docker Sandbox
+# https://docs.docker.com/ai/sandboxes/customize/kit-examples/#customize-the-shell-environment
+# Never source completion scripts from sandbox-persistent.sh: they break every later command.
 if [ -f /etc/sandbox-persistent.sh ]; then
   . /etc/sandbox-persistent.sh
   export BASH_ENV=/etc/sandbox-persistent.sh
