@@ -2,7 +2,7 @@
 #
 # Profile resolution.
 #
-# A profile names the use-case of a machine, not its operating system. It
+# A profile names the use-case of a machine, not just its operating system. It
 # decides which scripts under ./setups/ run and which environment files
 # ./sync-env copies.
 #
