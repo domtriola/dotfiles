@@ -7,7 +7,7 @@ Both commands can be ran as dry-runs: `./setup toolname --dry`
 
 ## Profiles
 
-Every machine has a profile. A profile names what the machine is **for**, not
+Every machine has a profile. A profile names what the machine is **for**, not just
 which operating system it runs. It decides which scripts `./setup` runs and
 which files `./sync-env` copies.
 
@@ -45,7 +45,7 @@ With no `--profile` and no saved profile, a real run detects one and asks you to
 confirm it. `$DOTFILES_PROFILE` overrides the saved profile for a single run,
 and is never saved.
 
-## Fresh System Setup
+## Fresh Dev System Setup
 
 1. Install git:
    1. MacOS: `xcode-select --install`
