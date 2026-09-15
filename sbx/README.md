@@ -4,6 +4,8 @@ This folder holds my custom Docker Sandboxes kits.
 
 - `kits/sandboxes/my-claude` — Claude Code with my settings. The default agent.
 - `kits/mixins/agent-skills` — ships my personal agent skills into the sandbox.
+- `kits/mixins/dotfiles` — clones this repo into the sandbox and applies it with
+  the `sbx-linux` profile.
 
 ## Starting a sandbox
 

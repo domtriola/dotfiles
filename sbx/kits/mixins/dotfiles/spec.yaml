@@ -1,0 +1,92 @@
+schemaVersion: "2"
+kind: mixin
+name: dotfiles
+displayName: Dotfiles
+description: >-
+  Clones my dotfiles and runs them with the sbx-linux profile, so a sandbox
+  gets the same shell, tmux, nvim and git configuration as my other machines.
+sourceURL: https://github.com/domtriola/dotfiles
+
+environment:
+  variables:
+    # The clone source. Edit DOTFILES_REF to try a branch before it merges:
+    # the kit is loaded from this working tree, so the change takes effect on
+    # the next sandbox start.
+    DOTFILES_REPO: "https://github.com/domtriola/dotfiles"
+    DOTFILES_REF: "main"
+    # Both the clone below and any later run of ./setup or ./sync-env inside
+    # the sandbox use this profile.
+    DOTFILES_PROFILE: "sbx-linux"
+
+permissions:
+  network:
+    allow:
+      # git clone over HTTPS
+      - github.com
+      # apt, for the packages setups/sbx-linux/20_packages installs. The
+      # mirror differs by architecture: ports for arm64, the other two for
+      # amd64.
+      - ports.ubuntu.com
+      - archive.ubuntu.com
+      - security.ubuntu.com
+
+setup:
+  install:
+    # git is not part of the kit tool floor, so make sure it is there before
+    # the startup hook needs it. Runs as root, once, at sandbox creation.
+    - command: |
+        set -eu
+        command -v git >/dev/null && exit 0
+        if ! command -v apt-get >/dev/null; then
+          echo "dotfiles: git is missing and this image has no apt-get" >&2
+          exit 1
+        fi
+        apt-get update -qq
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          git ca-certificates
+      description: "Ensure git is available for the dotfiles clone"
+
+  startup:
+    - command:
+        - "sh"
+        - "-c"
+        - |
+          set -eu
+
+          repo="${DOTFILES_REPO:-https://github.com/domtriola/dotfiles}"
+          ref="${DOTFILES_REF:-main}"
+          dest="$HOME/src/personal/dotfiles"
+
+          # A shallow fetch of one ref keeps the start fast. The checkout is
+          # detached on purpose: it is a copy to run, not one to commit from.
+          if [ -d "$dest/.git" ]; then
+            git -C "$dest" fetch --depth 1 "$repo" "$ref"
+            git -C "$dest" checkout --force --detach FETCH_HEAD
+          else
+            mkdir -p "$(dirname "$dest")"
+            git clone --depth 1 --branch "$ref" "$repo" "$dest"
+          fi
+
+          cd "$dest"
+
+          # Both are idempotent. A failure here stops the sandbox: a sandbox
+          # that silently starts without the dotfiles is harder to diagnose
+          # than one that refuses to start.
+          ./sync-env
+          ./setup
+      description: "Clone the dotfiles and run sync-env and setup"
+      user: "1000"
+
+agentInstructions:
+  content: |
+    My dotfiles are cloned to ~/src/personal/dotfiles and applied on every
+    sandbox start, with the `sbx-linux` profile ($DOTFILES_PROFILE).
+
+    - `./sync-env` copies the files listed in
+      `setups/sbx-linux/env.manifest` into $HOME.
+    - `./setup` runs the scripts in `setups/sbx-linux/`, which install a small
+      CLI set with apt.
+
+    The checkout is shallow and detached, and it is replaced on every start.
+    Do not commit from it. Change the dotfiles in the project working tree
+    instead, and push from there.

@@ -5,6 +5,15 @@ if [ -f /etc/bashrc ]; then
   . /etc/bashrc
 fi
 
+# Docker Sandbox: the runtime keeps its environment in this file and expects
+# every shell to load it. This file replaces the one the sandbox ships, so it
+# has to keep that behaviour. Never source completion scripts from there: they
+# break every later command.
+if [ -f /etc/sandbox-persistent.sh ]; then
+  . /etc/sandbox-persistent.sh
+  export BASH_ENV=/etc/sandbox-persistent.sh
+fi
+
 # User specific environment
 if ! [[ "$PATH" =~ "$HOME/.local/bin:$HOME/bin:" ]]; then
   PATH="$HOME/.local/bin:$HOME/bin:$PATH"

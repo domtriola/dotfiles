@@ -2,7 +2,7 @@
 # Security
 ##################################
 # Terminal command filter
-eval "$(tirith init --shell zsh)"
+command -v tirith >/dev/null && eval "$(tirith init --shell zsh)"
 
 
 ##################################
@@ -73,7 +73,7 @@ function recentmods() {
 
 # Rust
 ########################
-source "$HOME/.cargo/env"
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
 # Go
 ########################
@@ -95,7 +95,7 @@ else
   [ -f /usr/share/autojump/autojump.zsh ] && . /usr/share/autojump/autojump.zsh
 fi
 # fzf fuzzy finder
-source <(fzf --zsh)
+command -v fzf >/dev/null && source <(fzf --zsh)
 
 
 ##################################
@@ -121,7 +121,7 @@ bindkey -M viins '^[[3~' delete-char
 # Starship
 # (Keep at bottom)
 ##################################
-eval "$(starship init zsh)"
+command -v starship >/dev/null && eval "$(starship init zsh)"
 
 # Override Starship's zle-keymap-select to add cursor shape changes.
 # Defined after starship init so it takes precedence.
