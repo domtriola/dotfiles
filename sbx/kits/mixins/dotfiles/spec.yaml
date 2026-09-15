@@ -36,6 +36,9 @@ setup:
     # the startup hook needs it. Runs as root, once, at sandbox creation.
     - command: |
         set -eu
+        # TEMPORARY probe: is an install-phase write to /usr visible to
+        # `sbx exec`? Startup-phase writes there are not. Remove once answered.
+        touch /usr/local/bin/dotfiles-install-marker
         command -v git >/dev/null && exit 0
         if ! command -v apt-get >/dev/null; then
           echo "dotfiles: git is missing and this image has no apt-get" >&2
@@ -68,6 +71,9 @@ setup:
           echo "user=$(id -un) uid=$(id -u) shell=$0"
           echo "PATH=$PATH"
           echo "sudo: $(command -v sudo || echo 'not found')"
+
+          # TEMPORARY probe, paired with the one in the install step above.
+          sudo touch /usr/local/bin/dotfiles-startup-marker
 
           repo="${DOTFILES_REPO:-https://github.com/domtriola/dotfiles}"
           ref="${DOTFILES_REF:-main}"
