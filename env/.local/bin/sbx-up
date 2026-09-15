@@ -157,6 +157,7 @@ fi
 #
 # A login shell, so ~/.bash_profile runs and the prompt and PATH match my
 # other machines.
+# TODO: skip the shell window for non-clone sandboxes
 shell_launch+="exec $(printf '%q ' sbx exec -it "$name" -- bash -l)"
 
 exec tmux new-window -n "$shell_window" "$shell_launch"

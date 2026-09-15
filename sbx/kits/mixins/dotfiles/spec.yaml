@@ -9,13 +9,10 @@ sourceURL: https://github.com/domtriola/dotfiles
 
 environment:
   variables:
-    # The clone source. Edit DOTFILES_REF to try a branch before it merges:
-    # the kit is loaded from this working tree, so the change takes effect on
-    # the next sandbox start.
+    # The clone source:
     DOTFILES_REPO: "https://github.com/domtriola/dotfiles"
+    # Edit DOTFILES_REF to try a branch before it merges.
     DOTFILES_REF: "sbx-dotfiles"
-    # Both the clone below and any later run of ./setup or ./sync-env inside
-    # the sandbox use this profile.
     DOTFILES_PROFILE: "sbx-linux"
     # Set to 0 to skip the background nvim plugin install. It costs about
     # 370 MB of disk and a couple of minutes, neither of which the shell
@@ -177,5 +174,4 @@ agentInstructions:
     `~/.dotfiles-kit.status`.
 
     The checkout is shallow and detached, and it is replaced on every start.
-    Do not commit from it. Change the dotfiles in the project working tree
-    instead, and push from there.
+    Do not commit from it.
