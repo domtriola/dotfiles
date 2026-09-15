@@ -11,6 +11,10 @@
 set -eo pipefail
 
 # <package>:<command that proves the package is present>
+#
+# gcc is here for nvim-treesitter, which compiles each parser it installs. The
+# sandbox image ships no compiler, so without it every nvim start reports a
+# failed parser build.
 packages=(
   jq:jq
   fzf:fzf
@@ -19,6 +23,7 @@ packages=(
   neovim:nvim
   tmux:tmux
   starship:starship
+  gcc:gcc
 )
 
 missing=()
