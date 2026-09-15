@@ -34,5 +34,28 @@ if [[ ${#missing[@]} -eq 0 ]]; then
 fi
 
 echo "Installing: ${missing[*]}"
-sudo apt-get update -qq
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+
+# Another apt-get often runs while a sandbox starts, and the loser of that race
+# gets "Could not get lock /var/lib/apt/lists/lock".
+#
+# DPkg::Lock::Timeout makes apt wait for the dpkg locks, but not for the lists
+# lock that `apt-get update` takes, so the retry below covers that one.
+apt_opts=(-o DPkg::Lock::Timeout=120)
+
+install_packages() {
+  sudo apt-get "${apt_opts[@]}" update -qq &&
+    sudo DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" \
+      install -y --no-install-recommends "$@"
+}
+
+attempt=1
+attempts=4
+until install_packages "${missing[@]}"; do
+  if [[ $attempt -ge $attempts ]]; then
+    echo "apt failed after $attempts attempts." >&2
+    exit 1
+  fi
+  echo "apt attempt $attempt failed, another apt may be running. Retrying in 10s."
+  attempt=$((attempt + 1))
+  sleep 10
+done
