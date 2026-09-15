@@ -12,9 +12,13 @@ set -eo pipefail
 
 # <package>:<command that proves the package is present>
 #
-# gcc is here for nvim-treesitter, which compiles each parser it installs. The
-# sandbox image ships no compiler, so without it every nvim start reports a
-# failed parser build.
+# gcc and libc6-dev are here for nvim-treesitter, which compiles each parser
+# it installs. The sandbox image ships a bare gcc with no libc headers, so
+# without libc6-dev every compile fails on "stdint.h: No such file or
+# directory" and every nvim start reports a failed parser build.
+#
+# A probe starting with "/" is checked with `test -e` instead of `command -v`,
+# for packages like libc6-dev that install headers, not a binary.
 packages=(
   jq:jq
   fzf:fzf
@@ -24,13 +28,18 @@ packages=(
   tmux:tmux
   starship:starship
   gcc:gcc
+  libc6-dev:/usr/include/stdint.h
 )
 
 missing=()
 for entry in "${packages[@]}"; do
-  if ! command -v "${entry#*:}" >/dev/null 2>&1; then
-    missing+=("${entry%%:*}")
+  probe=${entry#*:}
+  if [[ $probe == /* ]]; then
+    [[ -e $probe ]] && continue
+  else
+    command -v "$probe" >/dev/null 2>&1 && continue
   fi
+  missing+=("${entry%%:*}")
 done
 
 if [[ ${#missing[@]} -eq 0 ]]; then
