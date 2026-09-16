@@ -7,6 +7,13 @@ description: >-
   to whichever coding agent is running.
 
 setup:
+  # Tracked skills are pre-linked as symlinks committed under files/home/, so
+  # they exist the moment the sandbox's files land, before any startup hook
+  # runs. That matters: this hook races the agent CLI's own startup, and on a
+  # sandbox that also runs the (slower) dotfiles kit, the CLI was observed
+  # reading its skills directory before this hook got a turn. Only
+  # experimental skills, whose names aren't known until the sandbox boots,
+  # still need to be linked here.
   startup:
     - command:
         - "sh"
@@ -27,15 +34,9 @@ setup:
             done
           }
 
-          # Tracked skills: ~/skills/<name>/SKILL.md
-          for skill_dir in "$HOME/skills"/*/; do
-            [ -f "$skill_dir/SKILL.md" ] || continue
-            link_skill "${skill_dir%/}"
-          done
-
           # Experimental skills: ~/skills/experimental/<name>/SKILL.md, with up
           # to two levels of grouping (e.g. experimental/<vendor>/<topic>/<name>).
-          # Linked last so a copy of a shipped skill shadows the tracked one.
+          # A copy of a shipped skill here shadows the tracked one.
           if [ -d "$HOME/skills/experimental" ]; then
             find "$HOME/skills/experimental" -mindepth 2 -maxdepth 4 \
               -name SKILL.md -type f |
@@ -43,12 +44,14 @@ setup:
                 link_skill "$(dirname "$skill_file")"
               done
           fi
-      description: "Symlink ~/skills/<name> into each agent's skills dir"
+      description: "Symlink ~/skills/experimental/<name> into each agent's skills dir"
       user: "1000"
 
 agentInstructions:
   content: |
-    Skills are installed at ~/skills/<name>/ and symlinked into
-    ~/.claude/skills/, ~/.gemini/skills/ and ~/.agents/skills/.
-    Untracked, experimental skills live under ~/skills/experimental/ and are
-    symlinked the same way; they shadow a tracked skill of the same name.
+    Skills are installed at ~/skills/<name>/. Tracked skills are symlinked
+    into ~/.claude/skills/, ~/.gemini/skills/ and ~/.agents/skills/ as part
+    of the sandbox's files (present before any startup hook runs). Untracked,
+    experimental skills live under ~/skills/experimental/ and are symlinked
+    the same way by a startup hook, since their names aren't known until the
+    sandbox boots; they shadow a tracked skill of the same name.
