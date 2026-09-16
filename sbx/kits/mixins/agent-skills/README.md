@@ -3,8 +3,8 @@
 A mixin kit that ships this repo's personal agent skills into the sandbox.
 
 Each tracked skill directory under `~/skills/` is symlinked into
-`~/.claude/skills/`, `~/.gemini/skills/` and `~/.agents/skills/`, so whichever
-agent is running sees the same skills. A directory counts as a skill only if it
+`~/.claude/skills/` and `~/.agents/skills/`, so whichever agent is running
+sees the same skills. A directory counts as a skill only if it
 contains a `SKILL.md`. These symlinks are committed under `files/home/` and land
 with the rest of the sandbox's files, before any startup hook runs — this
 matters because the agent CLI reads its skills directory very early, and a
@@ -21,7 +21,7 @@ one), regenerate its symlinks:
 
 ```console
 cd sbx/kits/mixins/agent-skills/files/home
-for agent_dir in .claude/skills .gemini/skills .agents/skills; do
+for agent_dir in .claude/skills .agents/skills; do
   ln -sfn "../../skills/<name>" "$agent_dir/<name>"   # or: rm "$agent_dir/<name>"
 done
 ```

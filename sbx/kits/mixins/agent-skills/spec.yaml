@@ -21,7 +21,7 @@ setup:
         - |
           set -eu
 
-          AGENT_DIRS="$HOME/.claude/skills $HOME/.gemini/skills $HOME/.agents/skills"
+          AGENT_DIRS="$HOME/.claude/skills $HOME/.agents/skills"
           for agent_dir in $AGENT_DIRS; do
             mkdir -p "$agent_dir"
           done
@@ -50,8 +50,8 @@ setup:
 agentInstructions:
   content: |
     Skills are installed at ~/skills/<name>/. Tracked skills are symlinked
-    into ~/.claude/skills/, ~/.gemini/skills/ and ~/.agents/skills/ as part
-    of the sandbox's files (present before any startup hook runs). Untracked,
+    into ~/.claude/skills/ and ~/.agents/skills/ as part of the sandbox's
+    files (present before any startup hook runs). Untracked,
     experimental skills live under ~/skills/experimental/ and are symlinked
     the same way by a startup hook, since their names aren't known until the
     sandbox boots; they shadow a tracked skill of the same name.
