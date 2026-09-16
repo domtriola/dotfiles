@@ -10,11 +10,9 @@ sandbox:
   # template. Published by the shared kit-image pipeline, so creating a sandbox
   # does not wait on an npm install.
   #
-  # This kit deliberately does not `extends: pi`. The upstream kit declares an
-  # anthropic credential and the api.anthropic.com / platform.claude.com
-  # allows, and composition is a union: a child can add to the parent but it
-  # cannot take those away. Copying the two parts that are still wanted (the
-  # image and the npm proxy step) is the only way to inherit nothing else.
+  # Not `extends: pi`. Composition is a union, so a child cannot drop the
+  # upstream kit's hosted-provider credential or its network allows. Copying
+  # the two parts worth keeping is the only way to inherit nothing else.
   image: docker.io/sbx/pi-image:latest
   entrypoint:
     - pi
@@ -22,31 +20,16 @@ sandbox:
 agentInstructions:
   filename: AGENTS.md
   content: |
-    ## Models
+    # Local Pi Agent Instructions
 
-    This sandbox has no Anthropic (or other hosted) credential. Every model
-    call goes to an Ollama server running on the *host* machine, reached at
-    `$OLLAMA_BASE_URL` (`http://host.docker.internal:11434/v1` by default).
+    Every model call goes to an Ollama server on the host, declared as the
+    `ollama` provider in `~/.pi/agent/models.json`. The kit rewrites that file
+    on each start from `$OLLAMA_BASE_URL` and `$OLLAMA_MODELS`, so edits to it
+    do not survive a restart. Change those variables in the kit, or use
+    `/model` to switch models for the session.
 
-    `~/.pi/agent/models.json` declares that server as the `ollama` provider and
-    is rewritten on every sandbox start from `$OLLAMA_BASE_URL` and
-    `$OLLAMA_MODELS`. Edits to it do not survive a restart. Change the
-    variables in the kit instead, or use `/model` to switch models for a
-    session.
-
-    `~/.pi/agent/settings.json` is seeded once, on the first start, with the
-    first entry of `$OLLAMA_MODELS` as the default model. After that it belongs
-    to you, so `/model` + Ctrl+S keeps working.
-
-    ### When the model calls fail
-
-    `~/.local-pi-kit.log` records the last start, including whether the Ollama
-    server answered. The two usual causes are:
-
-    - Ollama on the host listens on loopback only. It has to be started with
-      `OLLAMA_HOST=0.0.0.0 ollama serve` for the sandbox to reach it.
-    - The model is not pulled on the host. `ollama pull <id>` there, not here.
-      This sandbox has no model weights of its own.
+    The last start, and whether the server answered, is in
+    `~/.local-pi-kit.log`.
 
 environment:
   variables:
@@ -97,26 +80,23 @@ setup:
         - |
           set -eu
 
-          # Defaults are repeated here rather than left to environment.variables
-          # alone, because a startup hook is not guaranteed to inherit them.
+          # The defaults are repeated because a startup hook is not guaranteed
+          # to inherit environment.variables.
           base_url="${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}"
           models="${OLLAMA_MODELS:-qwen2.5-coder:7b,llama3.1:8b}"
           default_model="${models%%,*}"
 
           conf="$HOME/.pi/agent"
-          log="$HOME/.local-pi-kit.log"
           mkdir -p "$conf"
 
-          # The hook's only channel: the engine does not stop a sandbox whose
-          # startup hook fails or warns, so anything worth reading later has to
-          # be left in a file.
-          exec >"$log" 2>&1
+          # The engine does not stop a sandbox whose startup hook fails, so the
+          # log is the only place this can be read afterwards.
+          exec >"$HOME/.local-pi-kit.log" 2>&1
           echo "--- local-pi kit ---"
-          echo "baseUrl=$base_url"
-          echo "models=$models"
+          echo "baseUrl=$base_url models=$models"
 
           # `{ "id": "a" }, { "id": "b" }` from `a,b`. Model ids hold no spaces,
-          # so word splitting on the translated separator is enough.
+          # so splitting on the translated separator is enough.
           entries=""
           sep=""
           for id in $(printf '%s' "$models" | tr ',' ' '); do
@@ -124,8 +104,7 @@ setup:
             sep=", "
           done
 
-          # Kit-owned, so it is rewritten every start. compat turns off the two
-          # OpenAI-isms Ollama's compatibility layer does not implement: the
+          # compat turns off the two OpenAI-isms Ollama does not implement: the
           # `developer` message role and `reasoning_effort`.
           cat >"$conf/models.json" <<EOF
           {
