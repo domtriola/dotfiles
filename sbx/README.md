@@ -3,6 +3,8 @@
 This folder holds my custom Docker Sandboxes kits.
 
 - `kits/sandboxes/my-claude` — Claude Code with my settings. The default agent.
+- `kits/sandboxes/local-pi` — the pi agent, pointed at an Ollama server on the
+  host. No hosted model and no API credential.
 - `kits/mixins/agent-skills` — ships my personal agent skills into the sandbox.
 - `kits/mixins/dotfiles` — clones this repo into the sandbox and applies it with
   the `sbx-linux` profile.

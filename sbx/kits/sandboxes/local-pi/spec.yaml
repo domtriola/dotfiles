@@ -1,0 +1,178 @@
+schemaVersion: "2"
+kind: sandbox
+name: local-pi
+displayName: Local Pi
+description: >-
+  Pi, pointed at an Ollama server running on the host.
+
+sandbox:
+  # Pre-baked image: pi at the latest upstream release, on the shell-docker
+  # template. Published by the shared kit-image pipeline, so creating a sandbox
+  # does not wait on an npm install.
+  #
+  # This kit deliberately does not `extends: pi`. The upstream kit declares an
+  # anthropic credential and the api.anthropic.com / platform.claude.com
+  # allows, and composition is a union: a child can add to the parent but it
+  # cannot take those away. Copying the two parts that are still wanted (the
+  # image and the npm proxy step) is the only way to inherit nothing else.
+  image: docker.io/sbx/pi-image:latest
+  entrypoint:
+    - pi
+
+agentInstructions:
+  filename: AGENTS.md
+  content: |
+    ## Models
+
+    This sandbox has no Anthropic (or other hosted) credential. Every model
+    call goes to an Ollama server running on the *host* machine, reached at
+    `$OLLAMA_BASE_URL` (`http://host.docker.internal:11434/v1` by default).
+
+    `~/.pi/agent/models.json` declares that server as the `ollama` provider and
+    is rewritten on every sandbox start from `$OLLAMA_BASE_URL` and
+    `$OLLAMA_MODELS`. Edits to it do not survive a restart. Change the
+    variables in the kit instead, or use `/model` to switch models for a
+    session.
+
+    `~/.pi/agent/settings.json` is seeded once, on the first start, with the
+    first entry of `$OLLAMA_MODELS` as the default model. After that it belongs
+    to you, so `/model` + Ctrl+S keeps working.
+
+    ### When the model calls fail
+
+    `~/.local-pi-kit.log` records the last start, including whether the Ollama
+    server answered. The two usual causes are:
+
+    - Ollama on the host listens on loopback only. It has to be started with
+      `OLLAMA_HOST=0.0.0.0 ollama serve` for the sandbox to reach it.
+    - The model is not pulled on the host. `ollama pull <id>` there, not here.
+      This sandbox has no model weights of its own.
+
+environment:
+  variables:
+    # The host's Ollama server, as seen from inside the sandbox. `localhost`
+    # here is the sandbox's own loopback, so the host is addressed by name.
+    # Point this at a LAN address to use another machine's server (and add
+    # that host to permissions.network.allow below).
+    OLLAMA_BASE_URL: "http://host.docker.internal:11434/v1"
+    # Comma-separated model ids, exactly as the host's `ollama list` prints
+    # them. The first one is the startup default; the rest are there to switch
+    # to with `/model`.
+    OLLAMA_MODELS: "qwen2.5-coder:7b,llama3.1:8b"
+
+permissions:
+  network:
+    allow:
+      # The host's Ollama server. Traffic to the host goes through the sandbox
+      # proxy and is denied by default, so the port has to be named here. Both
+      # spellings are listed because the two halves of the documentation
+      # disagree on which one the policy matches for a host service.
+      - host.docker.internal:11434
+      - localhost:11434
+      # pi's runtime package installs (extensions, skills, prompt templates,
+      # themes) and the packages named in settings, fetched on startup.
+      - registry.npmjs.org
+
+setup:
+  install:
+    # Config only -- pi itself is baked into the image, so nothing is installed
+    # here. This is the re-export pattern of SPEC-v2 §9.5, and it is idempotent,
+    # so re-running it on recreate is fine.
+    #
+    # Guarded on HTTP_PROXY being non-empty: npm rejects an empty value for a
+    # url-typed config key, so an unset or empty variable would fail the step and
+    # take sandbox creation down with it -- a proxy-less runtime is something
+    # every sibling kit tolerates, and this one should too. HTTPS_PROXY is
+    # preferred for https-proxy when the runtime provides a dedicated one, with
+    # HTTP_PROXY as the fallback. Both keys go in a single `npm config set` so
+    # sandbox creation pays for one Node startup rather than two.
+    - command: 'if [ -n "${HTTP_PROXY:-}" ]; then npm config set proxy="$HTTP_PROXY" https-proxy="${HTTPS_PROXY:-$HTTP_PROXY}"; fi'
+      user: "1000"
+      description: Point npm at the sandbox proxy in ~/.npmrc so pi's runtime npm use (`pi install npm:...`, `pi update`, startup package fetches) works in exec contexts that do not inherit the proxy environment variables
+
+  startup:
+    - command:
+        - "sh"
+        - "-c"
+        - |
+          set -eu
+
+          # Defaults are repeated here rather than left to environment.variables
+          # alone, because a startup hook is not guaranteed to inherit them.
+          base_url="${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}"
+          models="${OLLAMA_MODELS:-qwen2.5-coder:7b,llama3.1:8b}"
+          default_model="${models%%,*}"
+
+          conf="$HOME/.pi/agent"
+          log="$HOME/.local-pi-kit.log"
+          mkdir -p "$conf"
+
+          # The hook's only channel: the engine does not stop a sandbox whose
+          # startup hook fails or warns, so anything worth reading later has to
+          # be left in a file.
+          exec >"$log" 2>&1
+          echo "--- local-pi kit ---"
+          echo "baseUrl=$base_url"
+          echo "models=$models"
+
+          # `{ "id": "a" }, { "id": "b" }` from `a,b`. Model ids hold no spaces,
+          # so word splitting on the translated separator is enough.
+          entries=""
+          sep=""
+          for id in $(printf '%s' "$models" | tr ',' ' '); do
+            entries="${entries}${sep}{ \"id\": \"${id}\" }"
+            sep=", "
+          done
+
+          # Kit-owned, so it is rewritten every start. compat turns off the two
+          # OpenAI-isms Ollama's compatibility layer does not implement: the
+          # `developer` message role and `reasoning_effort`.
+          cat >"$conf/models.json" <<EOF
+          {
+            "providers": {
+              "ollama": {
+                "baseUrl": "$base_url",
+                "api": "openai-completions",
+                "apiKey": "ollama",
+                "compat": {
+                  "supportsDeveloperRole": false,
+                  "supportsReasoningEffort": false
+                },
+                "models": [$entries]
+              }
+            }
+          }
+          EOF
+          echo "wrote $conf/models.json"
+
+          # Seeded once and then left alone: pi writes this file itself when
+          # `/model` saves a choice with Ctrl+S, and overwriting it every start
+          # would throw that away.
+          if [ -f "$conf/settings.json" ]; then
+            echo "kept the existing $conf/settings.json"
+          else
+            cat >"$conf/settings.json" <<EOF
+          {
+            "defaultProvider": "ollama",
+            "defaultModel": "$default_model"
+          }
+          EOF
+            echo "seeded $conf/settings.json with $default_model"
+          fi
+
+          # A reachability check, not a gate. Failing the hook would not help:
+          # the fix is on the host, and pi is still worth starting so `/model`
+          # can be used once the server is up.
+          if command -v curl >/dev/null 2>&1; then
+            if curl -fsS --max-time 5 "$base_url/models" >/dev/null 2>&1; then
+              echo "the Ollama server answered at $base_url"
+            else
+              echo "WARNING: no answer from $base_url"
+              echo "  - the host has to run: OLLAMA_HOST=0.0.0.0 ollama serve"
+              echo "  - the model has to be pulled on the host: ollama pull $default_model"
+            fi
+          fi
+
+          echo "--- local-pi kit finished ---"
+      description: "Write ~/.pi/agent/models.json for the host's Ollama server and check that it answers"
+      user: "1000"
