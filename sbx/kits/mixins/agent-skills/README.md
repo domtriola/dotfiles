@@ -1,37 +1,48 @@
 # agent-skills
 
-A mixin kit that ships this repo's personal agent skills into the sandbox.
-
-A startup hook symlinks each skill directory under `~/skills/` into
-`~/.claude/skills/`, `~/.gemini/skills/` and `~/.agents/skills/`, so whichever
-agent is running sees the same skills. A directory counts as a skill only if it
-contains a `SKILL.md`.
-
-Skills currently shipped:
-
-- **kit-author**, for writing Docker Sandboxes kits.
-- **skills-security-review**, for reviewing skills for potential security issues.
-
-## Experimental skills
-
-`files/home/skills/experimental/` is a scratch area whose contents are ignored by
-git (see the `.gitignore` inside it) but are still copied into the sandbox, since
-the kit is loaded from this working tree rather than from a clean checkout. Drop a
-skill in and it is picked up on the next sandbox start:
-
-```console
-cp -R ../some-repo/skills/tdd sbx/kits/mixins/agent-skills/files/home/skills/experimental/
-```
-
-Up to two levels of grouping are supported, so both
-`experimental/<name>/SKILL.md` and `experimental/<vendor>/<topic>/<name>/SKILL.md`
-are found. Note: experimental skills are linked after the tracked ones, so an
-experimental copy of a shipped skill shadows it.
-
-To promote one, move it up into `files/home/skills/` and commit it.
-
-## Quick start
+A mixin kit that ships this repo's personal agent skills into the sandbox and
+exposes them to whichever coding agent is running.
 
 ```console
 sbx run claude --kit ./sbx/kits/mixins/agent-skills
+```
+
+## How skills get in
+
+`env/.agents/skills/` is the one source of truth for every machine. Skills are
+authored there, on the host.
+
+`./sync-skills` copies them into this kit's `files/` tree, and `sbx-up` runs it
+before it starts a sandbox. The payload is generated and gitignored: the kit is
+loaded from this working tree, so there is nothing to commit and nothing that
+can drift.
+
+Inside the sandbox the kit copies each skill into `~/.claude/skills/` and
+`~/.agents/skills/` before the agent starts. They are real directories, so
+editing one in the sandbox changes nothing on the host. See the comments in
+`spec.yaml` for how the hooks do this.
+
+## Local, untracked skills
+
+`env/.agents/skills-local/` is a scratch area whose contents are ignored by git.
+Drop a skill in and it is picked up on the next `./sync-skills`, in `$HOME` on
+the next `./sync-env`, and in the sandbox on the next start:
+
+```console
+cp -R ../some-repo/skills/thing env/.agents/skills-local/
+```
+
+Local skills are copied after the tracked ones, so a local copy of a tracked
+skill shadows it. To promote one, move it into `env/.agents/skills/` and commit.
+
+## Starting a sandbox without sbx-up
+
+The payload is built ahead of time, so a bare `sbx run` ships whatever
+`./sync-skills` wrote last. Run it by hand after editing a skill.
+
+If the payload is missing entirely, the sandbox still comes up, with no skills
+and a note in the log. To check what arrived:
+
+```console
+sbx exec <name> -- ls /home/agent/.claude/skills
 ```
