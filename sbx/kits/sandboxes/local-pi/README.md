@@ -3,15 +3,21 @@
 A sandbox kit for the [pi](https://pi.dev) coding agent, pointed at an Ollama
 server on the host. There are no hosted models configured by default.
 
-## Pre-Setup
+## Pre-setup
 
-Ollama has to be running and reachable from a container. Check with:
+Ollama has to be running on the host, and it has to listen on an address that a
+container can reach. A plain `ollama serve` binds the loopback interface only,
+which the sandbox cannot reach, so bind every interface:
 
-```sh
-curl -s http://127.0.0.1:11434/api/version | jq
+```console
+OLLAMA_HOST=0.0.0.0 ollama serve
 ```
 
-If it isn't running, start it with `ollama serve`
+Check that it answers:
+
+```console
+curl -s http://127.0.0.1:11434/api/version | jq
+```
 
 Pull the default models:
 
