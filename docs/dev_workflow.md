@@ -1,25 +1,39 @@
 # Dev Workflow
 
-Custom tooling in this repo allows for automation of terminal sessions and windows.
+Custom tooling in this repo automates tmux sessions and windows.
 
-- To navigate to a project and start the configured tmux setup:
-  - Start a tmux session if not already in one: `tmux`
-  - Open the tmux-sessionizer fuzzy navigation: `Ctrl-a f`
-  - Choosing a project will switch to that directory and call the local `.ready-tmux` script (or the global default) if one exists
+To open a project:
 
-Keep track of workflow reminders in `cheat workflow`. To edit: `cheat -e workflow`.
+1. Start a tmux session if not already in one: `troot` (or `tmux`).
+2. Open the tmux-sessionizer fuzzy picker: `Ctrl-a f`.
+3. Choosing a project switches to a session for that directory. A new session
+   then runs the project's `.ready-tmux` script, or the global default.
 
-## Tmux detailed workflow context
+Keep workflow reminders in `cheat workflow`. To edit them: `cheat -e workflow`.
 
-### Overview
+## Scripts
 
-Three custom scripts work together to automate tmux project navigation:
+Five scripts work together. `./sync-env` copies the first four into
+`~/.local/bin`.
 
-1. **`tmux-sessionizer`** — Uses `fzf` to browse directories under `~/src`, then creates or switches to a named tmux session for the selected project.
-2. **`ready-tmux`** — Runs after a new session is created. Looks for a local `.ready-tmux` script in the project directory; if none exists, falls back to `~/.ready-tmux`.
-3. **`.ready-tmux`** (per-project or global) — Defines the windows/panes to set up for that project.
+| Script             | What it does                                                                      |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `tmux-sessionizer` | Picks a project with `fzf`, then creates or switches to a session named after it. |
+| `ready-tmux`       | Runs the project's `.ready-tmux`, or `~/.ready-tmux` if the project has none.     |
+| `init-tmux`        | Copies `~/.ready-tmux` into the current directory, as a starting point.           |
+| `troot`            | Opens the `~/troot` session, a scratch project for work that belongs to no repo.  |
+| `.ready-tmux`      | Per-project or global. Defines the windows and panes to set up.                   |
 
-### Custom key bindings (prefix is `Ctrl-a`)
+`tmux-sessionizer` searches a fixed list of directories, held at the top of the
+script. It runs `ready-tmux` only for a session it creates, so switching back to
+an open session leaves its windows alone.
+
+The session name is the directory name, with `:`, `,`, `.` and spaces replaced
+by underscores.
+
+## Custom key bindings
+
+The prefix is `Ctrl-a`.
 
 | Binding          | Action                                       |
 | ---------------- | -------------------------------------------- |
@@ -30,3 +44,11 @@ Three custom scripts work together to automate tmux project navigation:
 | `Ctrl-a c`       | New window (keeps current path)              |
 | `Ctrl-a h/j/k/l` | Navigate panes (vim-style)                   |
 | `Ctrl-a H/J/K/L` | Resize panes (vim-style, repeatable)         |
+
+Copy mode uses vi keys: `v` starts a selection and `y` copies it to the system
+clipboard, through `pbcopy` on macOS and `wl-copy` on Linux.
+
+## Sandboxes
+
+A `.ready-tmux` does not start the agent sandbox, because `sbx-up` opens its
+own windows. Run it separately. See [sbx/README.md](../sbx/README.md).

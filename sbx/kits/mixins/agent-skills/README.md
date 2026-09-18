@@ -10,7 +10,8 @@ sbx run claude --kit ./sbx/kits/mixins/agent-skills
 ## How skills get in
 
 `env/.agents/skills/` is the one source of truth for every machine. Skills are
-authored there, on the host.
+authored there, on the host, or vendored there by `./pull-skills`. See
+[Agent skills](../../../../README.md#agent-skills) in the root README.
 
 `./sync-skills` copies them into this kit's `files/` tree, and `sbx-up` runs it
 before it starts a sandbox. The payload is generated and gitignored: the kit is
@@ -19,8 +20,9 @@ can drift.
 
 Inside the sandbox the kit copies each skill into `~/.claude/skills/` and
 `~/.agents/skills/` before the agent starts. They are real directories, so
-editing one in the sandbox changes nothing on the host. See the comments in
-`spec.yaml` for how the hooks do this.
+editing one in the sandbox changes nothing on the host. A second hook restores
+any skill that is missing after a restart. See the comments in `spec.yaml` for
+why the two hooks differ.
 
 ## Local, untracked skills
 
