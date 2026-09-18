@@ -74,3 +74,18 @@ Run `./setup` after updating anything in `setups/<profile>/`.
   ```console
   mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./sync-env
   ```
+
+## Agent skills
+
+`env/.agents/skills/` is the one source of truth for agent skills. Three scripts manage them:
+
+| Script          | What it does                                                 |
+| --------------- | ------------------------------------------------------------ |
+| `./pull-skills` | Pulls vendored skills from `env/.agents/skills.json`         |
+| `./sync-skills` | Copies skills into the `agent-skills` kit for sandboxes      |
+| `./sync-env`    | Copies skills into `~/.claude/skills` and `~/.agents/skills` |
+
+Vendored skills are pinned in `env/.agents/skills.lock`.
+
+`env/.agents/skills-local/` is an untracked scratch area. A skill there shadows
+a tracked one of the same name.
