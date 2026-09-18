@@ -25,7 +25,9 @@
 #           runtime does with kit files under ~/.claude.
 #   direct  The payload lands at ~/.claude/skills and ~/.agents/skills, with no
 #           hooks at all. Only correct if the runtime keeps kit files under
-#           ~/.claude (see docs/specs/skills-refactor.md, phase 0).
+#           ~/.claude, which it does not today: ~/.claude is a sandbox-reserved
+#           path and a kit file placed there is discarded. Check this again
+#           before using it.
 #
 # Arguments:
 #   --dry  Print what would be copied without making any changes.
