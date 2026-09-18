@@ -1,134 +1,189 @@
-Phase 0 (gate): test whether kit files survive under ~/.claude
+# Skills refactor
 
-Everything downstream has one unverified assumption: your own note in my-claude/spec.yaml says the runtime discards a kit file at ~/.claude/settings.json, and nobody knows whether that applies to the whole directory.
+One source of truth for agent skills, no symlinks, and no race between the
+agent starting and the skills appearing.
 
-On the host, add one throwaway file to the existing kit, start a sandbox, and look:
+Destinations are `~/.claude/skills` and `~/.agents/skills`. Nothing writes to
+`~/.gemini` any more.
 
+## Progress
+
+| Phase | What                                         | Status                                             |
+| ----- | -------------------------------------------- | -------------------------------------------------- |
+| 0     | Gate: do kit files survive under `~/.claude`  | **Waiting on the host.** Optional: it only decides whether the two hooks can go |
+| 1     | Source of truth in `env/.agents/skills`      | Done. 27 skills (24 vendored, 3 original)          |
+| 2     | `./pull-skills`, the refresh verb            | Done. Idempotent, drift guard and prune both tested |
+| 3     | `./sync-skills`, the mirror verb             | Done. Wired into `sbx-up`                          |
+| 4     | Feed `$HOME` on real machines                | Done. Verified against a fake home on `dev-linux`  |
+| 5     | Delete the symlink hook                      | Done. `install` copy plus a gap-filling `startup`  |
+| 6     | Documentation                                | Done                                               |
+| 7     | Verification                                 | Steps 1 to 3 done in the sandbox; 4 and 5 need the host |
+
+Still to do on the host: start a sandbox with `sbx-up` and confirm the skills
+are listed in the agent's first turn (verification steps 4 and 5), then run the
+phase 0 probe if the two hooks are worth deleting.
+
+Not committed. The commit split at the end of this file still applies.
+
+## Three verbs
+
+| Verb        | Script          | Network | When                                   |
+| ----------- | --------------- | ------- | -------------------------------------- |
+| **refresh** | `./pull-skills` | yes     | manual, rarely (bump a pinned upstream) |
+| **mirror**  | `./sync-skills` | no      | before `sbx up` (feeds the kit)        |
+| **install** | `./sync-env`    | no      | on every machine (feeds `$HOME`)       |
+
+Refresh must never fold into the other two. Fetching third-party agent
+instructions on every sandbox start means new instructions arrive without being
+read, and `skills-security-review` assumes the opposite posture.
+
+## Findings from implementation
+
+- **Four of the seven tracked skills were already vendored from mattpocock**
+  (`domain-modeling`, `grill-with-docs`, `grilling`, `grill-me`), each with a
+  hand-written `README.md` naming the source. Only `agent-init`, `kit-author`
+  and `skills-security-review` are original. The four are re-vendored by
+  `pull-skills`, and `skills.lock` replaces the README notes.
+- **Prettier rewrites vendored markdown** (`_italic_` becomes `*italic*` in
+  `domain-modeling`), which would read as a local edit on every refresh and trip
+  the checksum guard. `env/.agents/` is therefore prettier-ignored.
+- **Neither hook shape is verified yet.** Phase 0 asks whether kit files survive
+  under `~/.claude`, but there is a second unknown: the spec does not pin whether
+  `files/` is copied before `setup.install` runs. The shipped arrangement
+  (install copy plus an idempotent startup repeat) is safe under every
+  combination, and Phase 0 only decides whether both hooks can be deleted.
+
+## Phase 0 (gate): test whether kit files survive under `~/.claude`
+
+`my-claude/spec.yaml` records that the runtime discards a kit file at
+`~/.claude/settings.json`. Nobody knows whether that applies to the whole
+directory. On the host:
+
+```console
 mkdir -p sbx/kits/mixins/agent-skills/files/home/.claude/skills/probe
 printf -- '---\nname: probe\ndescription: probe\n---\nprobe\n' \
+  > sbx/kits/mixins/agent-skills/files/home/.claude/skills/probe/SKILL.md
+sbx-up   # then, in the sandbox: ls ~/.claude/skills/probe
+```
 
-> sbx/kits/mixins/agent-skills/files/home/.claude/skills/probe/SKILL.md
-> sbx-up # then, in the sandbox: ls ~/.claude/skills/probe
+| Result            | Shape | Effect                                                                                       |
+| ----------------- | ----- | -------------------------------------------------------------------------------------------- |
+| The file is there | A     | The mirror can write straight to `files/home/.claude/skills/`, and both hooks can be deleted. |
+| The file is gone  | B     | Keep the payload at `files/home/skills/` and keep the copy hooks.                             |
 
-┌───────────────────┬───────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ Result │ Shape │ Effect on the plan │
-├───────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ The file is there │ A │ The mirror writes straight to files/home/.claude/skills/ and files/home/.agents/skills/. No hooks at all. │
-├───────────────────┼───────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ The file is gone │ B │ The mirror writes to files/home/skills/ only, and a setup.install hook copies it into both directories (install is guaranteed to run before the entrypoint). │
-└───────────────────┴───────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+`sync-skills` has a `LAYOUT` variable at the top, so the outcome is a one-line
+change either way. Delete the probe afterwards.
 
-Write sync-skills (Phase 3) with both layouts behind one variable, so the outcome here is a one-line change and not a rewrite. Delete the probe afterwards.
+## Phase 1: move the source of truth into `env/.agents/skills`
 
-Phase 1: move the source of truth into env/.agents/skills
+1. Move `agent-init`, `kit-author` and `skills-security-review` from
+   `sbx/kits/mixins/agent-skills/files/home/skills/` to `env/.agents/skills/`.
+2. Delete the four hand-vendored copies; `pull-skills` restores them.
+3. Create `env/.agents/skills-local/.gitignore` with the two-line trick the old
+   `experimental/` directory used (`*` plus `!.gitignore`). The directory stays
+   tracked, its contents do not. It replaces `experimental/` as the scratch
+   area, and it is flat now, because the mirror no longer searches for
+   `SKILL.md` at arbitrary depth.
+4. Remove the old `experimental/` tree.
 
-1. git mv the seven tracked skills from sbx/kits/mixins/agent-skills/files/home/skills/ to env/.agents/skills/: agent-init, domain-modeling, grill-me, grill-with-docs, grilling, kit-author, skills-security-review.
-2. Create env/.agents/skills-local/.gitignore with the same two-line trick the experimental/ directory uses (* plus !.gitignore). The directory stays tracked, its contents do not. This replaces experimental/ as the scratch area, and it is now flat (no vendor or topic grouping), because the mirror no longer searches for SKILL.md at arbitrary depth.
-3. git rm -r the old experimental/ directory, including its .gitignore.
+## Phase 2: `./pull-skills`, the refresh verb
 
-One decision to make here. The 33 mattpocock skills currently live in that untracked experimental/ tree, so they disappear at this step and come back in Phase 2 as tracked, pinned, vendored copies. I would vendor engineering/* and productivity/* (the ones you actually invoke), leave in-progress/* out because it is explicitly unfinished, and leave misc/* out because those are repo-specific (scaffold-exercises, migrate-to-shoehorn). Tell me if you want a different cut and I will change the skills.json in Phase 2.
+`env/.agents/skills.json` is hand-edited, one entry per upstream. Globs keep it
+short. `env/.agents/skills.lock` is written by the script and never hand-edited:
+repo, ref, resolved commit, source path and a checksum for each vendored skill.
 
-Phase 2: ./pull-skills, the refresh verb
+The script clones each upstream shallow into a temp directory, expands `paths`,
+applies `exclude` and `rename`, rejects duplicate destination names, compares
+each existing destination against its lock checksum (a mismatch means a local
+edit and stops the run unless `--force` is given), copies, prunes skills the
+lock lists but `skills.json` no longer selects, and rewrites the lock.
 
-Two new files plus one script.
+**Vendored skills are third-party agent instructions.** Read `git diff` before
+committing a refresh; `skills-security-review` exists for exactly this.
 
-env/.agents/skills.json, hand-edited, one entry per upstream:
+## Phase 3: `./sync-skills`, the mirror verb
 
-[
-{
-"repo": "https://github.com/mattpocock/skills",
-"ref": "main",
-"paths": ["engineering/_", "productivity/_"],
-"exclude": ["engineering/setup-matt-pocock-skills"],
-"rename": { "engineering/code-review": "matt-code-review" }
-}
-]
+Regenerates the kit payload from `env/.agents/`: wipe the generated directories,
+copy `env/.agents/skills/*`, overlay `env/.agents/skills-local/*` so a local copy
+shadows a tracked one, and skip any directory with no `SKILL.md`.
 
-A glob keeps the file short (33 skills would be unreadable as an explicit map). The destination name is the basename of the matched directory unless rename says otherwise.
+The payload is gitignored rather than committed. It cannot drift if it is
+regenerated every time, the content stays in git exactly once, and kits resolve
+to a working-tree path (`sbx-up` builds `$dotfiles/sbx/kits/mixins/<name>`), so a
+clean checkout is never the consumer.
 
-env/.agents/skills.lock, written by the script, never hand-edited: for each vendored skill, the repo, the ref, the resolved commit SHA, the source path, and a checksum of the copied tree.
+`sbx-up` runs it before starting a sandbox, and warns rather than aborting when
+it fails, because a stale skill set beats no sandbox. `sbx-up` is installed by
+`./sync-env`, so the change needs a `./sync-env` run on the host.
 
-./pull-skills [--dry] [--only <repo>] does:
+## Phase 4: feed `$HOME` on real machines
 
-1. For each entry, git clone --depth 1 --branch <ref> into a temp directory (mktemp -d, cleaned up with a trap).
-2. Expand paths, apply exclude, apply rename, and reject any directory with no SKILL.md and any duplicate destination name (across all sources, not just within one). A collision is a hard error, since rename exists to resolve it.
-3. Before overwriting, compare each existing destination against the checksum in the lock. If they differ, the skill was edited locally: print the names and stop, unless --force is passed. This is the one failure mode vendoring has, so it gets an explicit guard.
-4. rm -rf then copy each skill into env/.agents/skills/<dest>. Delete any skill that the lock lists but skills.json no longer selects.
-5. Rewrite skills.lock, then print the changed skill names and remind you to read git diff before committing.
+`dev-mac` and `dev-linux` only. `dir` wipes the destination first, so a deleted
+skill really disappears; `subdirs` runs second and only adds, which preserves the
+shadowing rule.
 
-Follow the conventions of the existing scripts: set -eo pipefail, the log/execute/--dry pair copied from sync-env, and a usage comment at the top.
+`infosec-qubes` ships no agent settings, so it is left alone.
 
-Your own skills and the vendored ones share the flat directory, and the lock file is what tells them apart. That keeps the destination mapping trivial (one directory copies to one directory) at the cost of needing the lock to know provenance, which is the right trade here.
+**`sbx-linux` is left alone deliberately.** Inside a sandbox, `sync-env` runs
+from the `dotfiles` startup hook about twenty seconds after the agent starts, and
+`dir` does `rm -rf` before it copies. Adding skills there would delete the skills
+directory out from under a running agent. In a sandbox the kit owns skills; on a
+real machine `sync-env` does.
 
-Phase 3: ./sync-skills, the mirror verb
+## Phase 5: delete the symlink hook
 
-./sync-skills [--dry] regenerates the kit payload from env/.agents/:
+The `setup.startup` symlink loop goes. In its place, `setup.install` copies
+`~/skills/*` into both agent directories (`install` is guaranteed to run before
+the entrypoint), and a small idempotent `setup.startup` repeats the copy so a
+restart repairs the directory if the runtime resets it. Both run as `user:
+"1000"` so nothing root-owned lands in `/home/agent`.
 
-1. rm -rf the generated directories under sbx/kits/mixins/agent-skills/files/.
-2. Copy env/.agents/skills/* into each destination for the shape chosen in Phase 0 (shape A: files/home/.claude/skills/ and files/home/.agents/skills/; shape B: files/home/skills/ only).
-3. Overlay env/.agents/skills-local/* on top, so a local copy still shadows a tracked skill of the same name.
-4. Skip any directory with no SKILL.md, and skip dotfiles such as .gitignore.
+If Phase 0 returns shape A, both hooks can be deleted.
 
-Then add to .gitignore:
+`agentInstructions` is rewritten: skills are real directories, they are copies
+and not symlinks, and editing one inside the sandbox changes nothing permanent
+(the dotfiles clone there is shallow and detached, so skills are authored in the
+dotfiles repo on the host).
 
-# Generated by ./sync-skills from env/.agents/. The kit loads from the working
+`kits-agent-context/agent-skills.md` is generated by the engine from
+`agentInstructions`, so it refreshes on the next sandbox start.
 
-# tree, so this is built rather than committed.
+## Phase 6: documentation
 
-sbx/kits/mixins/agent-skills/files/
+The kit README, the top-level README (the three verbs and when each runs), and a
+note in `pull-skills` about reviewing vendored instructions before committing.
 
-And to .prettierignore, the same path plus env/.agents/skills.lock, so a refresh does not produce reformatting noise.
+## Phase 7: verification
 
-Wire it into env/.local/bin/sbx-up, just before the sbx rm call:
+1. `./pull-skills --dry`, then a real run, then read the diff and commit.
+2. `HOME=/tmp/fakehome ./sync-env --profile dev-mac`, and check both skills
+   directories, including that a `skills-local` entry shadows a tracked one.
+3. `./sync-skills`, then confirm the payload matches and `git status` shows
+   nothing generated as tracked.
+4. `sbx-up` in this repo, and confirm the skills are listed in the agent's first
+   turn. Repeat a few times, and once with `.sbx.json` back in
+   `["dotfiles", "agent-skills"]` order, which is the arrangement that used to
+   lose.
+5. `sbx exec <name> -- ls /home/agent/.claude/skills` from the host, to confirm
+   real directories rather than symlinks.
 
-if [[ -x "$dotfiles/sync-skills" ]]; then
-"$dotfiles/sync-skills" >/dev/null || {
-printf 'sbx-up: sync-skills failed; the sandbox will have stale skills\n' >&2
-}
-fi
+## Open decisions
 
-It warns instead of aborting, because a stale skill set is better than no sandbox. Remember that sbx-up is installed by ./sync-env, so this change needs a ./sync-env run on the host before it takes effect.
+- **Which of mattpocock's sets to vendor.** Currently `engineering/*` and
+  `productivity/*`, which is 24 skills. The old `experimental/` tree also
+  carried `in-progress/*` (explicitly unfinished) and `misc/*` (repo-specific:
+  `scaffold-exercises`, `migrate-to-shoehorn`). Adding them back is one line in
+  `skills.json`.
+- **`agent-init` was restored from a sandbox copy.** It was untracked, and it
+  had already disappeared from the kit directory before the move (the `mv`
+  failed with "cannot stat"). The copy at `/home/agent/skills/agent-init`, which
+  the kit shipped when this sandbox started, is byte-identical to what the file
+  held earlier in the session, and that is what is now in
+  `env/.agents/skills/agent-init`. Worth a glance before committing.
 
-Phase 4: feed $HOME on real machines
+## Commit split
 
-In setups/dev-mac/env.manifest and setups/dev-linux/env.manifest, extend the existing group Claude settings block:
-
-dir .agents/skills $HOME/.claude/skills
-dir     .agents/skills       $HOME/.agents/skills
-subdirs .agents/skills-local $HOME/.claude/skills
-subdirs .agents/skills-local $HOME/.agents/skills
-
-dir wipes the destination first, so a deleted skill really disappears. subdirs runs second and only adds, which preserves the shadowing rule.
-
-Leave setups/infosec-qubes/env.manifest alone (that profile deliberately ships no agent settings).
-
-Leave setups/sbx-linux/env.manifest alone too, deliberately. Inside a sandbox, sync-env runs from the dotfiles startup hook about twenty seconds after the agent starts, and a dir directive does rm -rf before it copies. Adding skills there would delete the skills directory out from under a running agent. In a sandbox the kit owns skills; on a real machine sync-env does. This is worth a comment in the manifest so it is not "fixed" later.
-
-Phase 5: delete the symlink hook
-
-In sbx/kits/mixins/agent-skills/spec.yaml:
-
-- Remove the whole setup.startup block.
-- Shape B only: add the setup.install copy in its place, with user: "1000" so it does not write root-owned files into /home/agent.
-- Optionally add a small install guard that fails loudly when the skills directory is empty, which catches a sandbox started without sbx-up having run the mirror.
-- Rewrite agentInstructions: skills are real directories at ~/.claude/skills/ and ~/.agents/skills/, they are copies and not symlinks, and editing one inside the sandbox changes nothing permanent (the dotfiles clone there is shallow and detached, so skills are authored in the dotfiles repo on the host).
-
-Revert .sbx.json to ["dotfiles", "agent-skills"] if you like. The ordering workaround from commit 46f4639 no longer does anything once no hook is involved, and leaving it in place suggests a constraint that does not exist.
-
-Note that /Users/dominicktriola/src/personal/kits-agent-context/agent-skills.md is generated by the engine from agentInstructions, so it refreshes on the next sandbox start. There is nothing to edit by hand.
-
-Phase 6: documentation
-
-- Rewrite sbx/kits/mixins/agent-skills/README.md: the kit now ships a generated payload, the source is env/.agents/skills, and there is no symlink step.
-- Add a short section to the top-level README.md next to the ./sync-env and ./setup description, covering the three verbs and when each one runs.
-- Mention in pull-skills's usage comment that vendored skills are third-party agent instructions, and that git diff plus the skills-security-review skill is the review step before committing.
-
-Phase 7: verification
-
-1. ./pull-skills --dry, then a real run, then read the diff and commit.
-2. HOME=/tmp/fakehome ./sync-env --profile dev-mac (the fake-home trick already documented in sync-env), and check both skills directories, including that a skills-local entry shadows a tracked one.
-3. ./sync-skills, then confirm the kit payload matches, then git status to confirm nothing generated is tracked.
-4. sbx-up in this repo, and confirm the skills are listed in the agent's first turn. That is the actual race test, so repeat it a few times, and once with .sbx.json back in ["dotfiles", "agent-skills"] order, which is the arrangement that used to lose.
-5. sbx exec <name> -- ls /home/agent/.claude/skills from the host, to confirm real directories rather than symlinks.
-
-Suggested commit split: (1) move skills to env/.agents/, (2) add pull-skills and vendor the mattpocock set, (3) add sync-skills and wire up sbx-up, (4) manifests, (5) drop the symlink hook, (6) docs. Each one leaves the repo working, and the race stays fixed from commit 5 onward.
+1. move skills to `env/.agents/`, 2. add `pull-skills` and vendor the mattpocock
+set, 3. add `sync-skills` and wire up `sbx-up`, 4. manifests, 5. drop the symlink
+hook, 6. docs. Each one leaves the repo working, and the race stays fixed from
+commit 5 onward.
