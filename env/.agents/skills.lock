@@ -1,16 +1,16 @@
 {
   "skills": {
+    "domain-modeling": {
+      "checksum": "a84b088dce732c0dbc2d3a930ac5312cfa5341370a37cbc405d19830ca1fc400",
+      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
+      "path": "skills/engineering/domain-modeling",
+      "ref": "main",
+      "repo": "https://github.com/mattpocock/skills"
+    },
     "grill-me": {
       "checksum": "711e23322fe6a33d3b81bd6005f1325b52c45306d5658151d4ccb7649ff7bc0a",
       "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
       "path": "skills/productivity/grill-me",
-      "ref": "main",
-      "repo": "https://github.com/mattpocock/skills"
-    },
-    "grill-with-docs": {
-      "checksum": "1c1b25b51130bd7bc09a13f04a1fa29bef83f3eafe0073c08d00dcc1d405d7cd",
-      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
-      "path": "skills/engineering/grill-with-docs",
       "ref": "main",
       "repo": "https://github.com/mattpocock/skills"
     },
