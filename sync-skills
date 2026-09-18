@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+#
+# Usage: ./sync-skills [--dry]
+#
+# Copies the skills in ./env/.agents/ into the agent-skills kit, which is how
+# they reach a sandbox. The copy is generated and gitignored: the kit is loaded
+# from this working tree (sbx-up builds $dotfiles/sbx/kits/mixins/<name>), so
+# there is nothing to commit and nothing that can drift.
+#
+# sbx-up runs this before it starts a sandbox. Run it by hand after editing a
+# skill if you are starting a sandbox another way.
+#
+# Two sources, in order, so that a local copy shadows a tracked skill of the
+# same name:
+#
+#   env/.agents/skills/        tracked: written here, or vendored by ./pull-skills
+#   env/.agents/skills-local/  untracked scratch
+#
+# A directory is a skill only if it holds a SKILL.md.
+#
+# LAYOUT decides where the kit puts them:
+#
+#   hooks   The payload lands at ~/skills, and the kit's setup hooks copy it
+#           into ~/.claude/skills and ~/.agents/skills. Safe whatever the
+#           runtime does with kit files under ~/.claude.
+#   direct  The payload lands at ~/.claude/skills and ~/.agents/skills, with no
+#           hooks at all. Only correct if the runtime keeps kit files under
+#           ~/.claude (see docs/specs/skills-refactor.md, phase 0).
+#
+# Arguments:
+#   --dry  Print what would be copied without making any changes.
+
+set -eo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+tracked="$script_dir/env/.agents/skills"
+local_skills="$script_dir/env/.agents/skills-local"
+kit_home="$script_dir/sbx/kits/mixins/agent-skills/files/home"
+
+LAYOUT="${SKILLS_LAYOUT:-hooks}"
+
+dry="0"
+
+die() {
+  printf 'sync-skills: %s\n' "$1" >&2
+  exit 1
+}
+
+log() {
+  if [[ $dry == "1" ]]; then
+    echo "[DRY RUN]: $*"
+  else
+    echo "$*"
+  fi
+}
+
+execute() {
+  log "execute $*"
+  if [[ $dry == "1" ]]; then
+    return
+  fi
+
+  "$@"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --dry) dry="1" ;;
+  *) die "unknown argument '$1'" ;;
+  esac
+  shift
+done
+
+[[ -d "$tracked" ]] || die "no skills at $tracked"
+
+case "$LAYOUT" in
+hooks) destinations=("$kit_home/skills") ;;
+direct) destinations=("$kit_home/.claude/skills" "$kit_home/.agents/skills") ;;
+*) die "LAYOUT must be 'hooks' or 'direct', not '$LAYOUT'" ;;
+esac
+
+# Every path this script owns, whatever the layout. All of them are removed
+# first, so that changing LAYOUT does not leave the other layout's payload
+# behind to ship alongside the new one.
+managed=("$kit_home/skills" "$kit_home/.claude" "$kit_home/.agents")
+
+# Copies every skill in $1 into $2, leaving anything already there alone unless
+# it has the same name. The count goes in $copied rather than on stdout, so
+# that the log lines are not swallowed by a command substitution.
+copied=0
+copy_skills() {
+  local src="$1" dest="$2" dir name
+
+  copied=0
+  [[ -d "$src" ]] || return 0
+
+  for dir in "$src"/*/; do
+    [[ -d "$dir" ]] || continue
+    # A directory with no SKILL.md is not a skill.
+    [[ -f "$dir/SKILL.md" ]] || continue
+
+    name="$(basename "$dir")"
+    execute rm -rf "$dest/$name"
+    execute cp -R "${dir%/}" "$dest/$name"
+    copied=$((copied + 1))
+  done
+}
+
+log "------------ sync-skills ------------"
+log "layout: $LAYOUT"
+
+for path in "${managed[@]}"; do
+  execute rm -rf "$path"
+done
+
+for dest in "${destinations[@]}"; do
+  execute mkdir -p "$dest"
+
+  copy_skills "$tracked" "$dest"
+  count="$copied"
+  copy_skills "$local_skills" "$dest"
+
+  echo "---------------------------"
+  echo "$dest: $count tracked, $copied local"
+done
+
+if [[ $dry != "1" ]]; then
+  echo "----------------------------------------"
+  echo "Kit payload up to date"
+fi
