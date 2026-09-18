@@ -96,6 +96,17 @@ while IFS= read -r arg; do
   run+=("$arg")
 done <<<"$args"
 
+# The agent-skills kit ships a payload that ./sync-skills generates from
+# env/.agents/, and which is gitignored rather than committed. Rebuild it here
+# so a sandbox always starts with the skills that are on disk right now. A
+# failure is a warning, not a stop: a stale skill set beats no sandbox.
+if [[ -x "$dotfiles/sync-skills" ]]; then
+  if ! skills_out="$("$dotfiles/sync-skills" 2>&1)"; then
+    printf 'sbx-up: sync-skills failed, the sandbox may have stale skills:\n%s\n' \
+      "$skills_out" >&2
+  fi
+fi
+
 # --force skips the confirmation prompt and removes a sandbox that is in use;
 # closing stdin keeps any future prompt from hanging the script. A missing
 # sandbox is the common case and not worth reporting; anything else is.

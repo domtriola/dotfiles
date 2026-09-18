@@ -7,6 +7,52 @@ description: >-
   to whichever coding agent is running.
 
 setup:
+  # The payload at ~/skills comes from files/home/skills, which ./sync-skills
+  # generates from env/.agents/ on the host.
+  #
+  # The copy into the agent directories runs in `install`, not `startup`,
+  # because the spec guarantees that `install` completes before the entrypoint
+  # (SPEC-v2 §5.6 and §9.6) and says nothing about the order of `startup`
+  # against it. From `startup`, an agent can read an empty skills directory and
+  # run a whole session without skills.
+  install:
+    - command: |
+        set -eu
+
+        # This hook may run as root or as the agent, so the agent's home comes
+        # from the passwd entry for UID 1000 (field 6) rather than from $HOME.
+        home="$(getent passwd 1000 2>/dev/null | cut -d: -f6 || true)"
+        [ -n "$home" ] || home=/home/agent
+        src="$home/skills"
+
+        # sbx-up runs ./sync-skills before it starts a sandbox, so a missing
+        # payload means the sandbox was started another way. Say so and let the
+        # sandbox come up without skills, rather than failing the build.
+        if [ ! -d "$src" ]; then
+          echo "agent-skills: no payload at $src." >&2
+          echo "agent-skills: run ./sync-skills in the dotfiles repo, then start again." >&2
+          exit 0
+        fi
+
+        # Each skill is replaced whole, so a rerun refreshes the copy and
+        # leaves no file behind from an earlier version of the skill.
+        for agent_dir in "$home/.claude/skills" "$home/.agents/skills"; do
+          mkdir -p "$agent_dir"
+          for skill in "$src"/*/; do
+            # A directory with no SKILL.md is not a skill.
+            [ -f "$skill/SKILL.md" ] || continue
+            name="$(basename "$skill")"
+            rm -rf "$agent_dir/$name"
+            cp -R "${skill%/}" "$agent_dir/$name"
+          done
+        done
+      description: "Copy ~/skills into each agent's skills directory"
+      user: "1000"
+
+  # `install` runs once, at creation. This repeats it on later starts, in case
+  # a restart resets the agent directories. It only fills gaps: an existing
+  # skill is left alone, because this hook has no ordering guarantee against
+  # the entrypoint and must not remove a directory an agent is reading.
   startup:
     - command:
         - "sh"
@@ -14,41 +60,33 @@ setup:
         - |
           set -eu
 
-          AGENT_DIRS="$HOME/.claude/skills $HOME/.gemini/skills $HOME/.agents/skills"
-          for agent_dir in $AGENT_DIRS; do
+          home="$(getent passwd 1000 2>/dev/null | cut -d: -f6 || true)"
+          [ -n "$home" ] || home=/home/agent
+          src="$home/skills"
+          [ -d "$src" ] || exit 0
+
+          for agent_dir in "$home/.claude/skills" "$home/.agents/skills"; do
             mkdir -p "$agent_dir"
-          done
-
-          link_skill() {
-            skill_dir="$1"
-            name="$(basename "$skill_dir")"
-            for agent_dir in $AGENT_DIRS; do
-              ln -sfn "$skill_dir" "$agent_dir/$name"
+            for skill in "$src"/*/; do
+              [ -f "$skill/SKILL.md" ] || continue
+              name="$(basename "$skill")"
+              # A plain `[ -e ... ] && continue` would exit the whole hook
+              # under `set -e` every time the skill is already there.
+              if [ ! -e "$agent_dir/$name" ]; then
+                cp -R "${skill%/}" "$agent_dir/$name"
+              fi
             done
-          }
-
-          # Tracked skills: ~/skills/<name>/SKILL.md
-          for skill_dir in "$HOME/skills"/*/; do
-            [ -f "$skill_dir/SKILL.md" ] || continue
-            link_skill "${skill_dir%/}"
           done
-
-          # Experimental skills: ~/skills/experimental/<name>/SKILL.md, with up
-          # to two levels of grouping (e.g. experimental/<vendor>/<topic>/<name>).
-          # Linked last so a copy of a shipped skill shadows the tracked one.
-          if [ -d "$HOME/skills/experimental" ]; then
-            find "$HOME/skills/experimental" -mindepth 2 -maxdepth 4 \
-              -name SKILL.md -type f |
-              while read -r skill_file; do
-                link_skill "$(dirname "$skill_file")"
-              done
-          fi
-      description: "Symlink ~/skills/<name> into each agent's skills dir"
+      description: "Restore any agent skill missing after a restart"
       user: "1000"
 
 agentInstructions:
   content: |
-    Skills are installed at ~/skills/<name>/ and symlinked into
-    ~/.claude/skills/, ~/.gemini/skills/ and ~/.agents/skills/.
-    Untracked, experimental skills live under ~/skills/experimental/ and are
-    symlinked the same way; they shadow a tracked skill of the same name.
+    Skills are installed as real directories (not symlinks) at
+    ~/.claude/skills/ and ~/.agents/skills/, copied from the ~/skills payload
+    before the agent starts.
+
+    They are copies, so editing one here changes nothing permanent. The source
+    of truth is env/.agents/skills/ in my dotfiles repo, and the copy of that
+    repo at ~/src/personal/dotfiles is shallow and detached, so it is not the
+    place to edit them either. Skills are authored on the host.

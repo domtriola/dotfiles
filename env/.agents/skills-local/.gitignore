@@ -1,0 +1,8 @@
+# Local skills are dropped in by hand and are deliberately not tracked. They
+# are copied into $HOME and into the agent-skills kit after the tracked ones,
+# so a local copy shadows a tracked skill of the same name.
+#
+# The directory itself is tracked (via this file) so that ./sync-env and
+# ./sync-skills always find it.
+*
+!.gitignore

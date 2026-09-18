@@ -1,0 +1,329 @@
+#!/usr/bin/env bash
+#
+# Usage: ./pull-skills [--dry] [--force] [--only <text>]
+#
+# Vendors third-party agent skills into ./env/.agents/skills/, the source of
+# truth that ./sync-env copies into $HOME and ./sync-skills copies into the
+# agent-skills kit.
+#
+# The upstreams are listed in env/.agents/skills.json:
+#
+#   [
+#     {
+#       "repo":    "https://github.com/someone/skills",  # required
+#       "ref":     "main",                  # optional, default main
+#       "root":    "skills",                # optional, prefix inside the repo
+#       "paths":   ["engineering/*"],       # required, globs under <root>
+#       "exclude": ["engineering/wip"],     # optional, globs under <root>
+#       "rename":  {"engineering/tdd": "matt-tdd"}   # optional
+#     }
+#   ]
+#
+# A matched directory is a skill only if it holds a SKILL.md. Its destination
+# name is the last path segment unless "rename" says otherwise. Two skills that
+# want the same destination name are an error: "rename" is there to settle it.
+#
+# env/.agents/skills.lock records, for each vendored skill, where it came from
+# and a checksum of what was copied. The checksum is what makes an edit to a
+# vendored skill visible: this script stops rather than discard it. Skills you
+# wrote yourself are simply absent from the lock and are never touched.
+#
+# The lock is generated. Do not edit it by hand.
+#
+# SECURITY: these files are agent instructions that run with your agent's
+# permissions. A refresh is the moment to read them. Check `git diff` before
+# committing, and use the skills-security-review skill on anything new.
+#
+# Arguments:
+#   --dry    Clone and compare, but change nothing on disk.
+#   --force  Overwrite vendored skills that were edited locally.
+#   --only   Only process sources whose repo URL contains this text.
+
+set -eo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+manifest="$script_dir/env/.agents/skills.json"
+lock="$script_dir/env/.agents/skills.lock"
+skills_dir="$script_dir/env/.agents/skills"
+
+dry="0"
+force="0"
+only=""
+
+die() {
+  printf 'pull-skills: %s\n' "$1" >&2
+  exit 1
+}
+
+log() {
+  if [[ $dry == "1" ]]; then
+    echo "[DRY RUN]: $*"
+  else
+    echo "$*"
+  fi
+}
+
+execute() {
+  log "execute $*"
+  if [[ $dry == "1" ]]; then
+    return
+  fi
+
+  "$@"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --dry) dry="1" ;;
+  --force) force="1" ;;
+  --only)
+    shift
+    only="${1:-}"
+    [[ -n "$only" ]] || die "--only needs some text to match"
+    ;;
+  --only=*) only="${1#--only=}" ;;
+  *) die "unknown argument '$1'" ;;
+  esac
+  shift
+done
+
+for dep in git jq; do
+  command -v "$dep" >/dev/null 2>&1 || die "$dep is not installed"
+done
+
+[[ -f "$manifest" ]] || die "no manifest at $manifest"
+jq -e 'type == "array"' "$manifest" >/dev/null 2>&1 ||
+  die "$manifest must hold an array of sources"
+
+# sha256sum on Linux, shasum on macOS.
+if command -v sha256sum >/dev/null 2>&1; then
+  sha() { sha256sum; }
+else
+  sha() { shasum -a 256; }
+fi
+
+# A skill's checksum covers every file's contents and its path inside the
+# skill, so a rename or a deleted file counts as a change too.
+tree_checksum() {
+  (
+    cd "$1" || exit 1
+    find . -type f -print0 | LC_ALL=C sort -z |
+      while IFS= read -r -d '' file; do
+        printf '%s  %s\n' "$(sha <"$file" | cut -d' ' -f1)" "$file"
+      done
+  ) | sha | cut -d' ' -f1
+}
+
+# The checksum the lock holds for a skill, or nothing.
+locked_checksum() {
+  [[ -f "$lock" ]] || return 0
+  jq -r --arg d "$1" '.skills[$d].checksum // empty' "$lock" 2>/dev/null || true
+}
+
+# Does "$1" match any of the remaining glob arguments?
+matches_any() {
+  local subject="$1" pattern
+  shift
+  for pattern in "$@"; do
+    # shellcheck disable=SC2053 # the glob is the point
+    if [[ "$subject" == $pattern ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+# dest \t repo \t ref \t commit \t path \t source directory
+plan="$tmp/plan.tsv"
+: >"$plan"
+
+source_count="$(jq 'length' "$manifest")"
+[[ "$source_count" -gt 0 ]] || die "$manifest lists no sources"
+
+# ---------------------------------------------------
+# Pass 1: clone each upstream and work out what to copy
+# ---------------------------------------------------
+
+# The repos this run is responsible for. Sources skipped by --only keep both
+# their lock entries and their vendored directories.
+handled_repos="[]"
+
+for i in $(seq 0 $((source_count - 1))); do
+  repo="$(jq -r ".[$i].repo // empty" "$manifest")"
+  ref="$(jq -r ".[$i].ref // \"main\"" "$manifest")"
+  root="$(jq -r ".[$i].root // \"\"" "$manifest")"
+
+  [[ -n "$repo" ]] || die "source $i has no repo"
+
+  if [[ -n "$only" && "$repo" != *"$only"* ]]; then
+    echo "skipping $repo (does not match --only $only)"
+    continue
+  fi
+
+  handled_repos="$(jq -c --arg r "$repo" '. + [$r]' <<<"$handled_repos")"
+
+  checkout="$tmp/src-$i"
+  echo "cloning $repo ($ref)"
+  git clone --quiet --depth 1 --branch "$ref" "$repo" "$checkout" ||
+    die "could not clone $repo at $ref"
+  commit="$(git -C "$checkout" rev-parse HEAD)"
+
+  base="$checkout"
+  if [[ -n "$root" ]]; then
+    base="$checkout/$root"
+  fi
+  [[ -d "$base" ]] || die "$repo has no '$root' directory"
+
+  # `mapfile` is bash 4, so this stays a read loop for macOS's bash 3.2.
+  patterns=()
+  while IFS= read -r line; do patterns+=("$line"); done < <(jq -r ".[$i].paths[]?" "$manifest")
+  [[ ${#patterns[@]} -gt 0 ]] || die "source $i lists no paths"
+
+  excludes=()
+  while IFS= read -r line; do excludes+=("$line"); done < <(jq -r ".[$i].exclude[]?" "$manifest")
+
+  for pattern in "${patterns[@]}"; do
+    for dir in "$base"/$pattern; do
+      [[ -d "$dir" ]] || continue
+
+      rel="${dir#"$base"/}"
+      if [[ ${#excludes[@]} -gt 0 ]] && matches_any "$rel" "${excludes[@]}"; then
+        continue
+      fi
+      # A directory with no SKILL.md is a grouping directory, not a skill.
+      [[ -f "$dir/SKILL.md" ]] || continue
+
+      dest="$(jq -r --arg rel "$rel" ".[$i].rename[\$rel] // empty" "$manifest")"
+      [[ -n "$dest" ]] || dest="$(basename "$rel")"
+
+      path="$rel"
+      if [[ -n "$root" ]]; then
+        path="$root/$rel"
+      fi
+
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$dest" "$repo" "$ref" "$commit" "$path" "$dir" >>"$plan"
+    done
+  done
+done
+
+[[ -s "$plan" ]] || die "the sources matched no skills"
+
+# Two upstreams that want the same name would silently overwrite each other.
+collisions="$(cut -f1 "$plan" | LC_ALL=C sort | uniq -d || true)"
+if [[ -n "$collisions" ]]; then
+  die "more than one source wants these names, use \"rename\" to settle it:
+$(printf '  %s\n' $collisions)"
+fi
+
+# ---------------------------------------------------
+# Pass 2: refuse to discard local edits
+# ---------------------------------------------------
+
+drifted=""
+while IFS=$'\t' read -r dest repo ref commit path dir; do
+  [[ -d "$skills_dir/$dest" ]] || continue
+
+  was="$(locked_checksum "$dest")"
+  # No lock entry means the name belongs to a skill you wrote, or to a copy
+  # vendored by hand before the lock existed. Neither is safe to overwrite.
+  if [[ -z "$was" ]]; then
+    drifted="$drifted  $dest (not in the lock)\n"
+    continue
+  fi
+
+  if [[ "$was" != "$(tree_checksum "$skills_dir/$dest")" ]]; then
+    drifted="$drifted  $dest (edited since the last pull)\n"
+  fi
+done <"$plan"
+
+if [[ -n "$drifted" && "$force" != "1" ]]; then
+  {
+    printf 'pull-skills: these skills would be overwritten:\n'
+    printf '%b' "$drifted"
+    printf 'Move them aside, or pass --force to discard them.\n'
+  } >&2
+  exit 1
+fi
+
+# ---------------------------------------------------
+# Pass 3: copy, prune, and rewrite the lock
+# ---------------------------------------------------
+
+log "------------ pull-skills ------------"
+execute mkdir -p "$skills_dir"
+
+entries="$tmp/entries.tsv"
+: >"$entries"
+
+while IFS=$'\t' read -r dest repo ref commit path dir; do
+  now="$(tree_checksum "$dir")"
+
+  # The state describes what happens to the copy on disk, so a --force run that
+  # discards a local edit reports "updated" rather than "unchanged".
+  if [[ ! -d "$skills_dir/$dest" ]]; then
+    state="new      "
+  elif [[ "$(tree_checksum "$skills_dir/$dest")" == "$now" ]]; then
+    state="unchanged"
+  else
+    state="updated  "
+  fi
+
+  log "$state $dest <- $repo/$path"
+  execute rm -rf "$skills_dir/$dest"
+  execute cp -R "$dir" "$skills_dir/$dest"
+
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$dest" "$repo" "$ref" "$commit" "$path" "$now" >>"$entries"
+done <"$plan"
+
+# A skill the lock still lists, from a repo this run handled, that the manifest
+# no longer selects.
+if [[ -f "$lock" ]]; then
+  while IFS= read -r dest; do
+    [[ -n "$dest" ]] || continue
+    if ! cut -f1 "$entries" | grep -qxF "$dest"; then
+      log "removed   $dest (no longer selected)"
+      execute rm -rf "$skills_dir/$dest"
+    fi
+  done < <(jq -r --argjson repos "$handled_repos" \
+    '(.skills // {}) | to_entries[] | select(.value.repo as $r | $repos | index($r)) | .key' \
+    "$lock")
+fi
+
+new_entries="$(jq -Rn '
+  [
+    inputs
+    | split("\t")
+    | {
+        key: .[0],
+        value: { repo: .[1], ref: .[2], commit: .[3], path: .[4], checksum: .[5] }
+      }
+  ]
+  | from_entries
+' <"$entries")"
+
+# Entries from sources this run skipped are carried over untouched.
+if [[ -f "$lock" ]]; then
+  kept="$(jq -c --argjson repos "$handled_repos" \
+    '(.skills // {}) | with_entries(select(.value.repo as $r | $repos | index($r) | not))' \
+    "$lock")"
+else
+  kept="{}"
+fi
+
+lock_json="$(jq -S -n --argjson new "$new_entries" --argjson kept "$kept" \
+  '{skills: ($kept + $new)}')"
+
+if [[ $dry == "1" ]]; then
+  log "write $lock"
+else
+  printf '%s\n' "$lock_json" >"$lock"
+  echo "wrote $lock"
+fi
+
+echo "----------------------------------------"
+echo "Read the diff before committing: these are agent instructions."

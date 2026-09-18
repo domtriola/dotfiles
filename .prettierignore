@@ -4,3 +4,8 @@
 # lockfiles
 lazy-lock.json
 pnpm-lock.yaml
+
+# Agent skills. Most of these are vendored verbatim by ./pull-skills, and
+# reformatting them (Prettier rewrites _italic_ as *italic*) would read as a
+# local edit on every refresh and stop the run.
+env/.agents/

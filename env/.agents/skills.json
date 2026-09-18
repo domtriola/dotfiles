@@ -1,0 +1,14 @@
+[
+  {
+    "repo": "https://github.com/mattpocock/skills",
+    "ref": "main",
+    "root": "skills",
+    "paths": [
+      "engineering/domain-modeling",
+      "productivity/grill-me",
+      "productivity/grilling"
+    ],
+    "exclude": ["engineering/setup-matt-pocock-skills"],
+    "rename": {}
+  }
+]
