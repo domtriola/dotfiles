@@ -42,3 +42,7 @@ Don't over-simplify concepts with phrases like "that's the whole difference" or 
 Write in the third person and don't use personal pronouns.
 
 Never explain something that was a passing thought process. For example, don't leave a comment saying "...so it needs no notes here" or "...was removed because it was deprecated" after removing a reference to something.
+
+### 7. Documentation should be extensible
+
+Don't hard-code documentation details. Well-written code allows for extension. Documentation should do the same. For example, instead of saying "these 5 scripts: ...list", just say "these scripts: ...list".
