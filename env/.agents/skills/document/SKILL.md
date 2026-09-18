@@ -40,3 +40,5 @@ Don't over-simplify concepts with phrases like "that's the whole difference" or 
 ### 6. Be consistent with context
 
 Write in the third person and don't use personal pronouns.
+
+Never explain something that was a passing thought process. For example, don't leave a comment saying "...so it needs no notes here" or "...was removed because it was deprecated" after removing a reference to something.
