@@ -1,4 +1,4 @@
-# Dotfiles
+# My Dotfiles
 
 Environment configurations for quick set-up of a new machine.
 
