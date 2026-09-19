@@ -48,3 +48,9 @@ brew install sheeki03/tap/tirith
 
 # For automating macOS with Lua scripts
 brew install hammerspoon --cask
+
+# Network Management
+# ####################
+
+brew install netbirdio/tap/netbird
+brew install --cask netbirdio/tap/netbird-ui
