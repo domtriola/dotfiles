@@ -94,12 +94,46 @@ ssh <user>@<ipv4-address>
 
 [Ubuntu security docs](https://ubuntu.com/server/docs/#security)
 
-Update all packages:
+#### Update all packages
 
 ```sh
 sudo apt update && sudo apt full-upgrade -y
 # Reboot if kernel upgrade prompts for it
 sudo reboot
+```
+
+#### Prefer SSH-key only auth
+
+[Ubuntu openssh-server docs](https://ubuntu.com/server/docs/how-to/security/openssh-server/)
+
+Check if server already has your authorized key and proceed if not:
+
+```sh
+cat ~/.ssh/authorized_keys
+```
+
+If you already have a key (`ls ~/.ssh/*.pub`) use that. Otherwise generate one: `ssh-keygen -t ed25519 -C "dev-mac"`.
+
+Copy the key to the server: `ssh-copy-id <user>@<framework-ipv4>`
+
+Double check that the key works with password auth disabled: `ssh -o PasswordAuthentication=no <user>@<framework-ipv4>`
+
+Disable password auth:
+
+```sh
+sudo tee /etc/ssh/sshd_config.d/99-hardening.conf >/dev/null <<'EOF'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF
+
+sudo sshd -t && sudo systemctl restart ssh.service
+
+# Should all read "no" now:
+sudo sshd -T | grep -iE 'passwordauth|kbdinteractive|permitrootlogin'
+
+# In new window verify you can still connect:
+ssh <user>@<framework-ipv4>
 ```
 
 ## Optimize machine as a LLM server
