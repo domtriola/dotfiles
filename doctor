@@ -1,0 +1,201 @@
+#!/usr/bin/env bash
+#
+# Usage: ./doctor [--profile <name>]
+#
+# Reports whether this machine is configured the way its profile intends.
+# Changes nothing.
+#
+# The checks for a profile live in setups/<profile>/lib/doctor.sh, which this
+# script sources. Anything under lib/ is invisible to ./setup, which only
+# looks at files directly inside the profile directory.
+#
+# Some checks read configuration that only root can see, so sudo may prompt
+# once.
+#
+# Arguments:
+#   --profile  The use-case of this machine. Only needed when the profile has
+#              not been saved yet. $DOTFILES_PROFILE overrides it.
+#   --offline  Skip the checks that ask an upstream service what the newest
+#              release is. Everything else reads local state only.
+#
+# Exit status:
+#   0  nothing failed
+#   1  at least one check failed
+#
+# There is no `set -e`. A check that reports a problem usually does so by
+# running a command that exits non-zero, and that is a result rather than an
+# error.
+
+set -o pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+source "$script_dir/lib/platform.sh"
+source "$script_dir/lib/profile.sh"
+
+profile_arg=""
+doctor_offline="0"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --offline)
+    doctor_offline="1"
+    ;;
+  --profile)
+    shift
+    profile_arg="${1:-}"
+    if [[ -z "$profile_arg" ]]; then
+      echo "doctor: --profile needs a name (one of: $(profile_list))" >&2
+      exit 1
+    fi
+    ;;
+  --profile=*) profile_arg="${1#--profile=}" ;;
+  *)
+    echo "doctor: unknown argument '$1'" >&2
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+# "1" for a dry run, so resolving the profile never saves it. Reporting on a
+# machine should not change what the machine is.
+profile="$(resolve_profile "$profile_arg" "1")" || exit 1
+
+# ---------------------------------------------------
+# Reporting
+# ---------------------------------------------------
+
+if [[ -t 1 ]]; then
+  C_OK=$'\033[32m'
+  C_WARN=$'\033[33m'
+  C_FAIL=$'\033[31m'
+  C_SKIP=$'\033[90m'
+  C_HEAD=$'\033[1m'
+  C_OFF=$'\033[0m'
+else
+  C_OK="" C_WARN="" C_FAIL="" C_SKIP="" C_HEAD="" C_OFF=""
+fi
+
+count_ok=0
+count_warn=0
+count_fail=0
+count_pending=0
+
+_report() {
+  local colour="$1" word="$2" label="$3" detail="${4:-}"
+  printf '  %s%-7s%s %-34s %s\n' "$colour" "$word" "$C_OFF" "$label" "$detail"
+}
+
+# ok       the machine matches what the profile intends
+# warn     working, but not what was intended, and worth a look
+# fail     broken, or a setting that silently does nothing
+# pending  not configured yet, and not expected to be
+section() { printf '\n%s%s%s\n' "$C_HEAD" "$1" "$C_OFF"; }
+ok() {
+  count_ok=$((count_ok + 1))
+  _report "$C_OK" ok "$@"
+}
+warn() {
+  count_warn=$((count_warn + 1))
+  _report "$C_WARN" warn "$@"
+}
+fail() {
+  count_fail=$((count_fail + 1))
+  _report "$C_FAIL" FAIL "$@"
+}
+pending() {
+  count_pending=$((count_pending + 1))
+  _report "$C_SKIP" pending "$@"
+}
+
+# have reports whether a command exists, for checks that depend on one.
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# latest_release_tag prints the newest release tag of a GitHub repository, or
+# nothing when it cannot be read.
+#
+# The /releases/latest endpoint is deliberately not used. It reports whichever
+# release upstream marked as latest, which for llama.cpp is not its newest
+# build tag, so it would report a machine as out of date against the wrong
+# number.
+latest_release_tag() {
+  curl -fsSL --max-time "${doctor_net_timeout:-6}" \
+    "https://api.github.com/repos/$1/releases?per_page=1" 2>/dev/null |
+    sed -nE 's/.*"tag_name": *"([^"]*)".*/\1/p' | head -1
+}
+
+# check_release compares an installed version against the newest release and
+# says how far behind it is. Versions here are a prefix and an integer that
+# only ever increases, so the difference is a count of releases.
+#
+# Usage: check_release <label> <owner/repo> <installed> <prefix>
+check_release() {
+  local label="$1" repo="$2" installed="$3" prefix="$4" latest delta
+
+  if [[ "$doctor_offline" == "1" ]]; then
+    pending "$label" "update check skipped"
+    return
+  fi
+
+  latest="$(latest_release_tag "$repo")"
+  if [[ -z "$latest" ]]; then
+    warn "$label" "could not reach github.com to compare"
+    return
+  fi
+
+  if [[ -z "$installed" ]]; then
+    pending "$label" "not installed, newest is $latest"
+    return
+  fi
+
+  # The prefix is stripped from both sides before anything is compared. An
+  # installed version and its upstream tag do not always spell it the same way:
+  # llama-swap installs as "256" and tags the release "v256".
+  local a="${installed#"$prefix"}" b="${latest#"$prefix"}"
+
+  if [[ "$a" == "$b" ]]; then
+    ok "$label" "$installed is current"
+    return
+  fi
+
+  if [[ "$a" =~ ^[0-9]+$ && "$b" =~ ^[0-9]+$ ]]; then
+    delta=$((b - a))
+    if [[ $delta -le 0 ]]; then
+      ok "$label" "$installed is newer than the published $latest"
+    else
+      warn "$label" "$installed installed, $latest available ($delta behind)"
+    fi
+  else
+    warn "$label" "$installed installed, $latest available"
+  fi
+}
+
+# ---------------------------------------------------
+# Run the profile's checks
+# ---------------------------------------------------
+
+profile_dir="$script_dir/setups/$profile"
+checks="$profile_dir/lib/doctor.sh"
+
+printf '%sdoctor: %s%s\n' "$C_HEAD" "$profile" "$C_OFF"
+
+if [[ ! -f "$checks" ]]; then
+  printf '\nNo checks are written for the %s profile.\n' "$profile"
+  printf 'Add them at setups/%s/lib/doctor.sh.\n' "$profile"
+  exit 0
+fi
+
+# shellcheck source=/dev/null
+source "$checks"
+
+# ---------------------------------------------------
+# Summary
+# ---------------------------------------------------
+
+printf '\n%s%s%s\n' "$C_HEAD" "Summary" "$C_OFF"
+printf '  %d ok, %d warn, %d failed, %d pending\n' \
+  "$count_ok" "$count_warn" "$count_fail" "$count_pending"
+
+if [[ $count_fail -gt 0 ]]; then
+  exit 1
+fi
+exit 0

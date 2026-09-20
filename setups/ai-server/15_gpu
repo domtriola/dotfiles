@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+#
+# Unified memory for the GPU, and the processor profile.
+#
+# The amdgpu driver gives the GPU about half of system memory by default, which
+# is 62 GiB of the 128 GiB here. These parameters raise it to about 124 GiB.
+# Both memory values mean the same size and have to agree: a mismatch makes the
+# GPU expose roughly half of what was asked for, and logs
+# "GTT size has been set as ... this is unusual".
+#
+# The parameters go in /etc/default/grub.d/, not /etc/default/grub. Files there
+# are SOURCED by grub-mkconfig after the main file, so a plain assignment would
+# replace what the distribution set and the value has to append to itself. That
+# is the opposite of /etc/ssh/sshd_config.d, which 05_hardening writes. Writing
+# the whole file also makes this script idempotent for free: there is no string
+# to match and no parameter to accidentally add twice.
+#
+# The IOMMU parameter is asked for rather than chosen. See choose_iommu below.
+
+set -eo pipefail
+
+grub_dropin="/etc/default/grub.d/99-ai-server.cfg"
+gtt_pages="ttm.pages_limit=32505856"
+gtt_size="amdgpu.gttsize=126976"
+
+# ---------------------------------------------------------------------------
+# choose_iommu prints "amd_iommu=off" or "iommu=pt" on stdout. Every message it
+# writes goes to stderr, so the caller can capture the result with $(...).
+#
+# Resolution order, first match wins:
+#   1. the drop-in already holds a choice   (keeps a rerun silent)
+#   2. $AI_SERVER_IOMMU                     (how an unattended run answers)
+#   3. a terminal to ask on                 (offers off as the default)
+#   4. otherwise, stop
+#
+# Step 4 stops rather than picking, because the setting changes how well the
+# machine is protected and an unattended run must not decide that quietly. This
+# follows confirm_profile in lib/profile.sh, which refuses to guess a
+# profile for the same reason.
+# ---------------------------------------------------------------------------
+choose_iommu() {
+  local answer
+
+  if [[ -f $grub_dropin ]]; then
+    if grep -q 'amd_iommu=off' "$grub_dropin"; then
+      echo "IOMMU: keeping amd_iommu=off, already set in $grub_dropin" >&2
+      printf 'amd_iommu=off\n'
+      return 0
+    fi
+    if grep -q 'iommu=pt' "$grub_dropin"; then
+      echo "IOMMU: keeping iommu=pt, already set in $grub_dropin" >&2
+      printf 'iommu=pt\n'
+      return 0
+    fi
+  fi
+
+  case "${AI_SERVER_IOMMU:-}" in
+  off)
+    echo "IOMMU: using amd_iommu=off, from \$AI_SERVER_IOMMU" >&2
+    printf 'amd_iommu=off\n'
+    return 0
+    ;;
+  pt)
+    echo "IOMMU: using iommu=pt, from \$AI_SERVER_IOMMU" >&2
+    printf 'iommu=pt\n'
+    return 0
+    ;;
+  "") ;;
+  *)
+    echo "15_gpu: \$AI_SERVER_IOMMU is '${AI_SERVER_IOMMU}'. Use 'off' or 'pt'." >&2
+    return 1
+    ;;
+  esac
+
+  if [[ ! -t 0 ]]; then
+    cat >&2 <<'EOF'
+15_gpu: the IOMMU setting is not chosen and there is no terminal to ask on.
+
+  off  amd_iommu=off  5 to 12 percent faster. Stops the NPU from working, and
+                      removes protection against DMA attacks from a device
+                      plugged into a USB4 port.
+  pt   iommu=pt       Identity mapping. Slower than off, and keeps more
+                      protection than off.
+
+Set $AI_SERVER_IOMMU to off or pt, then run this again.
+EOF
+    return 1
+  fi
+
+  cat >&2 <<'EOF'
+
+The IOMMU setting depends on where this machine sits, so it is not chosen here.
+
+  off  amd_iommu=off  5 to 12 percent faster. Stops the NPU from working, and
+                      removes protection against DMA attacks from a device
+                      plugged into a USB4 port. Suits a machine in a place you
+                      control.
+  pt   iommu=pt       Identity mapping. Slower than off, and keeps more
+                      protection than off.
+
+Neither is permanent. Changing it later means editing one line in
+/etc/default/grub.d/99-ai-server.cfg and running update-grub.
+EOF
+  read -r -p "Use [off] or pt? " answer
+  case "${answer:-off}" in
+  off | "") printf 'amd_iommu=off\n' ;;
+  pt) printf 'iommu=pt\n' ;;
+  *)
+    echo "15_gpu: '$answer' is not 'off' or 'pt'." >&2
+    return 1
+    ;;
+  esac
+}
+
+iommu="$(choose_iommu)"
+
+# ---------------------------------------------------------------------------
+# The drop-in
+# ---------------------------------------------------------------------------
+#
+# $GRUB_CMDLINE_LINUX is escaped so the file holds it literally. It is expanded
+# by grub-mkconfig, after the main file has set it, and not by this script.
+desired="$(
+  cat <<EOF
+# Managed by dotfiles: setups/ai-server/15_gpu
+GRUB_CMDLINE_LINUX="\$GRUB_CMDLINE_LINUX $iommu $gtt_size $gtt_pages"
+EOF
+)"
+
+needs_reboot=0
+
+if [[ -f $grub_dropin ]] && [[ "$(cat "$grub_dropin")" == "$desired" ]]; then
+  echo "$grub_dropin is already correct."
+else
+  echo "Writing $grub_dropin"
+  printf '%s\n' "$desired" | sudo tee "$grub_dropin" >/dev/null
+  sudo update-grub
+  needs_reboot=1
+fi
+
+# Proof that the parameters reached the generated configuration. A drop-in that
+# assigns instead of appending would pass every check up to here and still
+# produce a boot without them.
+echo "In /boot/grub/grub.cfg:"
+if ! sudo grep -om1 "$iommu[^\"]*" /boot/grub/grub.cfg; then
+  echo "15_gpu: the parameters are not in /boot/grub/grub.cfg." >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Processor profile
+# ---------------------------------------------------------------------------
+echo "--- tuned ---"
+sudo systemctl enable --now tuned
+
+want_profile="accelerator-performance"
+active="$(tuned-adm active 2>/dev/null | sed -n 's/.*: //p')"
+
+if [[ "$active" == "$want_profile" ]]; then
+  echo "tuned profile is already $want_profile."
+else
+  echo "Setting tuned profile to $want_profile (was ${active:-none})."
+  sudo tuned-adm profile "$want_profile"
+fi
+
+# ---------------------------------------------------------------------------
+# Result
+# ---------------------------------------------------------------------------
+#
+# GTT is the pool that holds model weights. VRAM is the BIOS carve-out, and a
+# small one is correct: AMD recommends 512 MiB or less, because these
+# frameworks work better against GTT-backed allocations.
+echo "--- memory ---"
+for d in /sys/class/drm/card*/device; do
+  [[ -f "$d/mem_info_gtt_total" ]] || continue
+  echo "  GTT:  $(($(cat "$d/mem_info_gtt_total") / 1024 ** 3)) GiB"
+  echo "  VRAM: $(($(cat "$d/mem_info_vram_total") / 1024 ** 2)) MiB"
+done
+
+if [[ $needs_reboot -eq 1 ]]; then
+  echo
+  echo "NOTE: the kernel parameters changed. Reboot to apply them, then check"
+  echo "      that GTT reads about 124 GiB. This script does not reboot."
+fi

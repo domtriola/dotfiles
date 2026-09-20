@@ -8,6 +8,7 @@ Environment configurations for quick set-up of a new machine.
 | --------- | ------------------------------------------------------------- |
 | `env/`    | The files that are copied into `$HOME`.                       |
 | `setups/` | One directory per profile, holding its scripts and manifest.  |
+| `lib/`    | Shell functions the top-level scripts share.                  |
 | `sbx/`    | Docker Sandbox kits. See [sbx/README.md](sbx/README.md).      |
 | `docs/`   | Notes and reminders. See [Further reading](#further-reading). |
 
@@ -20,6 +21,7 @@ Environment configurations for quick set-up of a new machine.
 | `./pull-skills` | Vendors third-party agent skills into `env/.agents/skills/`.              |
 | `./sync-skills` | Copies the agent skills into the `agent-skills` kit.                      |
 | `./pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                     |
+| `./doctor`      | Reports whether this machine matches what its profile intends.            |
 
 `./setup` also accepts a pattern to run only scripts that match:
 
@@ -28,6 +30,11 @@ Environment configurations for quick set-up of a new machine.
 ```
 
 Every script accepts `--dry`, which prints the actions and changes nothing.
+`./doctor` needs no `--dry`, because it only reads.
+
+A profile's checks live in `setups/<profile>/lib/doctor.sh`. Everything a
+profile owns that is not a setup step goes in its `lib/`, which `./setup` never
+looks inside.
 
 ## Profiles
 
@@ -41,6 +48,7 @@ and which files `./sync-env` copies.
 | `dev-linux`     | Fedora dev box                               |
 | `infosec-qubes` | Qubes appVM, minimal setup                   |
 | `sbx-linux`     | Docker Sandbox, set up by the `dotfiles` kit |
+| `ai-server`     | Headless model server, Ubuntu                |
 
 Each profile owns a directory under `setups/`:
 
@@ -131,3 +139,4 @@ a tracked one of the same name, in `$HOME` and in a sandbox.
 - [docs/manual_steps.md](docs/manual_steps.md): setup steps that haven't been automated.
 - [docs/app_configs/README.md](docs/app_configs/README.md): installation notes for GUI applications.
 - [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and helper commands.
+- [docs/ai-server-bootstrap.md](docs/ai-server-bootstrap.md): the steps done by hand before the `ai-server` profile runs.

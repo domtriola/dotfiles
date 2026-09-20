@@ -12,11 +12,11 @@
 #   3. the persisted profile file (see PROFILE_FILE below)
 #   4. detection, confirmed by the user (persisted)
 #
-# Requires setups/lib/platform.sh to be sourced first.
+# Requires lib/platform.sh to be sourced first.
 
 PROFILE_FILE="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
 
-PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux)
+PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux ai-server)
 
 # profile_list prints the known profiles on one line, for error messages.
 profile_list() { echo "${PROFILES[*]}"; }
@@ -33,13 +33,18 @@ is_profile() {
 profile_os() {
   case "$1" in
   dev-mac) echo "mac" ;;
-  dev-linux | infosec-qubes | sbx-linux) echo "linux" ;;
+  dev-linux | infosec-qubes | sbx-linux | ai-server) echo "linux" ;;
   esac
 }
 
 # detect_profile prints the profile that suits this machine, or nothing if it
 # cannot tell. A sandbox is checked before the other Linux profiles because it
 # is the most specific.
+#
+# The order of the last three tests carries meaning. A sandbox runs on Ubuntu
+# too, so is_sandbox has to be asked before is_ubuntu, or every sandbox would
+# detect as ai-server. The final is_linux keeps a distribution that matches
+# none of the tests on the dev-linux profile, as before.
 detect_profile() {
   if is_mac; then
     echo "dev-mac"
@@ -47,6 +52,10 @@ detect_profile() {
     echo "sbx-linux"
   elif is_qubes; then
     echo "infosec-qubes"
+  elif is_fedora; then
+    echo "dev-linux"
+  elif is_ubuntu; then
+    echo "ai-server"
   elif is_linux; then
     echo "dev-linux"
   fi
