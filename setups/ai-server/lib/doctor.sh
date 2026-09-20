@@ -412,8 +412,12 @@ if have vgs; then
     tr -dc '0-9.' | cut -d. -f1)"
   # The logical volume behind the filesystem, named the way lvextend wants it,
   # so the reported fix can be pasted rather than worked out.
-  lv_path="$(findmnt -no SOURCE "$space_target" 2>/dev/null)"
-  [[ -n "$lv_path" ]] || lv_path="<logical-volume>"
+  #
+  # df resolves the filesystem that contains a path. `findmnt SOURCE <path>`
+  # does not: it answers only for an exact mountpoint, and the models directory
+  # is not one, so it returned nothing.
+  lv_path="$(df --output=source "$space_target" 2>/dev/null | tail -1)"
+  [[ -n "$lv_path" && "$lv_path" == /dev/* ]] || lv_path="<logical-volume>"
 
   if [[ -z "$vg_free_gib" ]]; then
     warn "unallocated LVM space" "could not read vgs"
