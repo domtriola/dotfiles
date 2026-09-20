@@ -20,6 +20,7 @@ Environment configurations for quick set-up of a new machine.
 | `./pull-skills` | Vendors third-party agent skills into `env/.agents/skills/`.              |
 | `./sync-skills` | Copies the agent skills into the `agent-skills` kit.                      |
 | `./pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                     |
+| `./doctor`      | Reports whether this machine matches what its profile intends.            |
 
 `./setup` also accepts a pattern to run only scripts that match:
 
@@ -28,6 +29,10 @@ Environment configurations for quick set-up of a new machine.
 ```
 
 Every script accepts `--dry`, which prints the actions and changes nothing.
+`./doctor` needs no `--dry`, because it only reads.
+
+A profile's checks live in `setups/<profile>/doctor.sh`, with no execute bit,
+so `./setup` skips them the way it skips `env.manifest`.
 
 ## Profiles
 
