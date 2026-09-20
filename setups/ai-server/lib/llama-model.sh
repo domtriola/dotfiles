@@ -5,16 +5,23 @@
 # Downloads GGUF models from Hugging Face into the directory llama-swap is
 # configured from, and lists or removes what is there.
 #
-# `hf download` on its own does not produce what this setup needs:
+# Nothing else is needed to use it. The Hugging Face CLI is deliberately not a
+# dependency: its public API lists a repository's files with their sizes, and
+# every file has a stable download URL, so curl and the json module of the
+# system python do the whole job. A model server has no other use for a Python
+# package ecosystem, and a fresh machine can fetch a model as soon as this
+# profile has run.
 #
-#   - It keeps the repository's directory structure, and many GGUF repositories
-#     put each quantisation in its own folder. The llama-swap configuration is
-#     built from *.gguf at the top level of the models directory, so a file in
-#     a subfolder is never found. This flattens them.
-#   - Files have to be readable by the llama service account.
-#   - A large model arrives as several shards. All of them are needed, and they
-#     have to land in the same directory for the loader to find them from the
-#     first one.
+# The work that is left is what a plain download would not do:
+#
+#   - Repository layout is flattened. Many GGUF repositories put each
+#     quantisation in its own folder, and the llama-swap configuration is built
+#     from *.gguf at the top level of the models directory only.
+#   - Files are given to the llama service account to read.
+#   - Free space is checked against the real total before anything starts,
+#     rather than filling the disk part way through.
+#   - A large model arrives as several shards. All are needed, in one
+#     directory, because the loader finds the rest from the first.
 #
 # Source lives in the dotfiles repo at setups/ai-server/lib/llama-model.sh.
 # ./setup only runs files directly inside a profile directory, so nothing
@@ -34,7 +41,7 @@ Usage:
   llama-model space                  show free space in the models directory
 
 Examples:
-  llama-model add unsloth/Qwen3-30B-A3B-GGUF '*Q4_K_M*'
+  llama-model add unsloth/Qwen3.8-27B-GGUF '*UD-Q4_K_XL*'
   llama-model add bartowski/some-model-GGUF
 
 The pattern defaults to '*.gguf', which takes every quantisation in the repo.
@@ -100,54 +107,85 @@ cmd_rm() {
 }
 
 cmd_add() {
-  local repo="$1" pattern="${2:-*.gguf}" staging moved=0 found
+  local repo="$1" pattern="${2:-*.gguf}" staging listing total_gb avail_gb moved=0
 
-  [[ -n "$repo" ]] || die "add needs a repository, such as unsloth/Qwen3-30B-A3B-GGUF"
+  [[ -n "$repo" ]] || die "add needs a repository, such as unsloth/Qwen3.8-27B-GGUF"
 
-  if ! command -v hf >/dev/null 2>&1; then
-    cat >&2 <<'EOF'
-llama-model: the `hf` command is missing.
+  # No Hugging Face CLI is needed. The public API lists a repository's files
+  # with their sizes, and every file has a stable download URL, so curl and the
+  # json module of the system python are enough. That keeps the machine free of
+  # a package ecosystem it otherwise has no use for, and means a fresh install
+  # can fetch a model with nothing installed beyond this profile.
+  echo "Listing $repo, files matching $pattern"
 
-Install it without adding Python to this machine:
+  listing="$(curl -fsSL --max-time 60 "https://huggingface.co/api/models/${repo}?blobs=true" 2>/dev/null |
+    python3 -c '
+import json, sys, fnmatch
+pat = sys.argv[1]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+for f in d.get("siblings", []):
+    n = f["rfilename"]
+    if n.endswith(".gguf") and fnmatch.fnmatch(n, pat):
+        print(str(f.get("size") or 0) + "\t" + n)
+' "$pattern")" || die "could not read $repo. Check the name, and that it is public."
 
-  curl -LsSf https://hf.co/cli/install.sh | bash -s -- --exclude-skill
+  [[ -n "$listing" ]] || die "no .gguf file in $repo matches '$pattern'"
 
---exclude-skill leaves out the agent skill, which a model server has no use
-for.
-EOF
-    exit 1
+  # The size is known before anything is downloaded, so the disk is checked
+  # first rather than filling up part way through a hundred gigabytes.
+  # Rounded up, because a space check that under-reports what it needs is
+  # worse than one that refuses a download which would just have fitted.
+  total_gb="$(awk -F'\t' '{s+=$1} END {printf "%d", int(s/1000000000)+1}' <<<"$listing")"
+  avail_gb="$(df -BG --output=avail "$models_dir" | tail -1 | tr -dc '0-9')"
+
+  printf '\n%-58s %s\n' "FILE" "SIZE"
+  awk -F'\t' '{printf "%-58s %6.1f GB\n", $2, $1/1000000000}' <<<"$listing"
+  printf '\n  total %s GB, free %s GB\n\n' "$total_gb" "$avail_gb"
+
+  if [[ "$total_gb" -ge "$avail_gb" ]]; then
+    die "not enough space: needs ${total_gb} GB, ${avail_gb} GB free in $models_dir"
   fi
 
-  echo "Free space before:"
-  cmd_space
-
-  # Staged outside the models directory so that a failed or cancelled download
-  # never leaves a partial file where the configuration would pick it up.
+  # Staged outside the models directory so a cancelled download never leaves a
+  # partial file where the configuration would pick it up. Resume works within
+  # a run and across reruns of the same staging path is not attempted, because
+  # a partial file of unknown provenance is worse than starting again.
   staging="$(mktemp -d)"
   # shellcheck disable=SC2064
   trap "rm -rf '$staging'" EXIT
 
-  echo
-  echo "Downloading $repo, files matching $pattern"
-  hf download "$repo" --include "$pattern" --local-dir "$staging"
+  while IFS=$'\t' read -r size path; do
+    local name="${path##*/}"
 
-  # Flattened: the repository layout does not survive, because the
-  # configuration only reads the top level of the models directory.
-  while IFS= read -r file; do
-    found="$(basename "$file")"
-    if [[ -e "$models_dir/$found" ]]; then
-      echo "  skipping $found, already present"
+    if [[ -e "$models_dir/$name" ]]; then
+      echo "  have $name already"
       continue
     fi
-    sudo install -o "$service_user" -g "$service_user" -m 644 "$file" "$models_dir/$found"
-    echo "  added $found"
-    moved=$((moved + 1))
-  done < <(find "$staging" -type f -name '*.gguf' | sort)
 
-  [[ $moved -gt 0 ]] || die "no .gguf files matched '$pattern' in $repo"
+    echo "  fetching $name"
+    # -C - resumes a partial file, and the redirect to the CDN is followed.
+    curl -fL -C - --retry 5 --retry-delay 5 \
+      -o "$staging/$name" \
+      "https://huggingface.co/${repo}/resolve/main/${path}" ||
+      die "download of $name failed. Rerun to resume."
+
+    sudo install -o "$service_user" -g "$service_user" -m 644 \
+      "$staging/$name" "$models_dir/$name"
+    rm -f "$staging/$name"
+    moved=$((moved + 1))
+  done <<<"$listing"
+
+  if [[ $moved -eq 0 ]]; then
+    echo "Nothing new to add."
+  else
+    echo
+    echo "Added $moved file(s)."
+  fi
 
   echo
-  echo "Added $moved file(s). Installed models:"
   cmd_list
   echo
   echo "Run ./setup on this machine to rebuild the llama-swap configuration."

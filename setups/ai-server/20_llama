@@ -286,8 +286,8 @@ No models are installed, so llama-swap is enabled but not started.
 
 Download one, then run this again:
 
-  llama-model add <hf-repo> '<pattern>'
-  llama-model add unsloth/Qwen3-30B-A3B-GGUF '*Q4_K_M*'
+  llama-model add <repo> '<pattern>'
+  llama-model add unsloth/Qwen3.8-Flash-Next-GGUF '*UD-Q4_K_XL*'
 
 Run "llama-model --help" for the rest. A file copied into $models_dir by
 hand works too, as long as the $service_user user can read it.
