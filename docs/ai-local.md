@@ -121,7 +121,7 @@ Double check that the key works with password auth disabled: `ssh -o PasswordAut
 Disable password auth:
 
 ```sh
-sudo tee /etc/ssh/sshd_config.d/99-hardening.conf >/dev/null <<'EOF'
+sudo tee /etc/ssh/sshd_config.d/01-hardening.conf >/dev/null <<'EOF'
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin no
@@ -149,18 +149,58 @@ sudo ufw status verbose
 ## Optimize machine as a LLM server
 
 [Increase VRAM max allocation](https://rocm.docs.amd.com/en/latest/reference/system-optimization/rdna3-5.html#memory-settings)
+https://strix-halo-toolboxes.com/#config
 
 ```sh
-sudo apt install pipx
-pipx ensurepath
+sudo tee /etc/default/grub.d/99-ai-server.cfg >/dev/null <<'EOF'
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX amd_iommu=off amdgpu.gttsize=126976 ttm.pages_limit=32505856"
+EOF
+```
 
-pipx install amd-debug-tools
+Apply and verify:
 
-# View current shared memory config
-amd-ttm
+```sh
+sudo update-grub
+grep -o 'amd_iommu=off[^"]*' /boot/grub/grub.cfg | head -2
 
-amd-ttm --set 96
-
-# Reboot to apply changes
+# reboot if the changes were applied:
 sudo reboot
+```
+
+Final verification:
+
+```sh
+cat /proc/cmdline
+
+for d in /sys/class/drm/card*/device; do
+  [ -f "$d/mem_info_gtt_total" ] && echo "GTT:  $(( $(cat $d/mem_info_gtt_total) / 1024**3 )) GiB"
+  [ -f "$d/mem_info_vram_total" ] && echo "VRAM: $(( $(cat $d/mem_info_vram_total) / 1024**3 )) GiB"
+done
+# GTT:  124 GiB
+# VRAM: 0 GiB
+
+# NOTE: VRAM isn't actually 0:
+cat /sys/class/drm/card*/device/mem_info_vram_total
+# 536870912
+```
+
+## Install LLM server
+
+### Vulcan
+
+```sh
+sudo apt install -y libvulkan1 mesa-vulkan-drivers vulkan-tools
+```
+
+Give user render permissions
+
+```sh
+sudo usermod -aG render $USER
+
+vulkaninfo --summary | grep -A6 'GPU0'
+# should show
+# deviceName         = Radeon 8060S Graphics (RADV STRIX_HALO)
+# driverID           = DRIVER_ID_MESA_RADV
+# driverName         = radv
+
 ```
