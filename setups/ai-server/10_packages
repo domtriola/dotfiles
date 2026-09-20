@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# The packages this machine needs plus configs needed to access the GPU.
+#
+# Everything comes from apt. No language runtime is installed, because a model
+# server needs neither.
+#
+# The probe pattern is taken from setups/sbx-linux/20_packages: each package
+# names a command or path that proves it is present, so a rerun does nothing
+# and only touches the package lists when there is work to do.
+
+set -eo pipefail
+
+# <package>:<command that proves the package is present>
+#
+# A probe starting with "/" is checked with `test -e` instead of `command -v`,
+# for packages that install a library or a driver manifest rather than a
+# binary.
+packages=(
+  # Shell and editor, for the configuration that ./sync-env copies.
+  git:git
+  curl:curl
+  jq:jq
+  fzf:fzf
+  ripgrep:rg
+  tree:tree
+  neovim:nvim
+  tmux:tmux
+
+  # The Vulkan runtime. llama.cpp uses the Vulkan build on this hardware, so
+  # these are not optional extras: without a working ICD, Mesa answers with
+  # llvmpipe and inference runs on the processor.
+  libvulkan1:/usr/lib/x86_64-linux-gnu/libvulkan.so.1
+  mesa-vulkan-drivers:/usr/share/vulkan/icd.d/radeon_icd.x86_64.json
+  vulkan-tools:vulkaninfo
+
+  # Processor profile, applied by 15_gpu.
+  tuned:tuned-adm
+)
+
+missing=()
+for entry in "${packages[@]}"; do
+  probe="${entry#*:}"
+  if [[ $probe == /* ]]; then
+    [[ -e $probe ]] && continue
+  else
+    command -v "$probe" >/dev/null 2>&1 && continue
+  fi
+  missing+=("${entry%%:*}")
+done
+
+if [[ ${#missing[@]} -eq 0 ]]; then
+  echo "All packages are already installed."
+else
+  echo "Installing: ${missing[*]}"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi
+
+# ---------------------------------------------------------------------------
+# GPU access
+# ---------------------------------------------------------------------------
+#
+# The render node is owned by a group, and an account outside it cannot open
+# the device. Mesa does not fail when that happens. It drops the real GPU and
+# offers llvmpipe, a software renderer, so the only symptom is that everything
+# is slow. The group is read from the device rather than assumed, because the
+# name differs between distributions.
+render_node="/dev/dri/renderD128"
+
+if [[ ! -e $render_node ]]; then
+  echo "WARNING: $render_node does not exist. The amdgpu driver may not be loaded." >&2
+  exit 0
+fi
+
+render_group="$(stat -c '%G' "$render_node")"
+
+if id -nG "$USER" | tr ' ' '\n' | grep -qx "$render_group"; then
+  echo "$USER is already in the '$render_group' group."
+else
+  echo "Adding $USER to the '$render_group' group, for $render_node."
+  sudo usermod -aG "$render_group" "$USER"
+  echo
+  echo "NOTE: group membership is applied at login. Log out and back in, then"
+  echo "      check with: vulkaninfo --summary | grep -E 'deviceName|driverName'"
+fi

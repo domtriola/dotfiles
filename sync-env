@@ -101,6 +101,11 @@ manifest="$script_dir/setups/$profile/env.manifest"
 actions=()
 lineno=0
 
+# Set by the `none` directive. A profile that copies nothing is legitimate, but
+# so is a manifest whose every line was commented out by mistake, and the two
+# look the same. `none` tells them apart.
+copies_nothing="0"
+
 while IFS= read -r line || [[ -n "$line" ]]; do
   lineno=$((lineno + 1))
   where="$manifest:$lineno"
@@ -113,6 +118,12 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   if [[ "$directive" == "group" ]]; then
     [[ -n "$rest" ]] || die "$where: group needs a label"
     actions+=("group|$rest|")
+    continue
+  fi
+
+  if [[ "$directive" == "none" ]]; then
+    [[ -z "$rest" ]] || die "$where: none takes no arguments"
+    copies_nothing="1"
     continue
   fi
 
@@ -149,7 +160,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   actions+=("$directive|$src|$dest")
 done <"$manifest"
 
-[[ ${#actions[@]} -gt 0 ]] || die "$manifest lists nothing to copy"
+if [[ "$copies_nothing" == "1" ]]; then
+  [[ ${#actions[@]} -eq 0 ]] ||
+    die "$manifest: none cannot be combined with another directive"
+  log "$profile copies no environment files"
+  exit 0
+fi
+
+[[ ${#actions[@]} -gt 0 ]] ||
+  die "$manifest lists nothing to copy. Use the 'none' directive when that is deliberate."
 
 # ---------------------------------------------------
 # Pass 2: copy

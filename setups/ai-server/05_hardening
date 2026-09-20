@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# Key-only SSH, and the firewall.
+#
+# This runs first because it closes the door the machine is reached through.
+
+set -eo pipefail
+
+hardening_conf="/etc/ssh/sshd_config.d/01-hardening.conf"
+authorized_keys="$HOME/.ssh/authorized_keys"
+
+# ---------------------------------------------------------------------------
+# Guard: refuse to disable password authentication with no key to fall back on.
+# ---------------------------------------------------------------------------
+if [[ ! -s "$authorized_keys" ]]; then
+  cat >&2 <<EOF
+05_hardening: $authorized_keys is missing or empty.
+
+Disabling password authentication now would lock this machine out. Copy a key
+from the client first, while password authentication still works:
+
+  ssh-copy-id $USER@<this-host>
+
+Then run this again.
+EOF
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# SSH
+# ---------------------------------------------------------------------------
+echo "--- sshd ---"
+echo "Writing $hardening_conf"
+sudo tee "$hardening_conf" >/dev/null <<'EOF'
+# Managed by dotfiles: setups/ai-server/05_hardening
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+EOF
+sudo chmod 644 "$hardening_conf"
+
+# sshd -t rejects a broken file. The && keeps a bad config away from a restart.
+sudo sshd -t && sudo systemctl restart ssh.service
+
+# sshd -T prints the merged configuration. It is the only output that shows
+# which file won, so it is what this checks rather than the file just written.
+echo "Effective settings:"
+effective="$(sudo sshd -T)"
+for directive in passwordauthentication kbdinteractiveauthentication permitrootlogin; do
+  value="$(awk -v d="$directive" 'tolower($1) == d { print $2; exit }' <<<"$effective")"
+  printf '  %-32s %s\n' "$directive" "${value:-<unset>}"
+
+  if [[ "$value" != "no" ]]; then
+    cat >&2 <<EOF
+
+05_hardening: $directive is "${value:-<unset>}", not "no".
+
+Another file in /etc/ssh/sshd_config.d/ sets it first. Find it, and either
+remove its setting or give this drop-in a lower number:
+
+  grep -ri '$directive' /etc/ssh/sshd_config.d/ /etc/ssh/sshd_config
+EOF
+    exit 1
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# Firewall
+# ---------------------------------------------------------------------------
+echo "--- ufw ---"
+
+# `limit` is `allow` plus rate limiting. It matters here because this machine
+# holds a global IPv6 address, so there is no NAT between it and the internet.
+#
+# Both commands are idempotent: ufw does not duplicate an existing rule, and
+# enabling an active firewall is a no-op. --force skips the interactive
+# "may disrupt existing ssh connections" prompt, which would hang an
+# unattended run. The rule above is what makes skipping it safe.
+sudo ufw limit 22/tcp
+sudo ufw --force enable
+sudo ufw status verbose
+
+if ! grep -q '^IPV6=yes' /etc/default/ufw; then
+  echo "WARNING: IPV6 is not enabled in /etc/default/ufw." >&2
+  echo "  This host has a global IPv6 address, so inbound IPv6 is unfiltered." >&2
+fi
