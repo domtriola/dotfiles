@@ -153,7 +153,33 @@ EOF
   echo "Run ./setup on this machine to rebuild the llama-swap configuration."
 }
 
-[[ -d "$models_dir" ]] || die "$models_dir does not exist. Run ./setup first."
+# `test -d` fails identically for a directory that is absent and one whose
+# parent cannot be traversed, and reporting "does not exist" for the second
+# sends the reader to the wrong problem. Walking up to the deepest ancestor
+# that can be seen tells them apart, and needs no root to do it.
+if [[ ! -d "$models_dir" ]]; then
+  probe="$models_dir"
+  while [[ ! -e "$probe" && "$probe" != "/" ]]; do
+    probe="$(dirname "$probe")"
+  done
+
+  if [[ ! -x "$probe" ]]; then
+    cat >&2 <<EOF
+llama-model: $models_dir cannot be reached by $USER.
+
+$probe is not traversable:
+
+$(ls -ld "$probe" 2>/dev/null)
+
+Running ./setup on this machine sets the modes it expects. To open it now:
+
+  sudo chmod 755 $probe
+EOF
+    exit 1
+  fi
+
+  die "$models_dir does not exist. Run ./setup on this machine first."
+fi
 
 case "${1:-}" in
 add)

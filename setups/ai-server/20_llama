@@ -85,7 +85,7 @@ if id "$service_user" >/dev/null 2>&1; then
   echo "User $service_user already exists."
 else
   echo "Creating system user $service_user."
-  sudo useradd --system --home-dir /var/lib/llama --create-home \
+  sudo useradd --system --home-dir /var/lib/llama --no-create-home \
     --shell /usr/sbin/nologin "$service_user"
 fi
 
@@ -95,6 +95,15 @@ if ! id -nG "$service_user" | tr ' ' '\n' | grep -qx "$render_group"; then
   sudo usermod -aG "$render_group" "$service_user"
 fi
 
+# Created here rather than by `useradd --create-home`, which applies HOME_MODE
+# from /etc/login.defs. That is 0700 or 0750 on Ubuntu, and a parent directory
+# nobody can traverse makes everything below it invisible to every other
+# account: `test -d` on the models directory then reports that it does not
+# exist, which is true of nothing and misleading about everything.
+#
+# `install -d` sets the mode on a directory that already exists, so a rerun
+# repairs a home created the old way.
+sudo install -d -o "$service_user" -g "$service_user" -m 755 /var/lib/llama
 sudo install -d -o "$service_user" -g "$service_user" -m 755 "$models_dir"
 sudo install -d -m 755 "$config_dir"
 

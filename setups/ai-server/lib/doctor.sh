@@ -270,6 +270,22 @@ fi
 # Models are counted two ways, because the two can disagree. The configuration
 # is what llama-swap serves. The directory is what is on disk. A file added
 # without a later ./setup shows up here rather than being silently unserved.
+# An unreadable models directory reports the same as an empty one, so it is
+# checked before anything is counted. A home made by `useradd --create-home`
+# gets HOME_MODE from /etc/login.defs, which is 0700 or 0750 on Ubuntu, and
+# then nothing below it can be seen.
+models_readable=1
+if [[ ! -d "$models_dir" ]]; then
+  models_probe="$models_dir"
+  while [[ ! -e "$models_probe" && "$models_probe" != "/" ]]; do
+    models_probe="$(dirname "$models_probe")"
+  done
+  if [[ ! -x "$models_probe" ]]; then
+    models_readable=0
+    fail "models directory" "$models_probe is not traversable by $USER"
+  fi
+fi
+
 gguf_count=0
 if [[ -d "$models_dir" ]]; then
   # Shards of a split model count once, the same way 20_llama configures them.
@@ -320,7 +336,9 @@ if [[ -f "$swap_config" ]]; then
     END { print n + 0 }
   ' "$swap_config")"
 
-  if [[ "$configured_count" -eq 0 && "$gguf_count" -eq 0 ]]; then
+  if [[ "$models_readable" -eq 0 ]]; then
+    : # already reported above; counting would be meaningless
+  elif [[ "$configured_count" -eq 0 && "$gguf_count" -eq 0 ]]; then
     pending "models" "none in $models_dir"
   elif [[ "$configured_count" -eq "$gguf_count" ]]; then
     ok "models" "$configured_count configured"
