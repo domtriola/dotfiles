@@ -261,12 +261,22 @@ else
   pending "llama-swap binary" "not installed"
 fi
 
+if [[ -x /usr/local/bin/llama-model ]]; then
+  ok "llama-model helper" "/usr/local/bin/llama-model"
+else
+  pending "llama-model helper" "not installed"
+fi
+
 # Models are counted two ways, because the two can disagree. The configuration
 # is what llama-swap serves. The directory is what is on disk. A file added
 # without a later ./setup shows up here rather than being silently unserved.
 gguf_count=0
 if [[ -d "$models_dir" ]]; then
-  gguf_count="$(find "$models_dir" -maxdepth 1 -type f -name '*.gguf' 2>/dev/null | wc -l)"
+  # Shards of a split model count once, the same way 20_llama configures them.
+  # Keep a file when it is not a shard, or when it is the first shard.
+  gguf_count="$(find "$models_dir" -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' 2>/dev/null |
+    awk '!/-[0-9]{5}-of-[0-9]{5}\.gguf$/ || /-00001-of-/' |
+    wc -l)"
 fi
 
 configured_count=0

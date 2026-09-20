@@ -138,6 +138,13 @@ install_release "$swap_root" "$swap_version" \
 
 "$llama_root/current/llama-server" --version 2>&1 | head -2 || true
 
+# The download helper. It is a file in the profile directory rather than a
+# heredoc so it can be read and edited like any other script, and it has no
+# execute bit there so ./setup does not run it as a setup step.
+sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/llama-model.sh" \
+  /usr/local/bin/llama-model
+echo "Installed /usr/local/bin/llama-model"
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -178,7 +185,19 @@ HEADER
 
 model_count=0
 while IFS= read -r gguf; do
-  name="$(basename "$gguf" .gguf)"
+  base="$(basename "$gguf" .gguf)"
+
+  # A split model is several files that the loader treats as one: given any
+  # shard it finds the rest in the same directory. So only the first shard
+  # gets an entry, named for the prefix rather than the shard. Without this a
+  # five-part model would produce five entries, four of them broken.
+  if [[ "$base" =~ ^(.*)-([0-9]{5})-of-([0-9]{5})$ ]]; then
+    [[ "${BASH_REMATCH[2]}" == "00001" ]] || continue
+    name="${BASH_REMATCH[1]}"
+  else
+    name="$base"
+  fi
+
   model_count=$((model_count + 1))
   cat >>"$tmp_config" <<EOF
   "$name":
@@ -256,11 +275,13 @@ if [[ $model_count -eq 0 ]]; then
 
 No models are installed, so llama-swap is enabled but not started.
 
-Put a .gguf file in $models_dir and run this again:
+Download one, then run this again:
 
-  sudo -u $service_user curl -fL -o $models_dir/<name>.gguf <url>
+  llama-model add <hf-repo> '<pattern>'
+  llama-model add unsloth/Qwen3-30B-A3B-GGUF '*Q4_K_M*'
 
-The model is then reachable as "<name>".
+Run "llama-model --help" for the rest. A file copied into $models_dir by
+hand works too, as long as the $service_user user can read it.
 EOF
   exit 0
 fi
