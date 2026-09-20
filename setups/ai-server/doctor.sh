@@ -246,6 +246,8 @@ section "Model server"
 llama_bin="/opt/llama.cpp/current/llama-server"
 swap_bin="/opt/llama-swap/current/llama-swap"
 swap_config="/etc/llama-swap/config.yaml"
+swap_unit="/etc/systemd/system/llama-swap.service"
+models_dir="/var/lib/llama/models"
 
 if [[ -x "$llama_bin" ]]; then
   ok "llama-server" "$(basename "$(readlink -f /opt/llama.cpp/current)")"
@@ -259,27 +261,49 @@ else
   pending "llama-swap binary" "not installed"
 fi
 
-# A model count of zero is not a fault. It means no GGUF has been put in the
-# models directory yet, which is a decision rather than a failure.
+# Models are counted two ways, because the two can disagree. The configuration
+# is what llama-swap serves. The directory is what is on disk. A file added
+# without a later ./setup shows up here rather than being silently unserved.
+gguf_count=0
+if [[ -d "$models_dir" ]]; then
+  gguf_count="$(find "$models_dir" -maxdepth 1 -type f -name '*.gguf' 2>/dev/null | wc -l)"
+fi
+
+configured_count=0
 if [[ -f "$swap_config" ]]; then
-  model_count="$(grep -cE '^  "' "$swap_config" || true)"
-  if [[ "$model_count" -gt 0 ]]; then
-    ok "models configured" "$model_count"
+  # Only entries under `models:` are counted. Matching indented quotes across
+  # the whole file also matches the `macros:` block, which reported one model
+  # on a machine that had none.
+  configured_count="$(awk '
+    /^models:/ { in_models = 1; next }
+    /^[^[:space:]]/ { in_models = 0 }
+    in_models && /^  "/ { n++ }
+    END { print n + 0 }
+  ' "$swap_config")"
+
+  if [[ "$configured_count" -eq 0 && "$gguf_count" -eq 0 ]]; then
+    pending "models" "none in $models_dir"
+  elif [[ "$configured_count" -eq "$gguf_count" ]]; then
+    ok "models" "$configured_count configured"
   else
-    pending "models configured" "none in /var/lib/llama/models"
+    warn "models" "$gguf_count file(s) in $models_dir, $configured_count configured, run ./setup"
   fi
 else
   pending "llama-swap config" "not written"
 fi
 
-if systemctl list-unit-files 2>/dev/null | grep -q '^llama-swap'; then
-  if systemctl is-active --quiet llama-swap; then
-    ok "llama-swap service" "active"
+# The unit is checked by file path. `systemctl list-unit-files` needs systemd to
+# answer and its column layout to hold, and neither is worth depending on for a
+# question a file test settles.
+if [[ -f "$swap_unit" ]]; then
+  unit_state="$(systemctl is-enabled llama-swap 2>/dev/null || echo unknown)"
 
-    # The endpoint is the only check that proves the whole chain works, so it
-    # is worth the request.
+  if systemctl is-active --quiet llama-swap 2>/dev/null; then
+    ok "llama-swap service" "active, $unit_state"
+
+    # The only check that proves the whole chain, so it is worth the request.
     listen_port="$(awk -F: '/^Environment=LLAMA_SWAP_LISTEN=/ { print $NF }' \
-      /etc/systemd/system/llama-swap.service 2>/dev/null)"
+      "$swap_unit" 2>/dev/null)"
     listen_port="${listen_port:-8080}"
 
     if served="$(curl -fsS --max-time 5 "http://127.0.0.1:${listen_port}/v1/models" 2>/dev/null)"; then
@@ -288,10 +312,12 @@ if systemctl list-unit-files 2>/dev/null | grep -q '^llama-swap'; then
     else
       fail "API answers" "no reply on port $listen_port"
     fi
-  elif [[ "${model_count:-0}" -eq 0 ]]; then
-    pending "llama-swap service" "enabled, not started until a model exists"
+  elif [[ "$configured_count" -eq 0 ]]; then
+    # Not a fault. 20_llama installs and enables the service, and leaves it
+    # stopped until there is something for it to serve.
+    pending "llama-swap service" "$unit_state, not started until a model exists"
   else
-    fail "llama-swap service" "installed with models but not active"
+    fail "llama-swap service" "$configured_count model(s) configured but not active"
   fi
 else
   pending "llama-swap service" "not installed"
