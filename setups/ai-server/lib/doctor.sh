@@ -381,6 +381,48 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "Storage"
+# ---------------------------------------------------------------------------
+#
+# Models are tens to hundreds of gigabytes, so free space is a working part of
+# this machine rather than housekeeping.
+
+# Reported against the models directory when it exists, and against the
+# filesystem that would hold it when it does not, so the number is useful
+# before anything is installed.
+space_target="$models_dir"
+[[ -d "$space_target" ]] || space_target="/"
+
+avail_gib="$(df -BG --output=avail "$space_target" 2>/dev/null | tail -1 | tr -dc '0-9')"
+if [[ -z "$avail_gib" ]]; then
+  warn "free space" "could not read $space_target"
+elif [[ "$avail_gib" -ge 200 ]]; then
+  ok "free space" "${avail_gib} GiB on $space_target"
+elif [[ "$avail_gib" -ge 60 ]]; then
+  warn "free space" "${avail_gib} GiB on $space_target, room for one mid-sized model"
+else
+  fail "free space" "${avail_gib} GiB on $space_target, too little for a useful model"
+fi
+
+# The Ubuntu Server installer builds a volume group across the whole disk and
+# then gives the root volume about 100 GB, leaving the rest unallocated. The
+# machine looks full while most of the disk was never handed out.
+if have vgs; then
+  vg_free_gib="$(sudo vgs --noheadings --units g -o vg_free 2>/dev/null |
+    tr -dc '0-9.' | cut -d. -f1)"
+  if [[ -z "$vg_free_gib" ]]; then
+    warn "unallocated LVM space" "could not read vgs"
+  elif [[ "$vg_free_gib" -ge 10 ]]; then
+    fail "unallocated LVM space" \
+      "${vg_free_gib} GiB sitting unused in the volume group, see below"
+  else
+    ok "unallocated LVM space" "${vg_free_gib} GiB, the volume group is handed out"
+  fi
+else
+  pending "unallocated LVM space" "no lvm2 tools, not an LVM system"
+fi
+
+# ---------------------------------------------------------------------------
 section "Overlay network"
 # ---------------------------------------------------------------------------
 
