@@ -202,16 +202,46 @@ macros:
   #
   # --jinja selects the model's own chat template, which is what makes tool
   # calling work. A coding agent is unusable without it.
+  #
+  # The KV cache is stored at 8 bits rather than 16. That halves it for a loss
+  # the llama.cpp documentation describes as usually unnoticeable, and on this
+  # machine the cache competes with the weights for the same memory. Flash
+  # attention is required for a quantised cache to be used.
   "server": >
     /opt/llama.cpp/current/llama-server
     --host 127.0.0.1
     --port ${PORT}
     -ngl all
     --flash-attn on
+    --cache-type-k q8_0
+    --cache-type-v q8_0
     --jinja
 
 models:
 HEADER
+
+# ctx_for prints a context length for a model of a given size in GB.
+#
+# llama-server defaults to --ctx-size 0, which means "use the model's own
+# maximum". These models declare 256K or more, and the cache for that does not
+# fit beside weights that already fill most of the machine. Leaving it unset is
+# what made a 111 GB model load for 39 seconds and then exit.
+#
+# The cache competes with the weights for one pool of memory, so the bigger the
+# model the less context it can afford. $LLAMA_CTX_SIZE overrides the lot.
+ctx_for() {
+  local gb="$1"
+
+  if [[ -n "${LLAMA_CTX_SIZE:-}" ]]; then
+    printf '%s\n' "$LLAMA_CTX_SIZE"
+  elif [[ "$gb" -gt 80 ]]; then
+    printf '16384\n'
+  elif [[ "$gb" -gt 40 ]]; then
+    printf '32768\n'
+  else
+    printf '65536\n'
+  fi
+}
 
 model_count=0
 while IFS= read -r gguf; do
@@ -229,6 +259,15 @@ while IFS= read -r gguf; do
   fi
 
   model_count=$((model_count + 1))
+
+  # Shards are summed: the loader reads all of them, so the whole set is what
+  # sits in memory.
+  size_gb=$(($(du -cb "${gguf%-00001-of-*}"*.gguf 2>/dev/null | tail -1 | cut -f1) / 1000000000))
+  [[ "$size_gb" -gt 0 ]] || size_gb=$(($(stat -c %s "$gguf") / 1000000000))
+  ctx="$(ctx_for "$size_gb")"
+
+  echo "  $name: ${size_gb} GB, context $ctx"
+
   cat >>"$tmp_config" <<EOF
   "$name":
     # ttl 0 keeps the model loaded. Nothing else competes for this machine.
@@ -236,6 +275,7 @@ while IFS= read -r gguf; do
     cmd: |
       \${server}
       --model $gguf
+      --ctx-size $ctx
       --alias $name
 EOF
 done < <(find "$models_dir" -maxdepth 1 -type f -name '*.gguf' | sort)
