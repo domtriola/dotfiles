@@ -410,11 +410,16 @@ fi
 if have vgs; then
   vg_free_gib="$(sudo vgs --noheadings --units g -o vg_free 2>/dev/null |
     tr -dc '0-9.' | cut -d. -f1)"
+  # The logical volume behind the filesystem, named the way lvextend wants it,
+  # so the reported fix can be pasted rather than worked out.
+  lv_path="$(findmnt -no SOURCE "$space_target" 2>/dev/null)"
+  [[ -n "$lv_path" ]] || lv_path="<logical-volume>"
+
   if [[ -z "$vg_free_gib" ]]; then
     warn "unallocated LVM space" "could not read vgs"
   elif [[ "$vg_free_gib" -ge 10 ]]; then
     fail "unallocated LVM space" \
-      "${vg_free_gib} GiB sitting unused in the volume group, see below"
+      "${vg_free_gib} GiB unused: sudo lvextend -l +100%FREE -r $lv_path"
   else
     ok "unallocated LVM space" "${vg_free_gib} GiB, the volume group is handed out"
   fi
