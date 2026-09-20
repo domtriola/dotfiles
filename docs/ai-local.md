@@ -136,6 +136,16 @@ sudo sshd -T | grep -iE 'passwordauth|kbdinteractive|permitrootlogin'
 ssh <user>@<framework-ipv4>
 ```
 
+#### Enable Firewall
+
+Set a rate limited TCP allow rule
+
+```sh
+sudo ufw limit 22/tcp
+sudo ufw enable
+sudo ufw status verbose
+```
+
 ## Optimize machine as a LLM server
 
 [Increase VRAM max allocation](https://rocm.docs.amd.com/en/latest/reference/system-optimization/rdna3-5.html#memory-settings)
