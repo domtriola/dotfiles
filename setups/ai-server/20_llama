@@ -31,8 +31,6 @@ llama_build="${LLAMA_CPP_BUILD:-b11057}"
 swap_version="${LLAMA_SWAP_VERSION:-256}"
 
 # The SHA-256 of each pinned archive, checked before anything is extracted.
-# Without it the only thing standing between a replaced release asset and files
-# written as root into /opt is TLS.
 #
 # Take a new value from the release API when moving a pin, and read it rather
 # than trusting the download:
