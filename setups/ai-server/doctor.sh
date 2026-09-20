@@ -279,6 +279,35 @@ if [[ -d "$models_dir" ]]; then
     wc -l)"
 fi
 
+# A split model loads only when every shard is present, and llama-server is
+# given the first one. The expected count is in the file name, so an
+# interrupted download is detectable without opening anything.
+incomplete=()
+while IFS= read -r first; do
+  [[ -n "$first" ]] || continue
+  prefix="${first%-00001-of-*}"
+  total="${first##*-of-}"
+  total="${total%.gguf}"
+  present="$(find "$models_dir" -maxdepth 1 -type f \
+    -name "$prefix-[0-9][0-9][0-9][0-9][0-9]-of-$total.gguf" 2>/dev/null | wc -l)"
+  # 10# forces base ten: a count such as 00008 is not octal.
+  if [[ "$present" -ne "$((10#$total))" ]]; then
+    incomplete+=("$prefix ($present of $((10#$total)) shards)")
+  fi
+done < <(find "$models_dir" -maxdepth 1 -type f -name '*-00001-of-*.gguf' -printf '%f\n' 2>/dev/null)
+
+# Shards with no first shard cannot be loaded at all, and no configuration
+# entry is written for them, so they would otherwise sit unreported.
+orphans="$(find "$models_dir" -maxdepth 1 -type f -name '*-[0-9][0-9][0-9][0-9][0-9]-of-*.gguf' -printf '%f\n' 2>/dev/null |
+  sed -E 's/-[0-9]{5}-of-([0-9]{5})\.gguf$/-00001-of-\1.gguf/' | sort -u |
+  while IFS= read -r f; do [[ -e "$models_dir/$f" ]] || echo "$f"; done | wc -l)"
+
+if [[ ${#incomplete[@]} -gt 0 ]]; then
+  fail "split models complete" "${incomplete[*]}"
+elif [[ "$orphans" -gt 0 ]]; then
+  fail "split models complete" "$orphans set(s) missing their first shard"
+fi
+
 configured_count=0
 if [[ -f "$swap_config" ]]; then
   # Only entries under `models:` are counted. Matching indented quotes across
