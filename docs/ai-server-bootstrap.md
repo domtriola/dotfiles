@@ -7,7 +7,10 @@ Nothing here is scripted, and each step says why. Everything after the last
 step is done by `setups/ai-server/`.
 
 Unresolved choices are in [ai-server-decisions.md](ai-server-decisions.md).
-Step 2 meets the first of them.
+
+The Ubuntu side of this follows
+[their networking](https://ubuntu.com/server/docs/#networking) and
+[security](https://ubuntu.com/server/docs/#security) documentation.
 
 ## 1. Write the installer to a USB drive
 
@@ -144,13 +147,29 @@ network.
 This step is manual because the repository cannot be cloned before the network
 works.
 
+**Do it over SSH rather than at the console.** An IPv6-only machine is still
+reachable: install the SSH server first (step 6), note the global IPv6 address,
+and connect to that. Then repair IPv4 from the client, where `netplan try` can
+be confirmed in one terminal while a second proves the connection still works.
+
+```console
+ssh <user>@<ipv6-address>          # the /64 beginning 2..., not the fe80 one
+```
+
+If the client has no IPv6 on that network, the link-local address works on the
+same switch, with the client's interface appended:
+`ssh <user>@fe80::...%en0`.
+
 ## 6. Install the SSH server
 
 ```console
-sudo apt update
+sudo apt update && sudo apt full-upgrade -y
 sudo apt install -y openssh-server git
 ip -br a show scope global
 ```
+
+Upgrade before the profile runs, rather than after. A kernel upgrade later
+means another restart, and `15_gpu` already asks for one.
 
 Note the address. Connect from the client to confirm it answers:
 
@@ -166,7 +185,16 @@ and there has to be a working way in before that happens.
 
 ## 7. Copy an SSH key from the client
 
-Run this **on the client**, while password authentication still works:
+Check the server first. The installer offers to import an SSH identity from
+GitHub, and if that was accepted there is nothing to do:
+
+```console
+cat ~/.ssh/authorized_keys
+```
+
+Otherwise run this **on the client**, while password authentication still
+works. `ls ~/.ssh/*.pub` shows whether a key already exists, and
+`ssh-keygen -t ed25519 -C "dev-mac"` makes one if not:
 
 ```console
 ssh-copy-id <user>@<server-address>
