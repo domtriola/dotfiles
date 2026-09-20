@@ -5,9 +5,9 @@
 # Reports whether this machine is configured the way its profile intends.
 # Changes nothing.
 #
-# The checks for a profile live in setups/<profile>/doctor.sh, which this
-# script sources. That file has no execute bit on purpose: ./setup runs every
-# executable file in the profile directory, and the checks are not setup steps.
+# The checks for a profile live in setups/<profile>/lib/doctor.sh, which this
+# script sources. Anything under lib/ is invisible to ./setup, which only
+# looks at files directly inside the profile directory.
 #
 # Some checks read configuration that only root can see, so sudo may prompt
 # once.
@@ -174,13 +174,13 @@ check_release() {
 # ---------------------------------------------------
 
 profile_dir="$script_dir/setups/$profile"
-checks="$profile_dir/doctor.sh"
+checks="$profile_dir/lib/doctor.sh"
 
 printf '%sdoctor: %s%s\n' "$C_HEAD" "$profile" "$C_OFF"
 
 if [[ ! -f "$checks" ]]; then
   printf '\nNo checks are written for the %s profile.\n' "$profile"
-  printf 'Add them at setups/%s/doctor.sh, without an execute bit.\n' "$profile"
+  printf 'Add them at setups/%s/lib/doctor.sh.\n' "$profile"
   exit 0
 fi
 

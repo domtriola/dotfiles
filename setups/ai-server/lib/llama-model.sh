@@ -16,8 +16,9 @@
 #     have to land in the same directory for the loader to find them from the
 #     first one.
 #
-# Source lives in the dotfiles repo at setups/ai-server/llama-model.sh, without
-# an execute bit, so ./setup does not run it as a setup step.
+# Source lives in the dotfiles repo at setups/ai-server/lib/llama-model.sh.
+# ./setup only runs files directly inside a profile directory, so nothing
+# under lib/ is ever mistaken for a setup step.
 
 set -eo pipefail
 

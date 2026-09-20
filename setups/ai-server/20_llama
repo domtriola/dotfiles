@@ -138,10 +138,10 @@ install_release "$swap_root" "$swap_version" \
 
 "$llama_root/current/llama-server" --version 2>&1 | head -2 || true
 
-# The download helper. It is a file in the profile directory rather than a
-# heredoc so it can be read and edited like any other script, and it has no
-# execute bit there so ./setup does not run it as a setup step.
-sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/llama-model.sh" \
+# The download helper. It is a file rather than a heredoc so it can be read
+# and edited like any other script. It lives under lib/, which ./setup does
+# not look inside, so it is not mistaken for a setup step.
+sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-model.sh" \
   /usr/local/bin/llama-model
 echo "Installed /usr/local/bin/llama-model"
 

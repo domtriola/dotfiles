@@ -1,8 +1,8 @@
 # Checks for the ai-server profile. Sourced by ./doctor, which supplies
 # section, ok, warn, fail, pending and have.
 #
-# No execute bit: ./setup runs every executable file in this directory, and
-# these are not setup steps.
+# Lives under lib/ because it is not a setup step. ./setup only runs files
+# directly inside the profile directory and never looks into lib/.
 #
 # Each check reports what it found rather than only whether it passed, because
 # most of the faults this machine can have are quiet ones. A GPU that fell back

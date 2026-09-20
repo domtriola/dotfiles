@@ -32,8 +32,9 @@ Environment configurations for quick set-up of a new machine.
 Every script accepts `--dry`, which prints the actions and changes nothing.
 `./doctor` needs no `--dry`, because it only reads.
 
-A profile's checks live in `setups/<profile>/doctor.sh`, with no execute bit,
-so `./setup` skips them the way it skips `env.manifest`.
+A profile's checks live in `setups/<profile>/lib/doctor.sh`. Everything a
+profile owns that is not a setup step goes in its `lib/`, which `./setup` never
+looks inside.
 
 ## Profiles
 
