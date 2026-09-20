@@ -145,7 +145,28 @@ install_release "$swap_root" "$swap_version" \
   "https://github.com/mostlygeek/llama-swap/releases/download/v${swap_version}/llama-swap_${swap_version}_linux_amd64.tar.gz" \
   0 llama-swap
 
-"$llama_root/current/llama-server" --version 2>&1 | head -2 || true
+# Proof that the binary actually runs. A shared library it cannot find shows up
+# here and nowhere earlier: the download succeeded, the files are in place, and
+# every later step would report success while the server never starts.
+if ! version_out="$("$llama_root/current/llama-server" --version 2>&1)"; then
+  cat >&2 <<EOF
+20_llama: llama-server is installed but will not run.
+
+$version_out
+
+A missing shared library is the usual cause. Check which, across the whole
+directory, because the dependency is often on a library rather than on the
+binary itself:
+
+  ldd $llama_root/current/*.so $llama_root/current/llama-server 2>/dev/null |
+    grep 'not found' | sort -u
+
+If something is missing, run ./setup with no filter, so that 10_packages
+installs the libraries first. If it is still missing after that, add it there.
+EOF
+  exit 1
+fi
+printf '%s\n' "$version_out" | head -2
 
 # The download helper. It is a file rather than a heredoc so it can be read
 # and edited like any other script. It lives under lib/, which ./setup does
@@ -303,6 +324,12 @@ fi
 
 echo
 echo "llama-swap is listening on $listen. Models:"
-curl -fsS --max-time 10 "http://127.0.0.1:${listen##*:}/v1/models" |
-  python3 -c 'import json,sys; [print("  " + m["id"]) for m in json.load(sys.stdin)["data"]]' ||
+# Checked in two steps. Piping a failed request straight into python printed a
+# JSON traceback over the top of the real problem.
+if served="$(curl -fsS --max-time 10 "http://127.0.0.1:${listen##*:}/v1/models" 2>/dev/null)"; then
+  printf '%s' "$served" |
+    python3 -c 'import json,sys; [print("  " + m["id"]) for m in json.load(sys.stdin)["data"]]' 2>/dev/null ||
+    echo "  (answered, but the reply was not a model list)"
+else
   echo "  (no answer yet, check: journalctl -u llama-swap -n 50)"
+fi

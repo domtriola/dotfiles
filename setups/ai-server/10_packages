@@ -31,6 +31,10 @@ packages=(
   # these are not optional extras: without a working ICD, Mesa answers with
   # llvmpipe and inference runs on the processor.
   libvulkan1:/usr/lib/x86_64-linux-gnu/libvulkan.so.1
+  # libggml-base.so links against OpenMP. Nothing in the llama.cpp archive
+  # provides it, and the failure appears only when a binary is first run, as
+  # "libgomp.so.1: cannot open shared object file".
+  libgomp1:/usr/lib/x86_64-linux-gnu/libgomp.so.1
   mesa-vulkan-drivers:/usr/share/vulkan/icd.d/radeon_icd.x86_64.json
   vulkan-tools:vulkaninfo
 

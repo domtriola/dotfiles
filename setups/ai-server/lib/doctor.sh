@@ -249,8 +249,16 @@ swap_config="/etc/llama-swap/config.yaml"
 swap_unit="/etc/systemd/system/llama-swap.service"
 models_dir="/var/lib/llama/models"
 
+# Run it rather than test for it. A binary whose shared libraries are missing
+# is present, executable, and useless, and reports as installed to every check
+# that only looks at the file.
 if [[ -x "$llama_bin" ]]; then
-  ok "llama-server" "$(basename "$(readlink -f /opt/llama.cpp/current)")"
+  llama_ver="$(basename "$(readlink -f /opt/llama.cpp/current)")"
+  if llama_out="$("$llama_bin" --version 2>&1)"; then
+    ok "llama-server" "$llama_ver runs"
+  else
+    fail "llama-server" "$llama_ver installed but will not run: $(head -1 <<<"$llama_out")"
+  fi
 else
   pending "llama-server" "not installed, 20_llama has not run"
 fi
