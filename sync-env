@@ -8,6 +8,9 @@
 # Manifest directives, one per line. Blank lines, and lines whose first
 # non-blank character is #, are ignored:
 #
+#   none                      copy nothing. Only valid on its own, and the way
+#                             a profile says it wants no files rather than
+#                             having lost them to a typo.
 #   group   <label>           print a heading
 #   file    <src> <dest-dir>  copy one file into the <dest-dir> directory
 #   dir     <src> <dest>      replace <dest> with a copy of the <src> directory
@@ -25,8 +28,9 @@
 #
 # Arguments:
 #   --profile  The use-case of this machine (dev-mac, dev-linux, infosec-qubes,
-#              sbx-linux). Only needed the first time: the name is saved and
-#              reused. $DOTFILES_PROFILE overrides both, without saving.
+#              sbx-linux, ai-server). Only needed the first time: the name is
+#              saved and reused. $DOTFILES_PROFILE overrides both, without
+#              saving.
 #   --dry      Print what would be copied without making any changes.
 
 set -eo pipefail

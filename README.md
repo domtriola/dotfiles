@@ -41,6 +41,7 @@ and which files `./sync-env` copies.
 | `dev-linux`     | Fedora dev box                               |
 | `infosec-qubes` | Qubes appVM, minimal setup                   |
 | `sbx-linux`     | Docker Sandbox, set up by the `dotfiles` kit |
+| `ai-server`     | Headless model server, Ubuntu                |
 
 Each profile owns a directory under `setups/`:
 
@@ -131,3 +132,4 @@ a tracked one of the same name, in `$HOME` and in a sandbox.
 - [docs/manual_steps.md](docs/manual_steps.md): setup steps that haven't been automated.
 - [docs/app_configs/README.md](docs/app_configs/README.md): installation notes for GUI applications.
 - [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and helper commands.
+- [docs/ai-server-bootstrap.md](docs/ai-server-bootstrap.md): the steps done by hand before the `ai-server` profile runs.
