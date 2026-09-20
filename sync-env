@@ -36,8 +36,8 @@
 set -eo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-source "$script_dir/setups/lib/platform.sh"
-source "$script_dir/setups/lib/profile.sh"
+source "$script_dir/lib/platform.sh"
+source "$script_dir/lib/profile.sh"
 
 # Location of environment files
 DEV_ENV="$script_dir/env"

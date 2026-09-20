@@ -12,7 +12,7 @@
 #   3. the persisted profile file (see PROFILE_FILE below)
 #   4. detection, confirmed by the user (persisted)
 #
-# Requires setups/lib/platform.sh to be sourced first.
+# Requires lib/platform.sh to be sourced first.
 
 PROFILE_FILE="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
 

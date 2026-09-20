@@ -35,7 +35,7 @@ gtt_size="amdgpu.gttsize=126976"
 #
 # Step 4 stops rather than picking, because the setting changes how well the
 # machine is protected and an unattended run must not decide that quietly. This
-# follows confirm_profile in setups/lib/profile.sh, which refuses to guess a
+# follows confirm_profile in lib/profile.sh, which refuses to guess a
 # profile for the same reason.
 # ---------------------------------------------------------------------------
 choose_iommu() {

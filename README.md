@@ -8,6 +8,7 @@ Environment configurations for quick set-up of a new machine.
 | --------- | ------------------------------------------------------------- |
 | `env/`    | The files that are copied into `$HOME`.                       |
 | `setups/` | One directory per profile, holding its scripts and manifest.  |
+| `lib/`    | Shell functions the top-level scripts share.                  |
 | `sbx/`    | Docker Sandbox kits. See [sbx/README.md](sbx/README.md).      |
 | `docs/`   | Notes and reminders. See [Further reading](#further-reading). |
 
