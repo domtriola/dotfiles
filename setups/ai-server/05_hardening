@@ -76,6 +76,13 @@ echo "--- ufw ---"
 # enabling an active firewall is a no-op. --force skips the interactive
 # "may disrupt existing ssh connections" prompt, which would hang an
 # unattended run. The rule above is what makes skipping it safe.
+# The default policy is set rather than assumed. ufw's own default is to deny
+# incoming, so a fresh machine is already right, but a machine where that was
+# ever changed keeps the change, and every rule this script checks for would
+# still be present. Stating it makes it true instead of merely likely.
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
 sudo ufw limit 22/tcp
 sudo ufw --force enable
 sudo ufw status verbose

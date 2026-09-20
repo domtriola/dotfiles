@@ -30,6 +30,22 @@ set -eo pipefail
 llama_build="${LLAMA_CPP_BUILD:-b11057}"
 swap_version="${LLAMA_SWAP_VERSION:-256}"
 
+# The SHA-256 of each pinned archive, checked before anything is extracted.
+# Without it the only thing standing between a replaced release asset and files
+# written as root into /opt is TLS.
+#
+# Take a new value from the release API when moving a pin, and read it rather
+# than trusting the download:
+#
+#   curl -sL https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/<tag> |
+#     python3 -c 'import json,sys; [print(a["name"], a.get("digest"))
+#                 for a in json.load(sys.stdin)["assets"]]'
+#
+# Set to "skip" to install an unpinned version without a digest, which is the
+# only way $LLAMA_CPP_BUILD is useful for a one-off.
+llama_sha256="${LLAMA_CPP_SHA256:-30de01e5e9a0f4ccb65afeaa2ed2961d7beee71aaaf63167b9cc2a04a70b4178}"
+swap_sha256="${LLAMA_SWAP_SHA256:-557757336cde1a667f0b200d4a84c48c9f5fdf561fd8ae969a2bed9d8c94ec48}"
+
 llama_root="/opt/llama.cpp"
 swap_root="/opt/llama-swap"
 models_dir="/var/lib/llama/models"
@@ -116,8 +132,8 @@ sudo install -d -m 755 "$config_dir"
 # nothing, and a changed pin installs beside the old one rather than over it,
 # so going back is a symlink change.
 install_release() {
-  local root="$1" version="$2" url="$3" strip="$4" probe="$5"
-  local dest="$root/$version" tmp
+  local root="$1" version="$2" url="$3" strip="$4" probe="$5" want="$6"
+  local dest="$root/$version" tmp got
 
   if [[ -x "$dest/$probe" ]]; then
     echo "$root: $version is already installed."
@@ -125,6 +141,25 @@ install_release() {
     echo "$root: installing $version"
     tmp="$(mktemp -d)"
     curl -fL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp/release.tar.gz" "$url"
+
+    # Checked before extraction, because extraction is what runs as root.
+    if [[ "$want" == "skip" ]]; then
+      echo "  WARNING: digest check skipped for $version" >&2
+    else
+      got="$(sha256sum "$tmp/release.tar.gz" | cut -d" " -f1)"
+      if [[ "$got" != "$want" ]]; then
+        rm -rf "$tmp"
+        echo "20_llama: $version does not match its pinned digest." >&2
+        echo "  expected $want" >&2
+        echo "  got      $got" >&2
+        echo "Nothing was extracted. Either the pin is stale or the file is not" >&2
+        echo "what it was. Do not work around this by setting the digest to the" >&2
+        echo "value that was downloaded without finding out why it changed." >&2
+        exit 1
+      fi
+      echo "  digest ok"
+    fi
+
     sudo install -d -m 755 "$dest"
     sudo tar xzf "$tmp/release.tar.gz" -C "$dest" --strip-components="$strip"
     rm -rf "$tmp"
@@ -138,12 +173,12 @@ install_release() {
 # those libraries beside themselves and need no LD_LIBRARY_PATH.
 install_release "$llama_root" "$llama_build" \
   "https://github.com/ggml-org/llama.cpp/releases/download/${llama_build}/llama-${llama_build}-bin-ubuntu-vulkan-x64.tar.gz" \
-  1 llama-server
+  1 llama-server "$llama_sha256"
 
 # The llama-swap archive holds the binary at its root, beside its documentation.
 install_release "$swap_root" "$swap_version" \
   "https://github.com/mostlygeek/llama-swap/releases/download/v${swap_version}/llama-swap_${swap_version}_linux_amd64.tar.gz" \
-  0 llama-swap
+  0 llama-swap "$swap_sha256"
 
 # Proof that the binary actually runs. A shared library it cannot find shows up
 # here and nowhere earlier: the download succeeded, the files are in place, and
@@ -334,6 +369,26 @@ Environment=LLAMA_SWAP_LISTEN=$listen
 ExecStart=$swap_root/current/llama-swap --config $config
 Restart=always
 RestartSec=3
+
+# This process parses model files and answers HTTP. It needs its models, its
+# configuration, a socket and the GPU, and nothing else. These limit what a
+# fault in it can reach.
+#
+# Deliberately absent, because each would break this particular service:
+#   PrivateDevices           removes /dev/dri, so the GPU disappears
+#   MemoryDenyWriteExecute   Vulkan compiles shaders at run time
+#   RestrictAddressFamilies  device enumeration uses netlink
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+ReadWritePaths=/var/lib/llama
 
 [Install]
 WantedBy=multi-user.target

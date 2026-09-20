@@ -128,7 +128,8 @@ except Exception:
 for f in d.get("siblings", []):
     n = f["rfilename"]
     if n.endswith(".gguf") and fnmatch.fnmatch(n, pat):
-        print(str(f.get("size") or 0) + "\t" + n)
+        lfs = f.get("lfs") or {}
+        print(str(f.get("size") or 0) + "\t" + (lfs.get("sha256") or "-") + "\t" + n)
 ' "$pattern")" || die "could not read $repo. Check the name, and that it is public."
 
   [[ -n "$listing" ]] || die "no .gguf file in $repo matches '$pattern'"
@@ -141,7 +142,7 @@ for f in d.get("siblings", []):
   avail_gb="$(df -BG --output=avail "$models_dir" | tail -1 | tr -dc '0-9')"
 
   printf '\n%-58s %s\n' "FILE" "SIZE"
-  awk -F'\t' '{printf "%-58s %6.1f GB\n", $2, $1/1000000000}' <<<"$listing"
+  awk -F'\t' '{printf "%-58s %6.1f GB\n", $3, $1/1000000000}' <<<"$listing"
   printf '\n  total %s GB, free %s GB\n\n' "$total_gb" "$avail_gb"
 
   if [[ "$total_gb" -ge "$avail_gb" ]]; then
@@ -156,7 +157,7 @@ for f in d.get("siblings", []):
   # shellcheck disable=SC2064
   trap "rm -rf '$staging'" EXIT
 
-  while IFS=$'\t' read -r size path; do
+  while IFS=$'\t' read -r size want path; do
     local name="${path##*/}"
 
     if [[ -e "$models_dir/$name" ]]; then
@@ -170,6 +171,25 @@ for f in d.get("siblings", []):
       -o "$staging/$name" \
       "https://huggingface.co/${repo}/resolve/main/${path}" ||
       die "download of $name failed. Rerun to resume."
+
+    # The same API response that gave the sizes carries a digest for every
+    # file. Weights are data rather than code, but llama.cpp parses them in a
+    # C++ process, and a truncated or altered file is the input a parser bug
+    # needs. Checked while the file is still in staging.
+    if [[ "$want" == "-" ]]; then
+      echo "  WARNING: no digest published for $name, not verified" >&2
+    else
+      local got
+      got="$(sha256sum "$staging/$name" | cut -d" " -f1)"
+      if [[ "$got" != "$want" ]]; then
+        rm -f "$staging/$name"
+        die "$name does not match the digest Hugging Face published.
+  expected $want
+  got      $got
+Nothing was installed. Rerun to fetch it again."
+      fi
+      echo "  digest ok"
+    fi
 
     sudo install -o "$service_user" -g "$service_user" -m 644 \
       "$staging/$name" "$models_dir/$name"
@@ -208,9 +228,11 @@ $probe is not traversable:
 
 $(ls -ld "$probe" 2>/dev/null)
 
-Running ./setup on this machine sets the modes it expects. To open it now:
+Running ./setup on this machine sets the modes it expects, which is the safe
+way to fix this. Opening it by hand means naming the directory deliberately
+rather than pasting whatever was found above:
 
-  sudo chmod 755 $probe
+  sudo chmod 755 /var/lib/llama
 EOF
     exit 1
   fi
