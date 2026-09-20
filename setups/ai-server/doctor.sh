@@ -318,3 +318,48 @@ elif ip link show wt0 >/dev/null 2>&1; then
 else
   pending "wt0 interface" "absent until netbird registers"
 fi
+
+# ---------------------------------------------------------------------------
+section "Updates"
+# ---------------------------------------------------------------------------
+#
+# The pinned versions are read out of 20_llama rather than repeated here, so
+# there is one place to change when a pin moves.
+#
+# Upgrading is manual on purpose: a new llama.cpp build can change inference
+# behaviour, so it is raised deliberately rather than picked up by a package
+# manager. These checks are what make "manual" mean "decided" rather than
+# "forgotten".
+
+# Matches the default in a line such as:
+#   llama_build="${LLAMA_CPP_BUILD:-b11057}"
+pin_from_20_llama() {
+  sed -n "s/^$1=.*:-\([^}]*\)}.*/\1/p" "$profile_dir/20_llama" 2>/dev/null | head -1
+}
+
+llama_pinned="$(pin_from_20_llama llama_build)"
+swap_pinned="$(pin_from_20_llama swap_version)"
+
+# What is on disk, which is the version actually serving requests. It can
+# differ from the pin when the pin moved and ./setup has not run since.
+llama_installed=""
+[[ -L /opt/llama.cpp/current ]] &&
+  llama_installed="$(basename "$(readlink -f /opt/llama.cpp/current)")"
+
+swap_installed=""
+[[ -L /opt/llama-swap/current ]] &&
+  swap_installed="$(basename "$(readlink -f /opt/llama-swap/current)")"
+
+# Pin against installed. A difference here is fixed by running ./setup, and
+# needs no network, so it is reported before the upstream comparison.
+if [[ -n "$llama_installed" && -n "$llama_pinned" && "$llama_installed" != "$llama_pinned" ]]; then
+  warn "llama.cpp pin" "20_llama pins $llama_pinned, $llama_installed installed, run ./setup"
+fi
+if [[ -n "$swap_installed" && -n "$swap_pinned" && "$swap_installed" != "$swap_pinned" ]]; then
+  warn "llama-swap pin" "20_llama pins $swap_pinned, $swap_installed installed, run ./setup"
+fi
+
+# Installed against upstream. A warning here is a decision to make, not a
+# fault: the machine works, and a newer build may or may not be worth taking.
+check_release "llama.cpp" ggml-org/llama.cpp "${llama_installed:-$llama_pinned}" b
+check_release "llama-swap" mostlygeek/llama-swap "${swap_installed:-$swap_pinned}" v

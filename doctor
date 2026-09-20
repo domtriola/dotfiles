@@ -15,6 +15,8 @@
 # Arguments:
 #   --profile  The use-case of this machine. Only needed when the profile has
 #              not been saved yet. $DOTFILES_PROFILE overrides it.
+#   --offline  Skip the checks that ask an upstream service what the newest
+#              release is. Everything else reads local state only.
 #
 # Exit status:
 #   0  nothing failed
@@ -31,8 +33,12 @@ source "$script_dir/setups/lib/platform.sh"
 source "$script_dir/setups/lib/profile.sh"
 
 profile_arg=""
+doctor_offline="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
+  --offline)
+    doctor_offline="1"
+    ;;
   --profile)
     shift
     profile_arg="${1:-}"
@@ -104,11 +110,71 @@ pending() {
 # have reports whether a command exists, for checks that depend on one.
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# latest_release_tag prints the newest release tag of a GitHub repository, or
+# nothing when it cannot be read.
+#
+# The /releases/latest endpoint is deliberately not used. It reports whichever
+# release upstream marked as latest, which for llama.cpp is not its newest
+# build tag, so it would report a machine as out of date against the wrong
+# number.
+latest_release_tag() {
+  curl -fsSL --max-time "${doctor_net_timeout:-6}" \
+    "https://api.github.com/repos/$1/releases?per_page=1" 2>/dev/null |
+    sed -nE 's/.*"tag_name": *"([^"]*)".*/\1/p' | head -1
+}
+
+# check_release compares an installed version against the newest release and
+# says how far behind it is. Versions here are a prefix and an integer that
+# only ever increases, so the difference is a count of releases.
+#
+# Usage: check_release <label> <owner/repo> <installed> <prefix>
+check_release() {
+  local label="$1" repo="$2" installed="$3" prefix="$4" latest delta
+
+  if [[ "$doctor_offline" == "1" ]]; then
+    pending "$label" "update check skipped"
+    return
+  fi
+
+  latest="$(latest_release_tag "$repo")"
+  if [[ -z "$latest" ]]; then
+    warn "$label" "could not reach github.com to compare"
+    return
+  fi
+
+  if [[ -z "$installed" ]]; then
+    pending "$label" "not installed, newest is $latest"
+    return
+  fi
+
+  # The prefix is stripped from both sides before anything is compared. An
+  # installed version and its upstream tag do not always spell it the same way:
+  # llama-swap installs as "256" and tags the release "v256".
+  local a="${installed#"$prefix"}" b="${latest#"$prefix"}"
+
+  if [[ "$a" == "$b" ]]; then
+    ok "$label" "$installed is current"
+    return
+  fi
+
+  if [[ "$a" =~ ^[0-9]+$ && "$b" =~ ^[0-9]+$ ]]; then
+    delta=$((b - a))
+    if [[ $delta -le 0 ]]; then
+      ok "$label" "$installed is newer than the published $latest"
+    else
+      warn "$label" "$installed installed, $latest available ($delta behind)"
+    fi
+  else
+    warn "$label" "$installed installed, $latest available"
+  fi
+}
+
 # ---------------------------------------------------
 # Run the profile's checks
 # ---------------------------------------------------
 
-checks="$script_dir/setups/$profile/doctor.sh"
+profile_dir="$script_dir/setups/$profile"
+checks="$profile_dir/doctor.sh"
 
 printf '%sdoctor: %s%s\n' "$C_HEAD" "$profile" "$C_OFF"
 
