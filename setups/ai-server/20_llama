@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+#
+# The model server: llama.cpp behind llama-swap.
+#
+# llama-server runs one model per process. llama-swap sits in front of it,
+# presents an OpenAI-compatible API on one port, and starts the right process
+# when a request names a model. Together they do what Ollama would have done,
+# without the wrapper overhead at short contexts.
+#
+# Both ship as prebuilt binaries, so nothing is compiled. The Vulkan build of
+# llama.cpp is the one to take: it needs only a Mesa driver, it measured faster
+# than ROCm on this GPU, and AMD publishes no ROCm packages for Ubuntu 26.04.
+#
+# Layout:
+#   /opt/llama.cpp/<build>/        binaries and their shared libraries
+#   /opt/llama.cpp/current         symlink to the build in use
+#   /opt/llama-swap/<version>/     the llama-swap binary
+#   /opt/llama-swap/current        symlink to the version in use
+#   /var/lib/llama/models/*.gguf   models, put there by hand
+#   /etc/llama-swap/config.yaml    generated from whatever models are present
+#
+# Models are not downloaded here. They are tens of gigabytes, and which ones to
+# keep is an open question. Drop a .gguf into the models directory and run this
+# again: the configuration is rebuilt from the directory every time.
+
+set -eo pipefail
+
+# Pinned, and overridable for a one-off upgrade. Raising these here is the
+# supported way to move the whole machine to a new build.
+llama_build="${LLAMA_CPP_BUILD:-b11057}"
+swap_version="${LLAMA_SWAP_VERSION:-256}"
+
+llama_root="/opt/llama.cpp"
+swap_root="/opt/llama-swap"
+models_dir="/var/lib/llama/models"
+config_dir="/etc/llama-swap"
+config="$config_dir/config.yaml"
+unit="/etc/systemd/system/llama-swap.service"
+service_user="llama"
+listen="${LLAMA_SWAP_LISTEN:-0.0.0.0:8080}"
+
+# ---------------------------------------------------------------------------
+# Guard: refuse to install a GPU server that would run on the processor.
+# ---------------------------------------------------------------------------
+#
+# Mesa answers with llvmpipe, a software renderer, when it cannot open the
+# render node. It reports a device either way, so the driver name is what has
+# to be read. Installing on top of that would produce a server that answers
+# every request correctly and slowly, which is the hardest fault to notice.
+if ! command -v vulkaninfo >/dev/null 2>&1; then
+  echo "20_llama: vulkaninfo is missing. Run 10_packages first." >&2
+  exit 1
+fi
+
+vk_driver="$(vulkaninfo --summary 2>/dev/null |
+  awk -F'= ' '/driverName/ { gsub(/ /, "", $2); print $2; exit }')"
+
+case "$vk_driver" in
+radv)
+  echo "Vulkan driver: radv"
+  ;;
+llvmpipe | "")
+  cat >&2 <<EOF
+20_llama: Vulkan reports "${vk_driver:-no device}", not radv.
+
+llvmpipe is a software renderer. Installing now would give a model server that
+answers correctly and runs on the processor.
+
+Usually this is the render group. Check, then log out and back in:
+
+  ls -l /dev/dri/renderD128
+  id
+EOF
+  exit 1
+  ;;
+*)
+  echo "20_llama: unexpected Vulkan driver '$vk_driver', continuing." >&2
+  ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Service account
+# ---------------------------------------------------------------------------
+if id "$service_user" >/dev/null 2>&1; then
+  echo "User $service_user already exists."
+else
+  echo "Creating system user $service_user."
+  sudo useradd --system --home-dir /var/lib/llama --create-home \
+    --shell /usr/sbin/nologin "$service_user"
+fi
+
+render_group="$(stat -c '%G' /dev/dri/renderD128 2>/dev/null || echo render)"
+if ! id -nG "$service_user" | tr ' ' '\n' | grep -qx "$render_group"; then
+  echo "Adding $service_user to $render_group."
+  sudo usermod -aG "$render_group" "$service_user"
+fi
+
+sudo install -d -o "$service_user" -g "$service_user" -m 755 "$models_dir"
+sudo install -d -m 755 "$config_dir"
+
+# ---------------------------------------------------------------------------
+# Binaries
+# ---------------------------------------------------------------------------
+#
+# install_release downloads a tarball once and points <root>/current at it. The
+# versioned directory is the idempotency check: a rerun with the same pin does
+# nothing, and a changed pin installs beside the old one rather than over it,
+# so going back is a symlink change.
+install_release() {
+  local root="$1" version="$2" url="$3" strip="$4" probe="$5"
+  local dest="$root/$version" tmp
+
+  if [[ -x "$dest/$probe" ]]; then
+    echo "$root: $version is already installed."
+  else
+    echo "$root: installing $version"
+    tmp="$(mktemp -d)"
+    curl -fL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp/release.tar.gz" "$url"
+    sudo install -d -m 755 "$dest"
+    sudo tar xzf "$tmp/release.tar.gz" -C "$dest" --strip-components="$strip"
+    rm -rf "$tmp"
+  fi
+
+  sudo ln -sfn "$version" "$root/current"
+}
+
+# The llama.cpp archive holds one directory, with the binaries and their shared
+# libraries together in it. The binaries carry RUNPATH=$ORIGIN, so they find
+# those libraries beside themselves and need no LD_LIBRARY_PATH.
+install_release "$llama_root" "$llama_build" \
+  "https://github.com/ggml-org/llama.cpp/releases/download/${llama_build}/llama-${llama_build}-bin-ubuntu-vulkan-x64.tar.gz" \
+  1 llama-server
+
+# The llama-swap archive holds the binary at its root, beside its documentation.
+install_release "$swap_root" "$swap_version" \
+  "https://github.com/mostlygeek/llama-swap/releases/download/v${swap_version}/llama-swap_${swap_version}_linux_amd64.tar.gz" \
+  0 llama-swap
+
+"$llama_root/current/llama-server" --version 2>&1 | head -2 || true
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+#
+# Rebuilt from the models directory on every run, so adding a model is a file
+# copy followed by ./setup. Editing this file by hand does not last.
+#
+# ${PORT} is a llama-swap macro and has to reach the file literally, which is
+# why the heredoc below is quoted and the model entries are appended after it.
+tmp_config="$(mktemp)"
+cat >"$tmp_config" <<'HEADER'
+# Managed by dotfiles: setups/ai-server/20_llama
+# Rebuilt on every run from the files in /var/lib/llama/models.
+
+healthCheckTimeout: 600
+logLevel: info
+startPort: 10001
+
+macros:
+  # llama-server binds loopback only. llama-swap is the process that listens
+  # on the overlay, and the firewall is what limits who reaches it.
+  #
+  # -ngl all offloads every layer. This machine has about 124 GiB of unified
+  # memory, so a partial offload would be a fault rather than a compromise.
+  #
+  # --jinja selects the model's own chat template, which is what makes tool
+  # calling work. A coding agent is unusable without it.
+  "server": >
+    /opt/llama.cpp/current/llama-server
+    --host 127.0.0.1
+    --port ${PORT}
+    -ngl all
+    --flash-attn on
+    --jinja
+
+models:
+HEADER
+
+model_count=0
+while IFS= read -r gguf; do
+  name="$(basename "$gguf" .gguf)"
+  model_count=$((model_count + 1))
+  cat >>"$tmp_config" <<EOF
+  "$name":
+    # ttl 0 keeps the model loaded. Nothing else competes for this machine.
+    ttl: 0
+    cmd: |
+      \${server}
+      --model $gguf
+      --alias $name
+EOF
+done < <(find "$models_dir" -maxdepth 1 -type f -name '*.gguf' | sort)
+
+if [[ $model_count -eq 0 ]]; then
+  # `models` is a required key, so it is written empty rather than omitted.
+  echo "  {}" >>"$tmp_config"
+fi
+
+if [[ -f "$config" ]] && sudo cmp -s "$tmp_config" "$config"; then
+  echo "$config is already correct ($model_count model(s))."
+  config_changed=0
+else
+  echo "Writing $config ($model_count model(s))."
+  sudo install -m 644 "$tmp_config" "$config"
+  config_changed=1
+fi
+rm -f "$tmp_config"
+
+# ---------------------------------------------------------------------------
+# Service
+# ---------------------------------------------------------------------------
+#
+# SupplementaryGroups is how the service reaches the GPU. A unit does not read
+# the group file the way a login shell does, so adding the user to the render
+# group is not by itself enough.
+tmp_unit="$(mktemp)"
+cat >"$tmp_unit" <<EOF
+# Managed by dotfiles: setups/ai-server/20_llama
+[Unit]
+Description=llama-swap model server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$service_user
+Group=$service_user
+SupplementaryGroups=$render_group
+Environment=LLAMA_SWAP_LISTEN=$listen
+ExecStart=$swap_root/current/llama-swap --config $config
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+if [[ -f "$unit" ]] && sudo cmp -s "$tmp_unit" "$unit"; then
+  echo "$unit is already correct."
+  unit_changed=0
+else
+  echo "Writing $unit"
+  sudo install -m 644 "$tmp_unit" "$unit"
+  unit_changed=1
+fi
+rm -f "$tmp_unit"
+
+if [[ $unit_changed -eq 1 ]]; then
+  sudo systemctl daemon-reload
+fi
+
+sudo systemctl enable llama-swap >/dev/null
+
+if [[ $model_count -eq 0 ]]; then
+  cat <<EOF
+
+No models are installed, so llama-swap is enabled but not started.
+
+Put a .gguf file in $models_dir and run this again:
+
+  sudo -u $service_user curl -fL -o $models_dir/<name>.gguf <url>
+
+The model is then reachable as "<name>".
+EOF
+  exit 0
+fi
+
+if [[ $config_changed -eq 1 || $unit_changed -eq 1 ]]; then
+  sudo systemctl restart llama-swap
+else
+  sudo systemctl start llama-swap
+fi
+
+echo
+echo "llama-swap is listening on $listen. Models:"
+curl -fsS --max-time 10 "http://127.0.0.1:${listen##*:}/v1/models" |
+  python3 -c 'import json,sys; [print("  " + m["id"]) for m in json.load(sys.stdin)["data"]]' ||
+  echo "  (no answer yet, check: journalctl -u llama-swap -n 50)"

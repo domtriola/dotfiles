@@ -241,19 +241,57 @@ fi
 section "Model server"
 # ---------------------------------------------------------------------------
 
-# Not built yet. These report as pending rather than failing, so the summary
-# distinguishes "broken" from "not reached yet".
-if have llama-server; then
-  ok "llama-server" "$(command -v llama-server)"
+# llama-server is not on PATH. It lives beside its shared libraries, which it
+# finds through RUNPATH=$ORIGIN, so it is checked by path.
+llama_bin="/opt/llama.cpp/current/llama-server"
+swap_bin="/opt/llama-swap/current/llama-swap"
+swap_config="/etc/llama-swap/config.yaml"
+
+if [[ -x "$llama_bin" ]]; then
+  ok "llama-server" "$(basename "$(readlink -f /opt/llama.cpp/current)")"
 else
-  pending "llama-server" "not installed, 20_llama is not written"
+  pending "llama-server" "not installed, 20_llama has not run"
+fi
+
+if [[ -x "$swap_bin" ]]; then
+  ok "llama-swap binary" "$(basename "$(readlink -f /opt/llama-swap/current)")"
+else
+  pending "llama-swap binary" "not installed"
+fi
+
+# A model count of zero is not a fault. It means no GGUF has been put in the
+# models directory yet, which is a decision rather than a failure.
+if [[ -f "$swap_config" ]]; then
+  model_count="$(grep -cE '^  "' "$swap_config" || true)"
+  if [[ "$model_count" -gt 0 ]]; then
+    ok "models configured" "$model_count"
+  else
+    pending "models configured" "none in /var/lib/llama/models"
+  fi
+else
+  pending "llama-swap config" "not written"
 fi
 
 if systemctl list-unit-files 2>/dev/null | grep -q '^llama-swap'; then
   if systemctl is-active --quiet llama-swap; then
     ok "llama-swap service" "active"
+
+    # The endpoint is the only check that proves the whole chain works, so it
+    # is worth the request.
+    listen_port="$(awk -F: '/^Environment=LLAMA_SWAP_LISTEN=/ { print $NF }' \
+      /etc/systemd/system/llama-swap.service 2>/dev/null)"
+    listen_port="${listen_port:-8080}"
+
+    if served="$(curl -fsS --max-time 5 "http://127.0.0.1:${listen_port}/v1/models" 2>/dev/null)"; then
+      served_count="$(grep -o '"id"' <<<"$served" | wc -l)"
+      ok "API answers" "port $listen_port, $served_count model(s)"
+    else
+      fail "API answers" "no reply on port $listen_port"
+    fi
+  elif [[ "${model_count:-0}" -eq 0 ]]; then
+    pending "llama-swap service" "enabled, not started until a model exists"
   else
-    fail "llama-swap service" "installed but not active"
+    fail "llama-swap service" "installed with models but not active"
   fi
 else
   pending "llama-swap service" "not installed"
