@@ -168,9 +168,75 @@ elif [[ -n "${NETBIRD_SETUP_KEY:-}" ]]; then
     up_args+=(--hostname "$NETBIRD_HOSTNAME")
   fi
 
-  sudo netbird up "${up_args[@]}"
+  # `netbird up` is slow and silent, and the two have different causes.
+  #
+  # Slow: registration happens early, and the command then waits for the engine
+  # to finish connecting. Measured at several minutes on a first registration.
+  #
+  # Silent: the wait is a status request the daemon answers with a loop, ending
+  # only when the engine connects, gives up, or the caller goes away. The client
+  # passes no deadline with it, so nothing here can be read as progress, and a
+  # daemon that never connects waits for ever.
+  #
+  # So the wait is reported rather than shortened, and the bound is generous
+  # enough not to cut off a registration that is working. It exists to turn a
+  # stuck daemon into a message, not to decide how long a real one may take.
+  #
+  # `timeout` goes inside sudo, not outside it: outside, it would kill sudo and
+  # leave netbird running.
+  up_timeout="${NETBIRD_UP_TIMEOUT:-900}"
+
+  cat <<EOF
+Running netbird up. This takes minutes rather than seconds on a first
+registration, and the command prints nothing of its own while it waits. Watch
+it from another terminal with:
+
+  journalctl -u netbird -f
+EOF
+
+  # The progress line is this script's own. Without it a wait of several
+  # minutes cannot be told apart from a stopped script, which is what it was
+  # first reported as.
+  while sleep 20; do
+    echo "  waiting. daemon status: $(timeout 10 netbird status --json 2>/dev/null |
+      jq -r '.daemonStatus // "unreachable"')"
+  done &
+  ticker=$!
+  trap 'rm -f "$key_file"; kill "$ticker" 2>/dev/null || true' EXIT
+
+  up_status=0
+  sudo timeout "$up_timeout" netbird up "${up_args[@]}" || up_status=$?
+
+  # Both need `|| true` under `set -e`. `kill` fails when the job has already
+  # gone, and `wait` reports the signal that stopped it (143), so either one
+  # would end the run here on its way to reporting success.
+  kill "$ticker" 2>/dev/null || true
+  wait "$ticker" 2>/dev/null || true
   rm -f "$key_file"
   trap - EXIT
+
+  if [[ $up_status -eq 124 ]]; then
+    cat >&2 <<EOF
+
+25_network: netbird up did not finish in ${up_timeout} seconds.
+
+Registration itself may well have worked, because it happens before the wait
+that timed out. Check whether the peer is in the dashboard, then read what the
+daemon is doing:
+
+  netbird status --detail
+  journalctl -u netbird -n 50
+
+The usual cause is an engine that cannot reach the management or relay service
+and keeps retrying. Run this script again once the daemon reports the
+management service as connected: it skips registration then, and needs no key.
+Raise \$NETBIRD_UP_TIMEOUT if this machine is simply slower than the bound.
+EOF
+    exit 1
+  elif [[ $up_status -ne 0 ]]; then
+    echo "25_network: netbird up failed with exit status $up_status." >&2
+    exit "$up_status"
+  fi
 else
   cat <<EOF
 
@@ -194,10 +260,14 @@ fi
 # Read from the interface and not from the client's own report, because the
 # address that can be bound to is the one the kernel has. Registration returns
 # before the interface is fully up, so this waits rather than reading once.
+#
+# The wait says so. A loop that prints nothing for half a minute reads as a
+# stopped script, which is the same thing this step already looks like.
 overlay_ip=""
-for _ in $(seq 1 30); do
+for attempt in $(seq 1 30); do
   overlay_ip="$(ip -4 -br addr show "$iface" 2>/dev/null | awk '{print $3}' | cut -d/ -f1)"
   [[ -n "$overlay_ip" ]] && break
+  [[ "$attempt" -eq 1 ]] && echo "Waiting up to 30 seconds for $iface to get an address."
   sleep 1
 done
 
