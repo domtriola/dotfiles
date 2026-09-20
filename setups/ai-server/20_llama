@@ -227,8 +227,8 @@ logLevel: info
 startPort: 10001
 
 macros:
-  # llama-server binds loopback only. llama-swap is the process that listens
-  # on the overlay, and the firewall is what limits who reaches it.
+  # llama-server binds loopback only. llama-swap is the process that faces the
+  # network, and 25_network is what limits it to the overlay.
   #
   # -ngl all offloads every layer. This machine has about 124 GiB of unified
   # memory, so a partial offload would be a fault rather than a compromise.
@@ -363,6 +363,9 @@ Type=simple
 User=$service_user
 Group=$service_user
 SupplementaryGroups=$render_group
+# Every address, because the overlay interface does not exist when this script
+# first runs. 25_network narrows it to the overlay address with a drop-in, once
+# there is an address to narrow it to.
 Environment=LLAMA_SWAP_LISTEN=$listen
 ExecStart=$swap_root/current/llama-swap --config $config
 Restart=always
@@ -430,11 +433,24 @@ else
   sudo systemctl start llama-swap
 fi
 
+# The address the service starts with is not always the one written above.
+# 25_network adds a drop-in that moves the listener onto the overlay, and a
+# drop-in wins over the unit. Reading the merged value back is what keeps this
+# check honest: 127.0.0.1 stops answering as soon as that drop-in exists, and
+# assuming it would report a fault that is not there.
+effective="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+  tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
+effective="${effective:-$listen}"
+
+probe_host="${effective%:*}"
+# 0.0.0.0 means every address, which is not an address to connect to.
+[[ -z "$probe_host" || "$probe_host" == "0.0.0.0" ]] && probe_host="127.0.0.1"
+
 echo
-echo "llama-swap is listening on $listen. Models:"
+echo "llama-swap is listening on $effective. Models:"
 # Checked in two steps. Piping a failed request straight into python printed a
 # JSON traceback over the top of the real problem.
-if served="$(curl -fsS --max-time 10 "http://127.0.0.1:${listen##*:}/v1/models" 2>/dev/null)"; then
+if served="$(curl -fsS --max-time 10 "http://${probe_host}:${effective##*:}/v1/models" 2>/dev/null)"; then
   printf '%s' "$served" |
     python3 -c 'import json,sys; [print("  " + m["id"]) for m in json.load(sys.stdin)["data"]]' 2>/dev/null ||
     echo "  (answered, but the reply was not a model list)"

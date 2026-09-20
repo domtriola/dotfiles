@@ -80,7 +80,17 @@ echo "--- ufw ---"
 # The default policy is set explicitly rather than assumed.
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw limit 22/tcp
+
+# 25_network can narrow SSH to the overlay, which removes this rule. Adding it
+# again unconditionally would undo that choice on the next ./setup, silently and
+# in the direction of more exposure. The firewall itself is what records the
+# choice, in the same way 15_gpu reads back the drop-in it wrote.
+if sudo ufw status 2>/dev/null | grep -qE '^22/tcp on [a-zA-Z0-9._-]+ +ALLOW'; then
+  echo "SSH is limited to the overlay. Leaving the rule for 22/tcp alone."
+else
+  sudo ufw limit 22/tcp
+fi
+
 sudo ufw --force enable
 sudo ufw status verbose
 

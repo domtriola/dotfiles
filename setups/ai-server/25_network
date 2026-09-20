@@ -1,0 +1,386 @@
+#!/usr/bin/env bash
+#
+# The overlay network, and the rules that depend on it.
+#
+# This machine is reached over an overlay rather than from the local network.
+# The provider is NetBird, a WireGuard mesh: each peer gets an address on a
+# private range, and a policy in the dashboard decides which peer may open which
+# port on which other peer. The script is named for the job and not for the
+# provider, because the provider can be replaced and the job cannot. What is
+# provider-specific is the package repository and the `netbird` commands.
+#
+# This runs after 20_llama, because each step needs the one before it:
+#
+#   1. install the client
+#   2. register this machine, which is what creates wt0
+#   3. open the model port on wt0, and on wt0 alone
+#   4. move the model server off 0.0.0.0 and onto the overlay address
+#
+# Step 3 is needed because 05_hardening denies inbound traffic by default, and
+# overlay traffic arrives as inbound traffic on wt0. Without it llama-swap
+# answers on the server itself and stays unreachable from the client, which is
+# a confusing fault to find.
+#
+# Step 4 is what makes step 3 stop being the only control. A wrong or deleted
+# firewall rule then exposes nothing, because the server is not listening on
+# the local network or on the global IPv6 address at all.
+#
+# The setup key is a secret and is not held in this repository. It is read from
+# $NETBIRD_SETUP_KEY and written to a file at mode 600. It is never passed as an
+# argument, because arguments are readable by every local user through /proc and
+# a setup key registers new machines.
+#
+# Environment:
+#   $NETBIRD_SETUP_KEY          registers this machine. Without it, an
+#                               unregistered machine is reported and skipped.
+#   $NETBIRD_HOSTNAME           the name this peer takes in the dashboard.
+#                               Unset means the system hostname.
+#   $NETBIRD_REPO_KEY_SHA256    the expected digest of the repository signing
+#                               key. Unset means the key is trusted on first
+#                               use, over TLS, and its digest is printed.
+#   $AI_SERVER_SSH_OVERLAY_ONLY yes narrows SSH to the overlay. Read the
+#                               warning at that section first.
+
+set -eo pipefail
+
+iface="wt0" # the default WireGuard interface of the NetBird client
+
+keyring="/usr/share/keyrings/netbird-archive-keyring.asc"
+sources="/etc/apt/sources.list.d/netbird.list"
+key_url="https://pkgs.netbird.io/debian/public.key"
+repo_url="https://pkgs.netbird.io/debian"
+
+dropin_dir="/etc/systemd/system/llama-swap.service.d"
+dropin="$dropin_dir/10-overlay.conf"
+
+# ---------------------------------------------------------------------------
+# Guards
+# ---------------------------------------------------------------------------
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "25_network: no apt-get. This profile targets Ubuntu Server." >&2
+  exit 1
+fi
+
+# The client reports its state as JSON, and every decision below reads that
+# rather than matching English in the human summary, which changes between
+# releases.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "25_network: jq is missing. Run 10_packages first." >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# The client
+# ---------------------------------------------------------------------------
+if command -v netbird >/dev/null 2>&1; then
+  echo "netbird is already installed: $(netbird version 2>/dev/null || echo 'version unknown')"
+else
+  echo "--- installing the netbird client ---"
+
+  # The key is kept ASCII-armoured, and apt is pointed at the .asc file
+  # directly. apt accepts an armoured key in signed-by, so nothing has to be
+  # converted, and the file stays readable text that can be compared between
+  # machines. The vendor's own installer pipes it through `gpg --dearmor`,
+  # which produces a binary blob and needs gnupg present before apt can run.
+  tmp_key="$(mktemp)"
+  curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp_key" "$key_url"
+
+  key_sha="$(sha256sum "$tmp_key" | cut -d' ' -f1)"
+  if [[ -n "${NETBIRD_REPO_KEY_SHA256:-}" ]]; then
+    if [[ "$key_sha" != "$NETBIRD_REPO_KEY_SHA256" ]]; then
+      rm -f "$tmp_key"
+      echo "25_network: the repository key does not match its pinned digest." >&2
+      echo "  expected ${NETBIRD_REPO_KEY_SHA256}" >&2
+      echo "  got      ${key_sha}" >&2
+      echo "Nothing was installed. Find out why it changed before setting the" >&2
+      echo "pin to the value that was downloaded." >&2
+      exit 1
+    fi
+    echo "  repository key digest ok"
+  else
+    # Trust on first use, over TLS. The digest is printed so the same key can
+    # be checked against another machine, or pinned with
+    # $NETBIRD_REPO_KEY_SHA256 on the next run.
+    echo "  repository key sha256: $key_sha"
+  fi
+
+  sudo install -m 644 "$tmp_key" "$keyring"
+  rm -f "$tmp_key"
+
+  tmp_list="$(mktemp)"
+  printf '# Managed by dotfiles: setups/ai-server/25_network\ndeb [signed-by=%s] %s stable main\n' \
+    "$keyring" "$repo_url" >"$tmp_list"
+  sudo install -m 644 "$tmp_list" "$sources"
+  rm -f "$tmp_list"
+
+  sudo apt-get update -qq
+  # netbird-ui is deliberately not installed. This machine is headless.
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends netbird
+fi
+
+# ---------------------------------------------------------------------------
+# The daemon
+# ---------------------------------------------------------------------------
+#
+# The package installs and starts the service from its own post-install script,
+# so this normally finds the work already done. It is repeated because a package
+# that was installed before this script existed, or a service that was removed
+# by hand, would otherwise leave a client that is present and not running.
+if ! systemctl cat netbird.service >/dev/null 2>&1; then
+  echo "Installing the netbird service unit."
+  sudo netbird service install
+fi
+
+if ! systemctl is-enabled --quiet netbird 2>/dev/null; then
+  sudo systemctl enable netbird >/dev/null
+fi
+
+if ! systemctl is-active --quiet netbird; then
+  echo "Starting the netbird service."
+  sudo systemctl start netbird
+fi
+
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
+#
+# Registered is a property of the machine and not of this repository, so it is
+# read from the client rather than assumed from a file this script wrote.
+overlay_connected() {
+  local json
+  json="$(netbird status --json 2>/dev/null)" || return 1
+  [[ "$(jq -r '.management.connected // false' <<<"$json")" == "true" ]]
+}
+
+if overlay_connected; then
+  echo "Already registered: the management service is connected."
+elif [[ -n "${NETBIRD_SETUP_KEY:-}" ]]; then
+  echo "--- registering this machine ---"
+
+  # mktemp creates at mode 600, so the key is never world-readable, and the
+  # trap removes it even when netbird fails or the run is interrupted.
+  key_file="$(mktemp)"
+  trap 'rm -f "$key_file"' EXIT
+  printf '%s' "$NETBIRD_SETUP_KEY" >"$key_file"
+
+  up_args=(--setup-key-file "$key_file")
+  if [[ -n "${NETBIRD_HOSTNAME:-}" ]]; then
+    up_args+=(--hostname "$NETBIRD_HOSTNAME")
+  fi
+
+  sudo netbird up "${up_args[@]}"
+  rm -f "$key_file"
+  trap - EXIT
+else
+  cat <<EOF
+
+Not registered, and \$NETBIRD_SETUP_KEY is empty. Skipping.
+
+The key is a secret, so it is not held in this repository. Take a one-off key
+from the dashboard, one that auto-assigns the ai-server group, then:
+
+  NETBIRD_SETUP_KEY='<key>' ./setup 25_network
+
+Everything after this point needs the $iface interface, which does not exist
+until the machine is registered. Nothing here has been changed.
+EOF
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# The overlay address
+# ---------------------------------------------------------------------------
+#
+# Read from the interface and not from the client's own report, because the
+# address that can be bound to is the one the kernel has. Registration returns
+# before the interface is fully up, so this waits rather than reading once.
+overlay_ip=""
+for _ in $(seq 1 30); do
+  overlay_ip="$(ip -4 -br addr show "$iface" 2>/dev/null | awk '{print $3}' | cut -d/ -f1)"
+  [[ -n "$overlay_ip" ]] && break
+  sleep 1
+done
+
+if [[ -z "$overlay_ip" ]]; then
+  cat >&2 <<EOF
+25_network: $iface has no IPv4 address after 30 seconds.
+
+The client reports the management service as connected, so this is the peer
+itself failing to come up. Read the state and the log:
+
+  netbird status --detail
+  journalctl -u netbird -n 50
+EOF
+  exit 1
+fi
+
+echo "Overlay address: $overlay_ip on $iface"
+
+# ---------------------------------------------------------------------------
+# The model port
+# ---------------------------------------------------------------------------
+#
+# The port is read from the installed unit, so that this cannot open a port the
+# server is not on. $LLAMA_SWAP_LISTEN is the same variable 20_llama takes, and
+# 8080 is the same default.
+unit_listen="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+  tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
+listen="${unit_listen:-${LLAMA_SWAP_LISTEN:-0.0.0.0:8080}}"
+model_port="${listen##*:}"
+
+if [[ ! "$model_port" =~ ^[0-9]+$ ]]; then
+  echo "25_network: could not read a port from '$listen'." >&2
+  exit 1
+fi
+
+echo "--- firewall ---"
+
+# `in on $iface` is what limits this to overlay peers. The same rule without an
+# interface would open the port to the local network and to the internet, which
+# is what this whole step exists to avoid. ufw does not duplicate a rule that
+# already exists, so a rerun prints "Skipping" and changes nothing.
+sudo ufw allow in on "$iface" to any port "$model_port" proto tcp
+
+# ---------------------------------------------------------------------------
+# Bind the model server to the overlay
+# ---------------------------------------------------------------------------
+#
+# 20_llama binds llama-swap to 0.0.0.0, because $iface does not exist when it
+# runs. That leaves the firewall as the only thing between the model API and
+# the internet, and the API has no authentication of its own.
+#
+# This is a drop-in rather than an edit of the unit, so 20_llama stays the one
+# owner of the unit file and neither script has to know what the other wrote.
+# systemd applies drop-ins after the unit, and the later value of an
+# Environment key wins.
+#
+# Two consequences worth knowing:
+#
+#   - The server no longer answers on 127.0.0.1. Test it at $overlay_ip.
+#   - $iface does not exist early in a boot, so llama-swap can start first and
+#     fail to bind. Restart=always retries every 3 seconds until the overlay is
+#     up, which is under the systemd start-limit rate, so it recovers on its
+#     own. The journal shows the failed attempts.
+if ! systemctl cat llama-swap.service >/dev/null 2>&1; then
+  echo "llama-swap is not installed, so there is nothing to bind. Run 20_llama."
+else
+  tmp_dropin="$(mktemp)"
+  cat >"$tmp_dropin" <<EOF
+# Managed by dotfiles: setups/ai-server/25_network
+[Unit]
+# Ordering only. The service being started does not mean the peer has
+# connected, so this reduces the failed binds at boot rather than removing them.
+After=netbird.service
+Wants=netbird.service
+
+[Service]
+Environment=LLAMA_SWAP_LISTEN=$overlay_ip:$model_port
+EOF
+
+  if [[ -f "$dropin" ]] && sudo cmp -s "$tmp_dropin" "$dropin"; then
+    echo "$dropin is already correct."
+  else
+    echo "Writing $dropin (listen on $overlay_ip:$model_port)."
+    sudo install -d -m 755 "$dropin_dir"
+    sudo install -m 644 "$tmp_dropin" "$dropin"
+    sudo systemctl daemon-reload
+    # try-restart restarts a running service and does nothing to a stopped one.
+    # With no models installed, llama-swap is enabled and not started, and
+    # starting it here would only produce a failure.
+    sudo systemctl try-restart llama-swap
+  fi
+  rm -f "$tmp_dropin"
+fi
+
+# ---------------------------------------------------------------------------
+# SSH over the overlay, if asked for
+# ---------------------------------------------------------------------------
+#
+# Off unless $AI_SERVER_SSH_OVERLAY_ONLY says otherwise, because it removes the
+# general rule for port 22 and therefore the only way in that does not depend on
+# the overlay. If the overlay then stops working, the machine needs a keyboard
+# and a monitor. That risk stacks with the encrypted root, which already needs a
+# person at the console for a reboot.
+#
+# 05_hardening reads the firewall to see whether this was applied, so a later
+# ./setup does not put the general rule back.
+case "${AI_SERVER_SSH_OVERLAY_ONLY:-}" in
+yes | true | 1)
+  ssh_overlay_only=1
+  ;;
+"" | no | false | 0)
+  ssh_overlay_only=0
+  echo "SSH is unchanged. Set \$AI_SERVER_SSH_OVERLAY_ONLY=yes to narrow it to $iface."
+  ;;
+*)
+  echo "25_network: \$AI_SERVER_SSH_OVERLAY_ONLY is '${AI_SERVER_SSH_OVERLAY_ONLY}'. Use yes or no." >&2
+  exit 1
+  ;;
+esac
+
+if [[ "$ssh_overlay_only" -eq 1 ]]; then
+  echo "--- ssh over the overlay ---"
+
+  # A connected peer is the proof that some other machine can reach this one
+  # over the overlay. Removing the general rule with no peer connected is how
+  # this step would lock the machine out, so it is refused rather than warned
+  # about.
+  peers_connected="$(netbird status --json 2>/dev/null | jq -r '.peers.connected // 0')"
+
+  if [[ ! "$peers_connected" =~ ^[0-9]+$ ]] || [[ "$peers_connected" -lt 1 ]]; then
+    cat >&2 <<EOF
+25_network: no peer is connected, so SSH was left as it is.
+
+Narrowing SSH now would remove the general rule for port 22 while nothing is
+proven to reach this machine over $iface. Bring the client peer up, check it
+here, and run this again:
+
+  netbird status --detail
+EOF
+    exit 1
+  fi
+
+  echo "Peers connected: $peers_connected"
+  sudo ufw allow in on "$iface" to any port 22 proto tcp
+
+  # Deleted only after the overlay rule is in place, so there is never a moment
+  # with no rule for port 22 at all. `delete limit` has to name the rule the
+  # way 05_hardening added it.
+  if sudo ufw status | grep -qE '^22/tcp +LIMIT'; then
+    echo "Removing the general rule for 22/tcp."
+    sudo ufw delete limit 22/tcp
+  else
+    echo "There is no general rule for 22/tcp to remove."
+  fi
+
+  cat <<EOF
+
+SSH now answers on $iface only.
+
+Test it from a peer BEFORE closing this session. A terminal that is already
+open keeps working, because the rule applies to new connections.
+EOF
+fi
+
+# ---------------------------------------------------------------------------
+# Result
+# ---------------------------------------------------------------------------
+echo
+echo "--- overlay ---"
+netbird status --json 2>/dev/null | jq -r '
+  "  address:    " + .netbirdIp,
+  "  fqdn:       " + .fqdn,
+  "  management: " + (if .management.connected then "connected" else "disconnected" end),
+  "  peers:      " + (.peers.connected | tostring) + " of " + (.peers.total | tostring) + " connected"
+' || netbird status
+
+cat <<EOF
+
+The model API is at http://$overlay_ip:$model_port/v1 for peers the dashboard
+policy allows.
+
+The policy is not set from here. In the dashboard, delete the "Default" policy,
+which lets every peer reach every other peer on any protocol and overrides any
+stricter rule. Replace it with one policy: source the client group, destination
+the ai-server group, TCP, port $model_port, one-way.
+EOF
