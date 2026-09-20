@@ -42,7 +42,6 @@ Usage:
 
 Examples:
   llama-model add unsloth/Qwen3.8-27B-GGUF '*UD-Q4_K_XL*'
-  llama-model add bartowski/some-model-GGUF
 
 The pattern defaults to '*.gguf', which takes every quantisation in the repo.
 That is rarely wanted: name a quantisation unless the repo holds only one.
