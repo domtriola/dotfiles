@@ -226,6 +226,18 @@ healthCheckTimeout: 600
 logLevel: info
 startPort: 10001
 
+# Send the model's own output to stdout, and so to the journal.
+#
+# The default is "proxy", which keeps llama-swap's own lines and discards
+# llama-server's. That loses the lines worth having: what the model loaded, how
+# much memory the KV cache took, and why a load failed. They stay readable over
+# HTTP at /logs/stream/upstream, but only in a buffer in memory, so a restart
+# takes them with it and a machine that fell over has nothing to read.
+#
+# "both" costs a request-rate line per completion in the journal, which
+# journald rotates and rate-limits on its own.
+logToStdout: both
+
 macros:
   # llama-server binds loopback only. llama-swap is the process that faces the
   # network, and 25_network is what limits it to the overlay.
