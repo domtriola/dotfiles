@@ -274,13 +274,48 @@ HEADER
 #
 # The cache competes with the weights for one pool of memory, so the bigger the
 # model the less context it can afford. $LLAMA_CTX_SIZE overrides the lot.
+#
+# To change a number here, measure. The cache scales with the context, so
+# doubling the context doubles the cache, and the room it has is whatever the
+# weights leave in the GTT pool.
+#
+# Load the model, wait for "ready", then read the pool:
+#
+#   curl -fsS http://<listen-address>/running | jq -r '.running[].state'
+#   for d in /sys/class/drm/card*/device; do
+#     echo "total $(( $(cat "$d/mem_info_gtt_total") / 1024**3 )) GiB"
+#     echo "used  $(( $(cat "$d/mem_info_gtt_used")  / 1024**3 )) GiB"
+#   done
+#
+# The difference is what a larger cache can grow into. Change the number, run
+# ./setup 20_llama, load the model again, and read the pool again: the change
+# in "used" is what the change cost, and it is the only figure that settles
+# whether the next step up fits.
+#
+# Both directions fail loudly, and neither message names this function:
+#
+#   too high  The model loads and then exits. `journalctl -u llama-swap` holds
+#             the allocation that failed.
+#   too low   Requests are refused with "exceeds the available context size,
+#             try increasing it". The limit in that message is this number.
+#
+# Concurrency divides it. llama-server runs several slots against one shared
+# cache when kv_unified is set, so this is how many tokens are held in total
+# across every request in flight, while any single request may use all of it.
+# The load line reports both:
+#
+#   load_model: initializing, n_slots = 4, n_ctx_slot = 65536, kv_unified = 'true'
+#
+# An agent that makes parallel calls needs headroom above its largest single
+# prompt for that reason. Where the memory costs more than the parallelism is
+# worth, bound the slots with -np in the macro above instead.
 ctx_for() {
   local gb="$1"
 
   if [[ -n "${LLAMA_CTX_SIZE:-}" ]]; then
     printf '%s\n' "$LLAMA_CTX_SIZE"
   elif [[ "$gb" -gt 80 ]]; then
-    printf '16384\n'
+    printf '65536\n'
   elif [[ "$gb" -gt 40 ]]; then
     printf '32768\n'
   else
