@@ -2,71 +2,21 @@
 #
 # Reading a model's own metadata.
 #
-# A GGUF file starts with a header of key/value pairs, and one of them is the
-# context length the model was trained for. That is the ceiling a configured
-# context is checked against.
+# A GGUF file carries the context length it was trained for in its header, and
+# that is the ceiling a configured context is checked against. The file is a
+# better source than the repository it came from: it works offline, it works
+# for a file copied in by hand, and it describes the model being served rather
+# than whatever the repository says today.
 #
-# The file is the right source rather than the repository it came from: it
-# works offline, it works for a file copied in by hand, and it describes the
-# model actually being served rather than whatever the repository says today.
-# llama.cpp ships no tool that prints this, so the header is parsed here. Only
-# the header is read, not the weights.
+# The parse itself is Python, in libexec/, because it is binary format work
+# rather than shell work. llama.cpp ships no tool that prints this.
+
+gguf_pkg="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 
 # gguf_context_length <file> prints the trained context length, or nothing.
+#
+# Invoked through python3 rather than executed, so a copy that lost its mode
+# still works.
 gguf_context_length() {
-  python3 - "$1" <<'PY' 2>/dev/null
-import struct, sys
-
-# GGUF value types, and the struct format for the fixed-width ones.
-FIXED = {0: "B", 1: "b", 2: "H", 3: "h", 4: "I", 5: "i",
-         6: "f", 7: "?", 10: "Q", 11: "q", 12: "d"}
-STRING, ARRAY = 8, 9
-
-
-def read(f, fmt):
-    size = struct.calcsize(fmt)
-    data = f.read(size)
-    if len(data) != size:
-        raise EOFError
-    return struct.unpack("<" + fmt, data)[0]
-
-
-def read_string(f):
-    return f.read(read(f, "Q")).decode("utf-8", "replace")
-
-
-def read_value(f, vtype):
-    if vtype in FIXED:
-        return read(f, FIXED[vtype])
-    if vtype == STRING:
-        return read_string(f)
-    if vtype == ARRAY:
-        elem = read(f, "I")
-        count = read(f, "Q")
-        return [read_value(f, elem) for _ in range(count)]
-    # An unknown type cannot be skipped, because its width is unknown.
-    raise ValueError("unknown gguf value type %d" % vtype)
-
-
-try:
-    with open(sys.argv[1], "rb") as f:
-        if f.read(4) != b"GGUF":
-            sys.exit(1)
-        read(f, "I")  # format version
-        read(f, "Q")  # tensor count
-        n_kv = read(f, "Q")
-
-        for _ in range(n_kv):
-            key = read_string(f)
-            value = read_value(f, read(f, "I"))
-            # The key is prefixed with the architecture, which is not known
-            # until it has been read, so the suffix is what is matched.
-            if key.endswith(".context_length") and isinstance(value, int):
-                print(value)
-                sys.exit(0)
-except Exception:
-    sys.exit(1)
-
-sys.exit(1)
-PY
+  python3 "$gguf_pkg/libexec/gguf-context-length" "$1" 2>/dev/null
 }
