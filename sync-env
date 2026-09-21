@@ -235,6 +235,12 @@ install_package() {
   local src="$1" prefix="$2" name
   name="$(basename "$src")"
 
+  # What bounds the rm -rf below. Pass 1 rejects a prefix outside $HOME, and
+  # asserting it again here keeps the bound where the removal can be read.
+  [[ -n "$name" ]] || die "a package with no name: '$src'"
+  [[ "$prefix" == "$HOME" || "$prefix" == "$HOME"/* ]] ||
+    die "refusing to install into '$prefix', which is outside \$HOME"
+
   execute mkdir -p "$prefix/lib" "$prefix/bin"
 
   # Replaced whole, so a file dropped from the package disappears here too.
