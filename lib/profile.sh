@@ -43,8 +43,8 @@ profile_os() {
 #
 # The order of the last three tests carries meaning. A sandbox runs on Ubuntu
 # too, so is_sandbox has to be asked before is_ubuntu, or every sandbox would
-# detect as ai-server. The final is_linux keeps a distribution that matches
-# none of the tests on the dev-linux profile, as before.
+# detect as ai-server. The final is_linux puts a distribution that matches none
+# of the tests on the dev-linux profile.
 detect_profile() {
   if is_mac; then
     echo "dev-mac"

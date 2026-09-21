@@ -18,8 +18,8 @@ if [[ -z "$selected_dir" ]]; then
   exit 0
 fi
 
-# Convert the selected directory name into a valid tmux session name by
-# replacing problematic characters
+# tmux reads `:` and `.` as target separators, so neither can appear in a
+# session name.
 session_name=$(basename "$selected_dir" | tr ":,. " "____")
 
 switch_to() {
