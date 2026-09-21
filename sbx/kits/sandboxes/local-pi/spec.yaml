@@ -7,11 +7,10 @@ description: >-
 
 # The server is named by the caller, never by this file.
 #
-# modelHost is `required` rather than defaulted, and that is the point: the
-# address of a private machine does not belong in a repository that can be
-# published. `sbx` validates arguments before it creates the sandbox, so a
-# missing value is a refusal with a message, not a sandbox that quietly talks
-# to nothing.
+# modelHost is required rather than defaulted: the address of a private machine
+# does not belong in a repository that can be published. `sbx` validates
+# arguments before it creates the sandbox, so a missing value is a refusal with
+# a message rather than a sandbox that talks to nothing.
 #
 # Supply it per run, or once in a file that sbx-up passes for you:
 #
@@ -68,11 +67,11 @@ environment:
   variables:
     # The model server, as seen from inside the sandbox.
     #
-    # Named for the role and not for the engine. Every server this kit has
-    # pointed at speaks the same OpenAI-compatible HTTP interface, so a name
-    # tied to one of them is wrong as soon as it is replaced, which has now
-    # happened once. OPENAI_ is the usual name for this value and is avoided
-    # because pi may read it for its own hosted provider.
+    # Named for the role and not for the engine: every server behind this
+    # speaks the same OpenAI-compatible HTTP interface, so a name tied to one
+    # of them goes wrong when it is replaced. OPENAI_ is the usual name for
+    # this value and is avoided because pi may read it for its own hosted
+    # provider.
     MODEL_BASE_URL: "http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1"
     # Empty by default, which means "ask the server". This kit does not own the
     # models and so names none: a list written here is a copy of another
@@ -139,9 +138,9 @@ setup:
           # One request, two jobs: it proves the path, and it supplies the model
           # ids when the caller pinned none.
           #
-          # It proves the path and not the models. A server lists what it is
-          # configured to serve whether or not any of it can load, and loading a
-          # model to find out is not something a startup hook should do.
+          # It does not prove the models. A server lists what it is configured
+          # to serve whether or not any of it can load, and loading one to find
+          # out is not work for a startup hook.
           served=""
           if curl_out="$(curl -fsS --max-time 10 "$base_url/models" 2>/dev/null)"; then
             # Split on commas so each "id": "..." lands on its own line. Model
@@ -183,15 +182,14 @@ setup:
             echo "  server, then restart the sandbox."
           fi
 
-          # The provider is named for its role rather than for whatever engine
-          # is behind it, which has changed once already.
+          # The provider is named for its role rather than for the engine
+          # behind it.
           #
           # apiKey is sent and ignored by a server that has no authentication.
           # pi wants the field set for an openai-completions provider.
           #
           # compat turns off two OpenAI-isms that not every server implements.
-          # Both are off because the server this was first written for did not
-          # have them; reasoning_effort is the one to try turning on first.
+          # reasoning_effort is the one to turn on first where it is supported.
           cat >"$conf/models.json" <<EOF
           {
             "providers": {
