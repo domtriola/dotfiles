@@ -9,11 +9,19 @@ When writing documentation follow these standards:
 
 ## Standards
 
-### 1. Up to date
+### 1. Accurate, and written not to go stale
 
 The only thing worse than missing documentation is stale documentation. I'd rather not know something than be told something false.
 
 Make sure that documentation accurately reflects the project it describes.
+
+The way to stay accurate is to write statements that cannot go stale. Do not hard-code a count, a list, or a version that the code already holds. Name the source instead.
+
+```
+Bad:  The profile runs these 5 scripts: 05_hardening, 10_packages, 12_storage,
+      15_gpu, 20_llama.
+Good: The profile runs the scripts in setups/<profile>/.
+```
 
 ### 2. No duplication
 
@@ -21,9 +29,19 @@ Nothing should be explained twice. It is hard enough to keep one source of docum
 
 The higher-level the readme, the higher the ratio of links:copy should be.
 
+```
+Bad:  Every config file repeats the tool's full option table.
+Good: Every config file carries one line: "Option reference: ../../the-tool".
+```
+
 ### 3. Prefer brevity and conciseness
 
-Documentation should give an overview of the landscape, rather than 
+Documentation should give an overview of the landscape, rather than a tour of every detail. A reader who needs the detail will open the code. A reader who cannot find the landscape has nowhere to start.
+
+```
+Bad:  A README that lists every function and its arguments.
+Good: A README that says what the package is for, and links to the code.
+```
 
 ### 4. Use simple language
 
@@ -32,18 +50,25 @@ Avoid jargon and phrasing that could be misleading.
 Be grammatically correct.
 Use full sentences.
 Never use em dashes.
+Write in the third person and don't use personal pronouns.
+
+```
+Bad:  We leverage a bespoke orchestration layer to hydrate the cache.
+Good: A script starts the services in order, then fills the cache.
+```
 
 ### 5. Be precise
 
 Don't over-simplify concepts with phrases like "that's the whole difference" or "that's the whole point". Most things are nuanced. State the nuances plainly when they matter and don't use hyperbole.
 
-### 6. Be consistent with context
+```
+Bad:  The cache makes it fast. That is the whole point.
+Good: The cache avoids one network round trip per file, about 40 ms each.
+```
 
-Write in the third person and don't use personal pronouns.
+### 6. Comments
 
-Never explain something that was a passing thought process. For example, don't leave a comment saying "...so it needs no notes here" or "...was removed because it was deprecated" after removing a reference to something.
-
-### 6.1 Comments describe the present, in their own scope
+#### 6.1 Comments describe the present, in their own scope
 
 A comment is read by someone looking at this code now. It is not a changelog, a migration note, or a record of how the code came to be.
 
@@ -89,11 +114,9 @@ retries="${UPLOAD_RETRIES:-3}"
 retries="${UPLOAD_RETRIES:-3}"
 ```
 
-### 6.2 When reviewing, delete more than you add
+#### 6.2 When reviewing, delete more than you add
 
 Reviewing a comment has three useful outcomes: delete it, cut it to the one sentence that carries a constraint, or leave it alone. Rewriting it at the same length is rarely one of them.
-
-Default to deletion. A comment that needs a long argument to justify keeping it has already answered the question.
 
 **The test.** Ask what the comment lets a reader do that the code does not. Good answers: avoid a trap, predict a consequence, recognise a failure when it happens. A bad answer, and the most common one: understand why the author chose this.
 
@@ -128,7 +151,3 @@ token:
 token:
   required: true
 ```
-
-### 7. Documentation should be extensible
-
-Don't hard-code documentation details. Well-written code allows for extension. Documentation should do the same. For example, instead of saying "these 5 scripts: ...list", just say "these scripts: ...list".
