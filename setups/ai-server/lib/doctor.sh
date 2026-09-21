@@ -515,16 +515,11 @@ fi
 
 # Where the model server listens decides how much the firewall has to carry. On
 # the overlay address, a wrong firewall rule exposes nothing. On every address
-# the firewall is the only control, and the model API has no authentication of
-# its own.
+# the firewall is the only control, and the model API has no authentication.
 #
-# The socket is read from the kernel and not from the unit. Those two disagreed
-# once: llama-swap takes its address from a flag, the unit set only an
-# environment variable, and the variable happened to name the same address the
-# binary defaults to. Everything that read the configuration agreed with
-# itself, and the process was listening on every interface. A check that reads
-# the intent cannot see that class of fault at all, which is the class worth
-# checking for here.
+# Read from the kernel, not from the unit. A setting the binary ignores, or a
+# process started before the unit changed, is invisible to anything that reads
+# the intent.
 swap_intent="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
   tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
 
@@ -557,8 +552,8 @@ else
     warn "model server bind" "$swap_listen is not an address on $overlay_iface"
   fi
 
-  # The two disagreeing is the fault above, named directly, so that fixing it
-  # is not a matter of noticing that two lines differ.
+  # Reported on its own line, so a disagreement is not left to be spotted by
+  # comparing the two values above.
   if [[ -n "$swap_listen" && "$swap_listen" != "$swap_intent" ]]; then
     fail "bind matches the unit" "listening on $swap_listen, unit says $swap_intent"
   fi

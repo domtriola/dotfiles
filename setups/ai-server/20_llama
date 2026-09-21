@@ -115,8 +115,8 @@ fi
 # account: `test -d` on the models directory then reports that it does not
 # exist, which is true of nothing and misleading about everything.
 #
-# `install -d` sets the mode on a directory that already exists, so a rerun
-# repairs a home created the old way.
+# `install -d` sets the mode on a directory that already exists, so a home with
+# the wrong mode is repaired rather than left.
 sudo install -d -o "$service_user" -g "$service_user" -m 755 /var/lib/llama
 sudo install -d -o "$service_user" -g "$service_user" -m 755 "$models_dir"
 sudo install -d -m 755 "$config_dir"
@@ -390,20 +390,12 @@ Type=simple
 User=$service_user
 Group=$service_user
 SupplementaryGroups=$render_group
-# Every address, because the overlay interface does not exist when this script
-# first runs. 25_network narrows it to the overlay address with a drop-in, once
-# there is an address to narrow it to.
+# Every address, because the overlay interface does not exist on a first run.
+# 25_network narrows it with a drop-in once there is an address to narrow to.
 #
-# The variable is passed to --listen below, and is not read by llama-swap
-# itself. LLAMA_SWAP_* variables are a feature of the project's Docker images,
-# implemented in their entrypoint; the binary this unit runs knows only the
-# flag, and falls back to every address when it is not given one.
-#
-# This is worth the comment because setting the variable alone looked exactly
-# right and did nothing. The default happened to equal the value, so the bind
-# was never the address the unit named, and a check that read the variable
-# reported a control that was not there. It is kept as a variable, rather than
-# written into the command, so a drop-in can still change one line.
+# The variable reaches llama-swap through --listen below and not on its own:
+# LLAMA_SWAP_* variables work in the project's Docker images, and this binary
+# reads only the flag, defaulting to every address without it.
 Environment=LLAMA_SWAP_LISTEN=$listen
 ExecStart=$swap_root/current/llama-swap --config $config --listen \${LLAMA_SWAP_LISTEN}
 Restart=always
@@ -471,11 +463,8 @@ else
   sudo systemctl start llama-swap
 fi
 
-# The address the service starts with is not always the one written above.
-# 25_network adds a drop-in that moves the listener onto the overlay, and a
-# drop-in wins over the unit. Reading the merged value back is what keeps this
-# check honest: 127.0.0.1 stops answering as soon as that drop-in exists, and
-# assuming it would report a fault that is not there.
+# The merged value, not the one written above: a drop-in can move the listener
+# onto the overlay, and loopback stops answering when it does.
 effective="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
   tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
 effective="${effective:-$listen}"

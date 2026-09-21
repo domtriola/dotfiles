@@ -14,105 +14,41 @@
 # is the opposite of /etc/ssh/sshd_config.d, which 05_hardening writes. Writing
 # the whole file also makes this script idempotent for free: there is no string
 # to match and no parameter to accidentally add twice.
-#
-# The IOMMU parameter is asked for rather than chosen. See choose_iommu below.
 
 set -eo pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/config.sh
+source "$profile_dir/lib/config.sh"
+ai_server_config_load
 
 grub_dropin="/etc/default/grub.d/99-ai-server.cfg"
 gtt_pages="ttm.pages_limit=32505856"
 gtt_size="amdgpu.gttsize=126976"
 
 # ---------------------------------------------------------------------------
-# choose_iommu prints "amd_iommu=off" or "iommu=pt" on stdout. Every message it
-# writes goes to stderr, so the caller can capture the result with $(...).
+# The IOMMU setting.
 #
-# Resolution order, first match wins:
-#   1. the drop-in already holds a choice   (keeps a rerun silent)
-#   2. $AI_SERVER_IOMMU                     (how an unattended run answers)
-#   3. a terminal to ask on                 (offers off as the default)
-#   4. otherwise, stop
-#
-# Step 4 stops rather than picking, because the setting changes how well the
-# machine is protected and an unattended run must not decide that quietly. This
-# follows confirm_profile in lib/profile.sh, which refuses to guess a
-# profile for the same reason.
+# Required rather than defaulted: it decides whether a device plugged into a
+# USB4 port can reach memory directly.
 # ---------------------------------------------------------------------------
-choose_iommu() {
-  local answer
+ai_server_require AI_SERVER_IOMMU || exit 1
 
-  if [[ -f $grub_dropin ]]; then
-    if grep -q 'amd_iommu=off' "$grub_dropin"; then
-      echo "IOMMU: keeping amd_iommu=off, already set in $grub_dropin" >&2
-      printf 'amd_iommu=off\n'
-      return 0
-    fi
-    if grep -q 'iommu=pt' "$grub_dropin"; then
-      echo "IOMMU: keeping iommu=pt, already set in $grub_dropin" >&2
-      printf 'iommu=pt\n'
-      return 0
-    fi
-  fi
+case "$AI_SERVER_IOMMU" in
+off)
+  iommu="amd_iommu=off"
+  ;;
+pt)
+  iommu="iommu=pt"
+  ;;
+*)
+  echo "15_gpu: \$AI_SERVER_IOMMU is '$AI_SERVER_IOMMU'. Use 'off' or 'pt'." >&2
+  echo "  Change it with: ./setup 00_preflight" >&2
+  exit 1
+  ;;
+esac
 
-  case "${AI_SERVER_IOMMU:-}" in
-  off)
-    echo "IOMMU: using amd_iommu=off, from \$AI_SERVER_IOMMU" >&2
-    printf 'amd_iommu=off\n'
-    return 0
-    ;;
-  pt)
-    echo "IOMMU: using iommu=pt, from \$AI_SERVER_IOMMU" >&2
-    printf 'iommu=pt\n'
-    return 0
-    ;;
-  "") ;;
-  *)
-    echo "15_gpu: \$AI_SERVER_IOMMU is '${AI_SERVER_IOMMU}'. Use 'off' or 'pt'." >&2
-    return 1
-    ;;
-  esac
-
-  if [[ ! -t 0 ]]; then
-    cat >&2 <<'EOF'
-15_gpu: the IOMMU setting is not chosen and there is no terminal to ask on.
-
-  off  amd_iommu=off  5 to 12 percent faster. Stops the NPU from working, and
-                      removes protection against DMA attacks from a device
-                      plugged into a USB4 port.
-  pt   iommu=pt       Identity mapping. Slower than off, and keeps more
-                      protection than off.
-
-Set $AI_SERVER_IOMMU to off or pt, then run this again.
-EOF
-    return 1
-  fi
-
-  cat >&2 <<'EOF'
-
-The IOMMU setting depends on where this machine sits, so it is not chosen here.
-
-  off  amd_iommu=off  5 to 12 percent faster. Stops the NPU from working, and
-                      removes protection against DMA attacks from a device
-                      plugged into a USB4 port. Suits a machine in a place you
-                      control.
-  pt   iommu=pt       Identity mapping. Slower than off, and keeps more
-                      protection than off.
-
-Neither is permanent. Changing it later means editing one line in
-/etc/default/grub.d/99-ai-server.cfg and running update-grub.
-EOF
-  read -r -p "Use [off] or pt? " answer
-  case "${answer:-off}" in
-  off | "") printf 'amd_iommu=off\n' ;;
-  pt) printf 'iommu=pt\n' ;;
-  *)
-    echo "15_gpu: '$answer' is not 'off' or 'pt'." >&2
-    return 1
-    ;;
-  esac
-}
-
-iommu="$(choose_iommu)"
+echo "IOMMU: $iommu"
 
 # ---------------------------------------------------------------------------
 # The drop-in
@@ -142,7 +78,7 @@ fi
 # assigns instead of appending would pass every check up to here and still
 # produce a boot without them.
 echo "In /boot/grub/grub.cfg:"
-if ! sudo grep -om1 "$iommu[^\"]*" /boot/grub/grub.cfg; then
+if ! sudo grep -om1 "${iommu}[^\"]*" /boot/grub/grub.cfg; then
   echo "15_gpu: the parameters are not in /boot/grub/grub.cfg." >&2
   exit 1
 fi
