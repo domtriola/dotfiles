@@ -244,4 +244,17 @@ done
 About 124 GiB is correct. About 62 GiB means the parameters did not take
 effect.
 
+Then join the overlay network. `25_network` needs a setup key, which is a
+secret and is not in this repository, so it is the one step a plain `./setup`
+skips. Take a one-off key from the NetBird dashboard, one that auto-assigns the
+`ai-server` group:
+
+```console
+NETBIRD_SETUP_KEY='<key>' ./setup 25_network
+```
+
+This is also what moves the model server off `0.0.0.0` and onto the overlay
+address, so it stops answering on `127.0.0.1` afterwards. Test it at the
+address the script prints.
+
 Run `./sync-env` to pull environment configs.

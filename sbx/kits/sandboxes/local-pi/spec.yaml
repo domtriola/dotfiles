@@ -3,7 +3,36 @@ kind: sandbox
 name: local-pi
 displayName: Local Pi
 description: >-
-  Pi, pointed at an Ollama server running on the host.
+  Pi, pointed at a self-hosted OpenAI-compatible model server.
+
+# The server is named by the caller, never by this file.
+#
+# modelHost is `required` rather than defaulted, and that is the point: the
+# address of a private machine does not belong in a repository that can be
+# published. `sbx` validates arguments before it creates the sandbox, so a
+# missing value is a refusal with a message, not a sandbox that quietly talks
+# to nothing.
+#
+# Supply it per run, or once in a file that sbx-up passes for you:
+#
+#   sbx run ./sbx/kits/sandboxes/local-pi --kit-arg modelHost=<host>
+#   printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
+#
+# Prefer a name to an address. A name survives the address changing, and the
+# sandbox proxy matches its policy on the name it was given, so the allow list
+# below keeps working too.
+args:
+  modelHost:
+    required: true
+    description: "Model server host, as reached from inside the sandbox"
+  modelPort:
+    default: "8080"
+    description: "Model server port"
+  modelIds:
+    default: ""
+    description: >-
+      Comma-separated model ids, first one the startup default. Empty asks the
+      server for its own list, which is the usual case.
 
 sandbox:
   # Pre-baked image: pi at the latest upstream release, on the shell-docker
@@ -22,36 +51,47 @@ agentInstructions:
   content: |
     # Local Pi Agent Instructions
 
-    Every model call goes to an Ollama server on the host, declared as the
-    `ollama` provider in `~/.pi/agent/models.json`. The kit rewrites that file
-    on each start from `$OLLAMA_BASE_URL` and `$OLLAMA_MODELS`, so edits to it
-    do not survive a restart. Change those variables in the kit, or use
-    `/model` to switch models for the session.
+    Every model call goes to a self-hosted model server, declared as the
+    `local` provider in `~/.pi/agent/models.json`. The kit rewrites that file
+    on each start, so edits to it do not survive a restart. Use `/model` to
+    switch models for the session.
+
+    A server that loads models on demand holds one at a time. The first request
+    for a model can then take tens of seconds, and naming a different model can
+    unload the one in memory to make room. Staying on one model is faster than
+    switching per task.
 
     The last start, and whether the server answered, is in
     `~/.local-pi-kit.log`.
 
 environment:
   variables:
-    # The host's Ollama server, as seen from inside the sandbox. `localhost`
-    # here is the sandbox's own loopback, so the host is addressed by name.
-    # Point this at a LAN address to use another machine's server (and add
-    # that host to permissions.network.allow below).
-    OLLAMA_BASE_URL: "http://host.docker.internal:11434/v1"
-    # Comma-separated model ids, exactly as the host's `ollama list` prints
-    # them. The first one is the startup default; the rest are there to switch
-    # to with `/model`.
-    OLLAMA_MODELS: "qwen2.5-coder:7b,llama3.1:8b"
+    # The model server, as seen from inside the sandbox.
+    #
+    # Named for the role and not for the engine. Every server this kit has
+    # pointed at speaks the same OpenAI-compatible HTTP interface, so a name
+    # tied to one of them is wrong as soon as it is replaced, which has now
+    # happened once. OPENAI_ is the usual name for this value and is avoided
+    # because pi may read it for its own hosted provider.
+    MODEL_BASE_URL: "http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1"
+    # Empty by default, which means "ask the server". This kit does not own the
+    # models and so names none: a list written here is a copy of another
+    # machine's state, and it is wrong the moment a model is added or removed
+    # there. Set it to choose the startup default, which is the first id.
+    MODEL_IDS: "${{ kit.args.modelIds }}"
 
 permissions:
   network:
     allow:
-      # The host's Ollama server. Traffic to the host goes through the sandbox
-      # proxy and is denied by default, so the port has to be named here. Both
-      # spellings are listed because the two halves of the documentation
-      # disagree on which one the policy matches for a host service.
-      - host.docker.internal:11434
-      - localhost:11434
+      # The model server. Traffic out of a sandbox goes through the proxy and
+      # is denied unless it is listed, so declaring it here is what makes the
+      # sandbox work without a hand-written `sbx policy allow` per machine.
+      #
+      # The entry carries the port, which is the narrowest form the proxy
+      # enforces. A CIDR would be the obvious way to write "that private
+      # range", and it is declared by the grammar but not enforced, so it would
+      # match nothing and read as a routing fault.
+      - "${{ kit.args.modelHost }}:${{ kit.args.modelPort }}"
       # pi's runtime package installs (extensions, skills, prompt templates,
       # themes) and the packages named in settings, fetched on startup.
       - registry.npmjs.org
@@ -81,10 +121,11 @@ setup:
           set -eu
 
           # The defaults are repeated because a startup hook is not guaranteed
-          # to inherit environment.variables.
-          base_url="${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}"
-          models="${OLLAMA_MODELS:-qwen2.5-coder:7b,llama3.1:8b}"
-          default_model="${models%%,*}"
+          # to inherit environment.variables. They are written as argument
+          # references rather than literals, so there is one place that decides
+          # the address and no second copy to drift from it.
+          base_url="${MODEL_BASE_URL:-http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1}"
+          models="${MODEL_IDS:-${{ kit.args.modelIds }}}"
 
           conf="$HOME/.pi/agent"
           mkdir -p "$conf"
@@ -93,10 +134,42 @@ setup:
           # log is the only place this can be read afterwards.
           exec >"$HOME/.local-pi-kit.log" 2>&1
           echo "--- local-pi kit ---"
-          echo "baseUrl=$base_url models=$models"
+          echo "baseUrl=$base_url"
 
-          # `{ "id": "a" }, { "id": "b" }` from `a,b`. Model ids hold no spaces,
-          # so splitting on the translated separator is enough.
+          # One request, two jobs: it proves the path, and it supplies the model
+          # ids when the caller pinned none.
+          #
+          # It proves the path and not the models. A server lists what it is
+          # configured to serve whether or not any of it can load, and loading a
+          # model to find out is not something a startup hook should do.
+          served=""
+          if curl_out="$(curl -fsS --max-time 10 "$base_url/models" 2>/dev/null)"; then
+            # Split on commas so each "id": "..." lands on its own line. Model
+            # ids hold no quotes, so this does not need a JSON parser, and the
+            # image is not guaranteed to have one.
+            served="$(printf '%s' "$curl_out" |
+              tr ',' '\n' |
+              sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
+              tr '\n' ',' | sed 's/,$//')"
+            echo "the server answered, and serves: ${served:-nothing}"
+          else
+            echo "WARNING: no answer from $base_url"
+            echo "  - is the host reachable from this sandbox? a private network"
+            echo "    has to be up on this machine as well as on the server"
+            echo "  - is it allowed? traffic out of a sandbox is denied unless"
+            echo "    the kit lists it, and this kit lists the modelHost it was"
+            echo "    given, so a mismatch reads exactly like a routing fault"
+            echo "  - is the server running and listening on that address?"
+          fi
+
+          if [ -n "$models" ]; then
+            echo "using the pinned ids: $models"
+          else
+            models="$served"
+          fi
+          default_model="${models%%,*}"
+
+          # `{ "id": "a" }, { "id": "b" }` from `a,b`.
           entries=""
           sep=""
           for id in $(printf '%s' "$models" | tr ',' ' '); do
@@ -104,15 +177,28 @@ setup:
             sep=", "
           done
 
-          # compat turns off the two OpenAI-isms Ollama does not implement: the
-          # `developer` message role and `reasoning_effort`.
+          if [ -z "$entries" ]; then
+            echo "WARNING: no models. The server named none and none were pinned."
+            echo "  pi starts with an empty provider. Set modelIds, or fix the"
+            echo "  server, then restart the sandbox."
+          fi
+
+          # The provider is named for its role rather than for whatever engine
+          # is behind it, which has changed once already.
+          #
+          # apiKey is sent and ignored by a server that has no authentication.
+          # pi wants the field set for an openai-completions provider.
+          #
+          # compat turns off two OpenAI-isms that not every server implements.
+          # Both are off because the server this was first written for did not
+          # have them; reasoning_effort is the one to try turning on first.
           cat >"$conf/models.json" <<EOF
           {
             "providers": {
-              "ollama": {
+              "local": {
                 "baseUrl": "$base_url",
                 "api": "openai-completions",
-                "apiKey": "ollama",
+                "apiKey": "unused",
                 "compat": {
                   "supportsDeveloperRole": false,
                   "supportsReasoningEffort": false
@@ -129,29 +215,19 @@ setup:
           # would throw that away.
           if [ -f "$conf/settings.json" ]; then
             echo "kept the existing $conf/settings.json"
+          elif [ -z "$default_model" ]; then
+            echo "no default model to seed $conf/settings.json with"
           else
             cat >"$conf/settings.json" <<EOF
           {
-            "defaultProvider": "ollama",
+            "defaultProvider": "local",
             "defaultModel": "$default_model"
           }
           EOF
             echo "seeded $conf/settings.json with $default_model"
-          fi
-
-          # A reachability check, not a gate. Failing the hook would not help:
-          # the fix is on the host, and pi is still worth starting so `/model`
-          # can be used once the server is up.
-          if command -v curl >/dev/null 2>&1; then
-            if curl -fsS --max-time 5 "$base_url/models" >/dev/null 2>&1; then
-              echo "the Ollama server answered at $base_url"
-            else
-              echo "WARNING: no answer from $base_url"
-              echo "  - the host has to run: OLLAMA_HOST=0.0.0.0 ollama serve"
-              echo "  - the model has to be pulled on the host: ollama pull $default_model"
-            fi
+            echo "  the first request loads it, which can take tens of seconds"
           fi
 
           echo "--- local-pi kit finished ---"
-      description: "Write ~/.pi/agent/models.json for the host's Ollama server and check that it answers"
+      description: "Write ~/.pi/agent/models.json for the model server and check that it answers"
       user: "1000"

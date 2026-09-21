@@ -55,10 +55,17 @@ if ufw_status="$(sudo ufw status verbose 2>/dev/null)"; then
     fail "ufw" "inactive"
   fi
 
-  if grep -qE '^22/tcp .*LIMIT' <<<"$ufw_status"; then
+  # The general rules are matched with a space after the port, so that an
+  # interface rule ("22/tcp on wt0  ALLOW IN") is not read as one of them. The
+  # overlay case is reported last because it is the narrowest, and only reached
+  # when there is no general rule left to report.
+  if grep -qE '^22/tcp +LIMIT' <<<"$ufw_status"; then
     ok "ssh rule" "22/tcp LIMIT"
-  elif grep -qE '^22/tcp .*ALLOW' <<<"$ufw_status"; then
+  elif grep -qE '^22/tcp +ALLOW' <<<"$ufw_status"; then
     warn "ssh rule" "22/tcp ALLOW, not rate limited"
+  elif ssh_iface_rule="$(grep -oE '^22/tcp on [a-zA-Z0-9._-]+' <<<"$ufw_status" | head -1)" &&
+    [[ -n "$ssh_iface_rule" ]]; then
+    ok "ssh rule" "$ssh_iface_rule, overlay only"
   else
     fail "ssh rule" "no rule for 22/tcp"
   fi
@@ -269,11 +276,13 @@ else
   pending "llama-swap binary" "not installed"
 fi
 
-if [[ -x /usr/local/bin/llama-model ]]; then
-  ok "llama-model helper" "/usr/local/bin/llama-model"
-else
-  pending "llama-model helper" "not installed"
-fi
+for helper in llama-model llama-ctx; do
+  if [[ -x "/usr/local/bin/$helper" ]]; then
+    ok "$helper helper" "/usr/local/bin/$helper"
+  else
+    pending "$helper helper" "not installed"
+  fi
+done
 
 # Models are counted two ways, because the two can disagree. The configuration
 # is what llama-swap serves. The directory is what is on disk. A file added
@@ -367,15 +376,24 @@ if [[ -f "$swap_unit" ]]; then
     ok "llama-swap service" "active, $unit_state"
 
     # The only check that proves the whole chain, so it is worth the request.
-    listen_port="$(awk -F: '/^Environment=LLAMA_SWAP_LISTEN=/ { print $NF }' \
-      "$swap_unit" 2>/dev/null)"
-    listen_port="${listen_port:-8080}"
+    #
+    # The address comes from systemd and not from the unit file, because
+    # 25_network adds a drop-in that moves the listener onto the overlay and a
+    # drop-in wins. Reading the file would send this to 127.0.0.1, which stops
+    # answering then, and report a dead API that is serving normally.
+    listen="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+      tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
+    listen="${listen:-0.0.0.0:8080}"
+    listen_host="${listen%:*}"
+    listen_port="${listen##*:}"
+    # 0.0.0.0 is every address rather than one to connect to.
+    [[ -z "$listen_host" || "$listen_host" == "0.0.0.0" ]] && listen_host="127.0.0.1"
 
-    if served="$(curl -fsS --max-time 5 "http://127.0.0.1:${listen_port}/v1/models" 2>/dev/null)"; then
+    if served="$(curl -fsS --max-time 5 "http://${listen_host}:${listen_port}/v1/models" 2>/dev/null)"; then
       served_count="$(grep -o '"id"' <<<"$served" | wc -l)"
-      ok "API answers" "port $listen_port, $served_count model(s)"
+      ok "API answers" "$listen_host:$listen_port, $served_count model(s)"
     else
-      fail "API answers" "no reply on port $listen_port"
+      fail "API answers" "no reply on $listen_host:$listen_port"
     fi
   elif [[ "$configured_count" -eq 0 ]]; then
     # Not a fault. 20_llama installs and enables the service, and leaves it
@@ -443,22 +461,117 @@ fi
 section "Overlay network"
 # ---------------------------------------------------------------------------
 
+#
+# The overlay is how this machine is reached, and it is also what limits who
+# reaches the model API. Each part is reported on its own, because the client
+# can be connected while the firewall still drops the traffic, and from the
+# other end both look the same: nothing answers.
+
+overlay_iface="wt0"
+
 if have netbird; then
-  if netbird status 2>/dev/null | grep -qi 'management: connected'; then
+  # The JSON is read rather than the human summary, whose wording changes
+  # between releases.
+  nb_json="$(netbird status --json 2>/dev/null)" || nb_json=""
+
+  if [[ -n "$nb_json" ]] && have jq; then
+    if [[ "$(jq -r '.management.connected // false' <<<"$nb_json")" == "true" ]]; then
+      ok "netbird" "connected as $(jq -r '.fqdn // "unknown"' <<<"$nb_json")"
+    else
+      warn "netbird" "installed, the management service is not connected"
+    fi
+
+    peers_total="$(jq -r '.peers.total // 0' <<<"$nb_json")"
+    peers_up="$(jq -r '.peers.connected // 0' <<<"$nb_json")"
+    if [[ "$peers_up" -gt 0 ]]; then
+      ok "peers" "$peers_up of $peers_total connected"
+    else
+      # Not a fault. The client is not always switched on.
+      pending "peers" "$peers_up of $peers_total connected"
+    fi
+  elif netbird status 2>/dev/null | grep -qi 'management: connected'; then
     ok "netbird" "connected"
   else
     warn "netbird" "installed but not connected"
   fi
 else
-  pending "netbird" "not installed, 25_netbird is not written"
+  pending "netbird" "not installed, run ./setup 25_network"
 fi
 
+overlay_ip=""
 if ! have ip; then
-  warn "wt0 interface" "ip is not installed, not checked"
-elif ip link show wt0 >/dev/null 2>&1; then
-  ok "wt0 interface" "up"
+  warn "$overlay_iface interface" "ip is not installed, not checked"
 else
-  pending "wt0 interface" "absent until netbird registers"
+  overlay_ip="$(ip -4 -br addr show "$overlay_iface" 2>/dev/null |
+    awk '{print $3}' | cut -d/ -f1)"
+  if [[ -n "$overlay_ip" ]]; then
+    ok "$overlay_iface interface" "$overlay_ip"
+  elif ip link show "$overlay_iface" >/dev/null 2>&1; then
+    fail "$overlay_iface interface" "up with no IPv4 address"
+  else
+    pending "$overlay_iface interface" "absent until the machine registers"
+  fi
+fi
+
+# Where the model server listens decides how much the firewall has to carry. On
+# the overlay address, a wrong firewall rule exposes nothing. On every address
+# the firewall is the only control, and the model API has no authentication of
+# its own.
+#
+# The socket is read from the kernel and not from the unit. Those two disagreed
+# once: llama-swap takes its address from a flag, the unit set only an
+# environment variable, and the variable happened to name the same address the
+# binary defaults to. Everything that read the configuration agreed with
+# itself, and the process was listening on every interface. A check that reads
+# the intent cannot see that class of fault at all, which is the class worth
+# checking for here.
+swap_intent="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+  tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
+
+if [[ -z "$swap_intent" ]]; then
+  pending "model server bind" "llama-swap is not installed"
+else
+  swap_port="${swap_intent##*:}"
+
+  swap_listen=""
+  if have ss; then
+    swap_listen="$(sudo ss -tlnp 2>/dev/null |
+      awk -v p=":$swap_port" '$4 ~ p"$" { print $4; exit }')"
+  fi
+
+  swap_host="${swap_listen%:*}"
+
+  if [[ -z "$swap_listen" ]]; then
+    if have ss; then
+      fail "model server bind" "nothing is listening on port $swap_port"
+    else
+      warn "model server bind" "ss is not installed, the socket was not read"
+    fi
+  elif [[ -n "$overlay_ip" && "$swap_host" == "$overlay_ip" ]]; then
+    ok "model server bind" "$swap_listen, overlay only"
+  elif [[ "$swap_host" == "0.0.0.0" || "$swap_host" == "*" || "$swap_host" == "[::]" ]]; then
+    fail "model server bind" "$swap_listen, every interface, ufw is the only control"
+  else
+    # An address the interface no longer holds stops the service from binding,
+    # and its own log does not say why.
+    warn "model server bind" "$swap_listen is not an address on $overlay_iface"
+  fi
+
+  # The two disagreeing is the fault above, named directly, so that fixing it
+  # is not a matter of noticing that two lines differ.
+  if [[ -n "$swap_listen" && "$swap_listen" != "$swap_intent" ]]; then
+    fail "bind matches the unit" "listening on $swap_listen, unit says $swap_intent"
+  fi
+
+  if ufw_overlay="$(sudo ufw status 2>/dev/null)"; then
+    if grep -qE "^${swap_port}/tcp on ${overlay_iface} +ALLOW" <<<"$ufw_overlay"; then
+      ok "model port rule" "${swap_port}/tcp on $overlay_iface"
+    elif grep -qE "^${swap_port}/tcp +ALLOW" <<<"$ufw_overlay"; then
+      fail "model port rule" "${swap_port}/tcp is open on every interface"
+    else
+      pending "model port rule" "none, peers cannot reach the model API"
+    fi
+  fi
 fi
 
 # ---------------------------------------------------------------------------

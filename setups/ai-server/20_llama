@@ -208,6 +208,12 @@ sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-model.sh" \
   /usr/local/bin/llama-model
 echo "Installed /usr/local/bin/llama-model"
 
+# The context measurement, for the same reason: a procedure written in a
+# comment is a procedure nobody runs.
+sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-ctx.sh" \
+  /usr/local/bin/llama-ctx
+echo "Installed /usr/local/bin/llama-ctx"
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -226,9 +232,21 @@ healthCheckTimeout: 600
 logLevel: info
 startPort: 10001
 
+# Send the model's own output to stdout, and so to the journal.
+#
+# The default is "proxy", which keeps llama-swap's own lines and discards
+# llama-server's. That loses the lines worth having: what the model loaded, how
+# much memory the KV cache took, and why a load failed. They stay readable over
+# HTTP at /logs/stream/upstream, but only in a buffer in memory, so a restart
+# takes them with it and a machine that fell over has nothing to read.
+#
+# "both" costs a request-rate line per completion in the journal, which
+# journald rotates and rate-limits on its own.
+logToStdout: both
+
 macros:
-  # llama-server binds loopback only. llama-swap is the process that listens
-  # on the overlay, and the firewall is what limits who reaches it.
+  # llama-server binds loopback only. llama-swap is the process that faces the
+  # network, and 25_network is what limits it to the overlay.
   #
   # -ngl all offloads every layer. This machine has about 124 GiB of unified
   # memory, so a partial offload would be a fault rather than a compromise.
@@ -262,17 +280,26 @@ HEADER
 #
 # The cache competes with the weights for one pool of memory, so the bigger the
 # model the less context it can afford. $LLAMA_CTX_SIZE overrides the lot.
+#
+# These are coarse defaults and nothing more. The cost per token follows the
+# model's attention geometry, not its size on disk, so a band can only be a
+# starting point. `llama-ctx` measures what a loaded model actually costs and
+# says how far its context can go; run it before changing a number here.
+#
+# The bands never rise with size. A smaller model leaves more room, so it can
+# afford at least as much context as a larger one, and a ladder that says
+# otherwise is wrong however the numbers were arrived at.
 ctx_for() {
   local gb="$1"
 
   if [[ -n "${LLAMA_CTX_SIZE:-}" ]]; then
     printf '%s\n' "$LLAMA_CTX_SIZE"
   elif [[ "$gb" -gt 80 ]]; then
-    printf '16384\n'
+    printf '131072\n'
   elif [[ "$gb" -gt 40 ]]; then
-    printf '32768\n'
+    printf '131072\n'
   else
-    printf '65536\n'
+    printf '131072\n'
   fi
 }
 
@@ -363,8 +390,22 @@ Type=simple
 User=$service_user
 Group=$service_user
 SupplementaryGroups=$render_group
+# Every address, because the overlay interface does not exist when this script
+# first runs. 25_network narrows it to the overlay address with a drop-in, once
+# there is an address to narrow it to.
+#
+# The variable is passed to --listen below, and is not read by llama-swap
+# itself. LLAMA_SWAP_* variables are a feature of the project's Docker images,
+# implemented in their entrypoint; the binary this unit runs knows only the
+# flag, and falls back to every address when it is not given one.
+#
+# This is worth the comment because setting the variable alone looked exactly
+# right and did nothing. The default happened to equal the value, so the bind
+# was never the address the unit named, and a check that read the variable
+# reported a control that was not there. It is kept as a variable, rather than
+# written into the command, so a drop-in can still change one line.
 Environment=LLAMA_SWAP_LISTEN=$listen
-ExecStart=$swap_root/current/llama-swap --config $config
+ExecStart=$swap_root/current/llama-swap --config $config --listen \${LLAMA_SWAP_LISTEN}
 Restart=always
 RestartSec=3
 
@@ -430,11 +471,24 @@ else
   sudo systemctl start llama-swap
 fi
 
+# The address the service starts with is not always the one written above.
+# 25_network adds a drop-in that moves the listener onto the overlay, and a
+# drop-in wins over the unit. Reading the merged value back is what keeps this
+# check honest: 127.0.0.1 stops answering as soon as that drop-in exists, and
+# assuming it would report a fault that is not there.
+effective="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+  tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
+effective="${effective:-$listen}"
+
+probe_host="${effective%:*}"
+# 0.0.0.0 means every address, which is not an address to connect to.
+[[ -z "$probe_host" || "$probe_host" == "0.0.0.0" ]] && probe_host="127.0.0.1"
+
 echo
-echo "llama-swap is listening on $listen. Models:"
+echo "llama-swap is listening on $effective. Models:"
 # Checked in two steps. Piping a failed request straight into python printed a
 # JSON traceback over the top of the real problem.
-if served="$(curl -fsS --max-time 10 "http://127.0.0.1:${listen##*:}/v1/models" 2>/dev/null)"; then
+if served="$(curl -fsS --max-time 10 "http://${probe_host}:${effective##*:}/v1/models" 2>/dev/null)"; then
   printf '%s' "$served" |
     python3 -c 'import json,sys; [print("  " + m["id"]) for m in json.load(sys.stdin)["data"]]' 2>/dev/null ||
     echo "  (answered, but the reply was not a model list)"
