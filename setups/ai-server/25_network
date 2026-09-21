@@ -30,18 +30,31 @@
 # argument, because arguments are readable by every local user through /proc and
 # a setup key registers new machines.
 #
-# Environment:
+# Settings, from /etc/ai-server/config.env or the environment:
+#
+#   $AI_SERVER_OVERLAY_HOSTNAME    the name this peer takes in the dashboard.
+#                                  Empty means the system hostname.
+#   $AI_SERVER_OVERLAY_UP_TIMEOUT  seconds to wait for the client to connect.
+#   $AI_SERVER_BIND_OVERLAY        yes moves the model server onto the overlay
+#                                  address alone.
+#   $AI_SERVER_SSH_OVERLAY_ONLY    yes narrows SSH to the overlay. Read the
+#                                  warning at that section first.
+#
+# Two values are deliberately not settings, because they are secrets or
+# one-offs and do not belong in a file that every tool reads:
+#
 #   $NETBIRD_SETUP_KEY          registers this machine. Without it, an
 #                               unregistered machine is reported and skipped.
-#   $NETBIRD_HOSTNAME           the name this peer takes in the dashboard.
-#                               Unset means the system hostname.
 #   $NETBIRD_REPO_KEY_SHA256    the expected digest of the repository signing
 #                               key. Unset means the key is trusted on first
 #                               use, over TLS, and its digest is printed.
-#   $AI_SERVER_SSH_OVERLAY_ONLY yes narrows SSH to the overlay. Read the
-#                               warning at that section first.
 
 set -eo pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/config.sh
+source "$profile_dir/lib/config.sh"
+ai_server_config_load
 
 iface="wt0" # the default WireGuard interface of the NetBird client
 
@@ -164,8 +177,8 @@ elif [[ -n "${NETBIRD_SETUP_KEY:-}" ]]; then
   printf '%s' "$NETBIRD_SETUP_KEY" >"$key_file"
 
   up_args=(--setup-key-file "$key_file")
-  if [[ -n "${NETBIRD_HOSTNAME:-}" ]]; then
-    up_args+=(--hostname "$NETBIRD_HOSTNAME")
+  if [[ -n "${AI_SERVER_OVERLAY_HOSTNAME:-}" ]]; then
+    up_args+=(--hostname "$AI_SERVER_OVERLAY_HOSTNAME")
   fi
 
   # `netbird up` is slow and silent, and the two have different causes.
@@ -184,7 +197,7 @@ elif [[ -n "${NETBIRD_SETUP_KEY:-}" ]]; then
   #
   # `timeout` goes inside sudo, not outside it: outside, it would kill sudo and
   # leave netbird running.
-  up_timeout="${NETBIRD_UP_TIMEOUT:-900}"
+  up_timeout="${AI_SERVER_OVERLAY_UP_TIMEOUT:-900}"
 
   cat <<EOF
 Running netbird up. This takes minutes rather than seconds on a first
@@ -230,7 +243,7 @@ daemon is doing:
 The usual cause is an engine that cannot reach the management or relay service
 and keeps retrying. Run this script again once the daemon reports the
 management service as connected: it skips registration then, and needs no key.
-Raise \$NETBIRD_UP_TIMEOUT if this machine is simply slower than the bound.
+Raise \$AI_SERVER_OVERLAY_UP_TIMEOUT if this machine is slower than the bound.
 EOF
     exit 1
   elif [[ $up_status -ne 0 ]]; then
@@ -331,7 +344,25 @@ sudo ufw allow in on "$iface" to any port "$model_port" proto tcp
 #     fail to bind. Restart=always retries every 3 seconds until the overlay is
 #     up, which is under the systemd start-limit rate, so it recovers on its
 #     own. The journal shows the failed attempts.
-if ! systemctl cat llama-swap.service >/dev/null 2>&1; then
+case "${AI_SERVER_BIND_OVERLAY:-yes}" in
+yes | true | 1)
+  bind_overlay=1
+  ;;
+no | false | 0)
+  bind_overlay=0
+  ;;
+*)
+  echo "25_network: \$AI_SERVER_BIND_OVERLAY is '${AI_SERVER_BIND_OVERLAY}'. Use yes or no." >&2
+  exit 1
+  ;;
+esac
+
+if [[ "$bind_overlay" -eq 0 ]]; then
+  # Said out loud: on every interface, the firewall rule above is the only
+  # control in front of an API that has no authentication.
+  echo "Not binding to the overlay: AI_SERVER_BIND_OVERLAY is no."
+  echo "  The model server stays on every interface, and ufw is the only control."
+elif ! systemctl cat llama-swap.service >/dev/null 2>&1; then
   echo "llama-swap is not installed, so there is nothing to bind. Run 20_llama."
 else
   tmp_dropin="$(mktemp)"
@@ -380,7 +411,7 @@ yes | true | 1)
   ;;
 "" | no | false | 0)
   ssh_overlay_only=0
-  echo "SSH is unchanged. Set \$AI_SERVER_SSH_OVERLAY_ONLY=yes to narrow it to $iface."
+  echo "SSH is unchanged, from AI_SERVER_SSH_OVERLAY_ONLY."
   ;;
 *)
   echo "25_network: \$AI_SERVER_SSH_OVERLAY_ONLY is '${AI_SERVER_SSH_OVERLAY_ONLY}'. Use yes or no." >&2

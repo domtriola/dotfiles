@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+#
+# Every question this machine has to answer, asked once, before anything is
+# installed.
+#
+# This runs first so that the rest of the profile never stops half way through
+# to ask something. A run that begins is a run that finishes, and the answers
+# are written to /etc/ai-server/config.env where every later script, and every
+# tool, reads them from.
+#
+# Only two things are asked. A question earns a place here when getting it
+# wrong locks the machine out, breaks a boot, or destroys data, and when it
+# cannot be answered safely by a default. Everything else has a documented
+# default and is tuned later, deliberately, with the information to hand: the
+# right time to choose a context length is when a model is loaded and the cost
+# can be measured, not during an install.
+#
+# Nothing secret is written. The overlay setup key is the obvious candidate and
+# it is deliberately absent: it is prompted for at the moment it is used, and
+# never stored.
+#
+# Rerun it any time to review or change the answers:
+#
+#   ./setup 00_preflight
+
+set -eo pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/config.sh
+source "$profile_dir/lib/config.sh"
+
+# The repository is not asked for. This script is in it, so it knows where it
+# is, and a path typed by hand is a path that can be wrong. The tools that
+# change settings later re-run ./setup from here.
+dotfiles_dir="$(cd "$profile_dir/../.." >/dev/null 2>&1 && pwd)"
+
+ai_server_config_load
+
+# ---------------------------------------------------------------------------
+# ask prints an explanation, then reads an answer, and repeats until the answer
+# is one of the accepted values.
+#
+# Resolution order, first match wins:
+#   1. the environment, or a value already in the file  (keeps a rerun quiet)
+#   2. a terminal to ask on
+#   3. otherwise, stop
+#
+# Step 3 stops rather than guessing, for the same reason confirm_profile in
+# lib/profile.sh refuses to guess a profile: these answers change how well the
+# machine is protected and whether it can boot, and an unattended run must not
+# decide that quietly.
+# ---------------------------------------------------------------------------
+ask() {
+  local key="$1" prompt="$2" default="$3" explanation="$4"
+  shift 4
+  local accepted=("$@") answer current
+
+  current="${!key:-}"
+
+  if [[ -n "$current" ]]; then
+    if printf '%s\n' "${accepted[@]}" | grep -qxF "$current"; then
+      printf '%s: %s (already answered)\n' "$key" "$current" >&2
+      printf '%s\n' "$current"
+      return 0
+    fi
+    echo "00_preflight: \$$key is '$current'. Expected one of: ${accepted[*]}" >&2
+    return 1
+  fi
+
+  if [[ ! -t 0 ]]; then
+    cat >&2 <<EOF
+
+00_preflight: $key is unanswered and there is no terminal to ask on.
+$explanation
+Set \$$key to one of: ${accepted[*]}
+EOF
+    return 1
+  fi
+
+  printf '%s\n' "$explanation" >&2
+
+  while true; do
+    read -r -p "$prompt " answer
+    answer="${answer:-$default}"
+
+    if printf '%s\n' "${accepted[@]}" | grep -qxF "$answer"; then
+      printf '%s\n' "$answer"
+      return 0
+    fi
+
+    echo "  '$answer' is not one of: ${accepted[*]}" >&2
+  done
+}
+
+echo "--- preflight ---"
+echo "Repository: $dotfiles_dir"
+echo
+
+# ---------------------------------------------------------------------------
+# 1. The IOMMU
+# ---------------------------------------------------------------------------
+iommu="$(ask AI_SERVER_IOMMU "Use [off] or pt?" off "
+The IOMMU setting depends on where this machine sits, so it is not chosen here.
+
+  off  amd_iommu=off  5 to 12 percent faster. Stops the NPU from working, and
+                      removes protection against DMA attacks from a device
+                      plugged into a USB4 port. Suits a machine in a place you
+                      control.
+  pt   iommu=pt       Identity mapping. Slower than off, and keeps more
+                      protection than off.
+
+Neither is permanent. Changing it later rewrites one kernel parameter and needs
+a reboot.
+" off pt)"
+
+echo
+
+# ---------------------------------------------------------------------------
+# 2. The disk
+# ---------------------------------------------------------------------------
+#
+# Asked even on a machine with nothing to claim. 12_storage does nothing when
+# the volume group is already handed out, so a "yes" costs nothing there, and
+# asking unconditionally keeps this script's behaviour the same everywhere.
+extend_lv="$(ask AI_SERVER_EXTEND_LV "Extend the root volume? [yes]/no" yes "
+The Ubuntu installer builds an LVM volume group across the whole drive and then
+gives the root volume about 100 GB. The rest sits unallocated, so a 1 TB disk
+presents as a 98 GB filesystem. One model is 20 to 400 GB, so the default
+leaves this machine unable to hold what it exists to serve.
+
+Growing is online and needs no reboot. Shrinking later would need the root
+filesystem unmounted, which means a rescue boot, so this is worth reading
+before answering.
+
+  yes  Give the root volume every free extent in the volume group.
+  no   Leave the disk as the installer left it.
+" yes no)"
+
+# ---------------------------------------------------------------------------
+# Write it
+# ---------------------------------------------------------------------------
+#
+# The whole file is rewritten from the answers above plus whatever optional
+# settings are already in effect, so there is no merge to get wrong and a
+# rerun is idempotent. Comments are regenerated with it, which is what keeps
+# the explanation next to the value.
+tmp="$(mktemp)"
+cat >"$tmp" <<EOF
+# Managed by dotfiles: setups/ai-server/00_preflight
+#
+# The answers this machine cannot work out for itself. Rewritten whole by a
+# rerun of ./setup 00_preflight.
+#
+# An environment variable of the same name overrides the value here, which is
+# how an unattended run states an answer without editing anything.
+#
+# NOTHING SECRET GOES IN THIS FILE. It is mode 644 because every tool that
+# reports on this machine reads it. The overlay setup key is prompted for at
+# the moment it is used and never written down.
+
+# Where this profile is checked out. Tools that change a setting re-run
+# ./setup from here, so a moved or deleted clone breaks them; ./doctor says so.
+AI_SERVER_DOTFILES_DIR=$dotfiles_dir
+
+# Asked. amd_iommu=off is faster and gives up DMA protection; iommu=pt keeps
+# more of it. Changing this rewrites a kernel parameter and needs a reboot.
+AI_SERVER_IOMMU=$iommu
+
+# Asked. Whether 12_storage gives the root volume the extents the installer
+# left unallocated. Growing is online; shrinking needs a rescue boot.
+AI_SERVER_EXTEND_LV=$extend_lv
+
+# How much of the free space to take, when extending. Below 100 to keep extents
+# back for an LVM snapshot or a second volume.
+AI_SERVER_LV_FREE_PCT=${AI_SERVER_LV_FREE_PCT:-100}
+
+# The default context length for a newly imported model, in tokens. It is
+# clamped down to whatever the model was trained for. Not asked, because the
+# useful time to choose a context is when a model is loaded and its cost can be
+# measured.
+AI_SERVER_DEFAULT_CTX=${AI_SERVER_DEFAULT_CTX:-131072}
+
+# Bind the model server to the overlay address alone, once the interface
+# exists. "no" leaves it on every interface, where the firewall is the only
+# thing between an unauthenticated model API and the internet.
+AI_SERVER_BIND_OVERLAY=${AI_SERVER_BIND_OVERLAY:-yes}
+
+# Accept SSH only over the overlay. Off by default, and deliberately so: it
+# removes the only way in that does not depend on the overlay, on a machine
+# whose encrypted root already needs a person at the console to reboot. Turn it
+# on only while a peer is connected and a console is reachable.
+AI_SERVER_SSH_OVERLAY_ONLY=${AI_SERVER_SSH_OVERLAY_ONLY:-no}
+
+# The name this machine takes on the overlay. Empty means its system hostname.
+AI_SERVER_OVERLAY_HOSTNAME=${AI_SERVER_OVERLAY_HOSTNAME:-}
+
+# How long to wait for the overlay client to finish connecting, in seconds.
+# Registration is quick; the wait afterwards is minutes on a first join. The
+# bound exists to turn a stuck daemon into a message, not to decide how long a
+# working one may take.
+AI_SERVER_OVERLAY_UP_TIMEOUT=${AI_SERVER_OVERLAY_UP_TIMEOUT:-900}
+EOF
+
+sudo install -d -m 755 "$(dirname "$ai_server_config")"
+
+if [[ -f "$ai_server_config" ]] && sudo cmp -s "$tmp" "$ai_server_config"; then
+  echo
+  echo "$ai_server_config is already correct."
+else
+  echo
+  echo "Writing $ai_server_config"
+  sudo install -m 644 "$tmp" "$ai_server_config"
+fi
+rm -f "$tmp"
+
+# Read back what was just written, so the summary reports the file rather than
+# this script's own variables. A value the file did not take is a value the
+# rest of the run will not see either.
+ai_server_origin=()
+for key in AI_SERVER_DOTFILES_DIR AI_SERVER_IOMMU AI_SERVER_EXTEND_LV \
+  AI_SERVER_LV_FREE_PCT AI_SERVER_DEFAULT_CTX AI_SERVER_BIND_OVERLAY \
+  AI_SERVER_SSH_OVERLAY_ONLY AI_SERVER_OVERLAY_HOSTNAME \
+  AI_SERVER_OVERLAY_UP_TIMEOUT; do
+  unset "$key"
+done
+ai_server_config_load
+
+echo
+echo "--- in effect ---"
+ai_server_config_summary AI_SERVER_DOTFILES_DIR AI_SERVER_IOMMU \
+  AI_SERVER_EXTEND_LV AI_SERVER_LV_FREE_PCT AI_SERVER_DEFAULT_CTX \
+  AI_SERVER_BIND_OVERLAY AI_SERVER_SSH_OVERLAY_ONLY \
+  AI_SERVER_OVERLAY_HOSTNAME AI_SERVER_OVERLAY_UP_TIMEOUT
+
+cat <<EOF
+
+Nothing here is permanent. Every value above can be changed later, and the
+script that owns it re-runs when it does.
+EOF
