@@ -167,6 +167,9 @@ AI_SERVER_LV_FREE_PCT=${AI_SERVER_LV_FREE_PCT:-100}
 # measured.
 AI_SERVER_DEFAULT_CTX=${AI_SERVER_DEFAULT_CTX:-131072}
 
+# The port the model server listens on.
+AI_SERVER_MODEL_PORT=${AI_SERVER_MODEL_PORT:-8080}
+
 # Bind the model server to the overlay address alone, once the interface
 # exists. "no" leaves it on every interface, where the firewall is the only
 # thing between an unauthenticated model API and the internet.
@@ -205,9 +208,9 @@ rm -f "$tmp"
 # rest of the run will not see either.
 ai_server_origin=()
 for key in AI_SERVER_DOTFILES_DIR AI_SERVER_IOMMU AI_SERVER_EXTEND_LV \
-  AI_SERVER_LV_FREE_PCT AI_SERVER_DEFAULT_CTX AI_SERVER_BIND_OVERLAY \
-  AI_SERVER_SSH_OVERLAY_ONLY AI_SERVER_OVERLAY_HOSTNAME \
-  AI_SERVER_OVERLAY_UP_TIMEOUT; do
+  AI_SERVER_LV_FREE_PCT AI_SERVER_DEFAULT_CTX AI_SERVER_MODEL_PORT \
+  AI_SERVER_BIND_OVERLAY AI_SERVER_SSH_OVERLAY_ONLY \
+  AI_SERVER_OVERLAY_HOSTNAME AI_SERVER_OVERLAY_UP_TIMEOUT; do
   unset "$key"
 done
 ai_server_config_load
@@ -216,7 +219,7 @@ echo
 echo "--- in effect ---"
 ai_server_config_summary AI_SERVER_DOTFILES_DIR AI_SERVER_IOMMU \
   AI_SERVER_EXTEND_LV AI_SERVER_LV_FREE_PCT AI_SERVER_DEFAULT_CTX \
-  AI_SERVER_BIND_OVERLAY AI_SERVER_SSH_OVERLAY_ONLY \
+  AI_SERVER_MODEL_PORT AI_SERVER_BIND_OVERLAY AI_SERVER_SSH_OVERLAY_ONLY \
   AI_SERVER_OVERLAY_HOSTNAME AI_SERVER_OVERLAY_UP_TIMEOUT
 
 cat <<EOF
