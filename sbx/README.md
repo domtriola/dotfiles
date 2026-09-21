@@ -5,7 +5,7 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 | Kit                                                              | What it is                                                                                    |
 | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md) | Claude Code with custom settings. The default agent.                                          |
-| [`kits/sandboxes/local-pi`](kits/sandboxes/local-pi/README.md)   | The pi agent, pointed at an Ollama server on the host. No hosted model and no API credential. |
+| [`kits/sandboxes/local-pi`](kits/sandboxes/local-pi/README.md)   | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential.  |
 | [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md) | Ships the personal agent skills into the sandbox.                                             |
 | [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)         | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.                |
 
@@ -67,6 +67,28 @@ it over the defaults:
 
 A value that holds a `/` is used as a path, so a kit from another repo can be
 named as well.
+
+## Kit arguments
+
+A kit declares the inputs it needs in an `args:` block, and references them as
+`${{ kit.args.<name> }}` anywhere in its `spec.yaml`. Some of those values
+belong to a machine rather than to this repository, such as the address of a
+private server, so they are kept outside it:
+
+```console
+mkdir -p ~/.config/sbx
+printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
+```
+
+`sbx-up` passes that file with `--kit-args-file` when, and only when, the agent
+kit declares arguments. `sbx` rejects an argument that no kit declares, so
+passing it to every sandbox would break the ones that take none.
+
+`$SBX_KIT_ARGS_FILE` names a different file. An agent kit given as a URL or a
+zip is left alone, because the check reads the kit's spec from disk; supply its
+arguments with `--kit-arg` by hand.
+
+Only `local-pi` takes arguments today. Its README says what they mean.
 
 ## Pulling changes from a `--clone` sandbox
 

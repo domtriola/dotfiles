@@ -96,6 +96,32 @@ while IFS= read -r arg; do
   run+=("$arg")
 done <<<"$args"
 
+# Kit arguments.
+#
+# A kit declares the inputs it needs in an `args:` block, and some of those
+# values belong to this machine rather than to the repository: the address of a
+# private server, for one. Those values live in a file outside the repository,
+# and this passes it so a sandbox that needs them starts without being asked.
+#
+# The file is passed only to an agent kit that declares arguments, because
+# `sbx` rejects an argument no resolved kit declares. Passing it to every
+# sandbox would break the ones that take none.
+#
+# The check reads the kit's own spec, which only works for a kit on disk. A kit
+# named by a URL or a zip is left alone, and takes --kit-arg by hand.
+kit_args_file="${SBX_KIT_ARGS_FILE:-$HOME/.config/sbx/kit.args}"
+
+agent_spec="$(jq -r --arg dotfiles "$dotfiles" --argjson defaults "$defaults" '
+  ($defaults * .)
+  | .agent
+  | (if test("/") then . else "\($dotfiles)/sbx/kits/sandboxes/\(.)" end)
+  + "/spec.yaml"
+' <<<"$config_json" 2>/dev/null || true)"
+
+if [[ -f "$kit_args_file" && -f "$agent_spec" ]] && grep -q '^args:' "$agent_spec"; then
+  run+=(--kit-args-file "$kit_args_file")
+fi
+
 # The agent-skills kit ships a payload that ./sync-skills generates from
 # env/.agents/, and which is gitignored rather than committed. Rebuild it here
 # so a sandbox always starts with the skills that are on disk right now. A
