@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# The command-line tools this profile installs.
+#
+#   ai-model    the models: what is installed, and how each one is served
+#   ai-server   the machine: what it is set to, and changing it
+#
+# Each package is a directory: an entry point beside a lib/ of one file per
+# verb. The tree goes under /usr/local/lib and /usr/local/bin gets a symlink at
+# the entry point, which resolves that symlink to find its own lib/.
+#
+# A symlink straight into the checkout would save the copy, and would mean a
+# tool that runs sudo resolving into a directory any user can write.
+#
+# This runs last because nothing during a setup depends on it.
+
+set -eo pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+for name in ai-model ai-server; do
+  src="$profile_dir/packages/$name"
+  dst="/usr/local/lib/$name"
+
+  [[ -x "$src/$name" ]] || {
+    echo "30_tools: $src/$name is missing or not executable." >&2
+    exit 1
+  }
+
+  # Replaced whole, so a verb removed from the package does not linger as a
+  # command that still works.
+  sudo rm -rf "$dst"
+  sudo install -d -m 755 "$dst" "$dst/lib"
+  sudo install -m 755 "$src/$name" "$dst/$name"
+  sudo install -m 644 "$src"/lib/* "$dst/lib/"
+
+  # The settings reader, copied in so the installed package does not depend on
+  # a checkout being present.
+  sudo install -m 644 "$profile_dir/lib/config.sh" "$dst/config.sh"
+
+  sudo ln -sfn "$dst/$name" "/usr/local/bin/$name"
+  echo "Installed /usr/local/bin/$name"
+done
+
+# The names these replaced. Left in place they would keep working from an older
+# install and write settings nothing reads.
+for stale in /usr/local/bin/llama-model /usr/local/bin/llama-ctx; do
+  if [[ -e "$stale" ]]; then
+    sudo rm -f "$stale"
+    echo "Removed $stale"
+  fi
+done

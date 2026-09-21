@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# What this machine is set to, and what each setting decides.
+
+cmd_show() {
+  local only="${1:-}" key var value owner origin
+
+  if [[ -n "$only" ]]; then
+    knob_known "$only" || die "no setting called '$only'. Run 'ai-server show'."
+  fi
+
+  echo "  $ai_server_config"
+  echo
+
+  for key in "${knob_order[@]}"; do
+    [[ -n "$only" && "$key" != "$only" ]] && continue
+
+    var="${knob_var[$key]}"
+    value="${!var:-}"
+    owner="${knob_owner[$key]}"
+
+    if [[ -n "${ai_server_origin[$var]:-}" ]]; then
+      origin=""
+    elif [[ -n "$value" ]]; then
+      origin="  (from the environment, not the file)"
+    else
+      origin="  (unset, the owning script's default applies)"
+    fi
+
+    printf '  %-20s %-14s %s%s\n' "$key" "${value:-<unset>}" "$owner" "$origin"
+    printf '      %s\n' "${knob_desc[$key]}" | fold -s -w 72 | sed '2,$s/^/      /'
+    printf '      accepts: %s\n\n' "${knob_accepts[$key]}"
+  done
+
+  cat <<EOF
+  Change one with: ai-server set <setting> <value>
+
+  Setting it writes $ai_server_config and re-runs the step that
+  applies it, so nothing is left to remember.
+EOF
+
+  # Not a setting: derived by the preflight from its own location, and read by
+  # every tool that needs to re-run ./setup.
+  printf '\n  repository           %s\n' "${AI_SERVER_DOTFILES_DIR:-<unset>}"
+  if [[ -n "${AI_SERVER_DOTFILES_DIR:-}" && ! -x "${AI_SERVER_DOTFILES_DIR}/setup" ]]; then
+    echo "      WARNING: that path holds no ./setup, so a change cannot be applied." >&2
+    echo "      Run ./setup 00_preflight from a checkout to record it again." >&2
+  fi
+}

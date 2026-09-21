@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+#
+# The machine's own settings: what it is set to, and changing it.
+#
+# Every tunable is a key in /etc/ai-server/config.env. Setting one writes the
+# file and re-runs the step that applies it, so a later ./setup never undoes
+# the change and there is one path that touches the machine.
+#
+# Models are not here. Their settings are per model and live in ai-model.
+
+set -eo pipefail
+
+# The package directory, resolved through any symlink, so that the same file
+# works from a checkout and from /usr/local/bin.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  target="$(readlink "$self")"
+  [[ "$target" == /* ]] || target="$(dirname "$self")/$target"
+  self="$target"
+done
+pkg="$(cd "$(dirname "$self")" >/dev/null 2>&1 && pwd)"
+
+die() {
+  printf 'ai-server: %s\n' "$1" >&2
+  exit 1
+}
+
+# The installed package carries its own copy of the settings reader; a checkout
+# reads the profile's.
+for candidate in "$pkg/config.sh" "$pkg/../../lib/config.sh"; do
+  if [[ -f "$candidate" ]]; then
+    # shellcheck source=../../lib/config.sh
+    source "$candidate"
+    ai_server_config_load
+    break
+  fi
+done
+
+[[ -n "${ai_server_config:-}" ]] ||
+  die "the settings reader is missing. Reinstall with ./setup 30_tools."
+
+for f in "$pkg"/lib/*; do
+  [[ -f "$f" ]] || continue
+  # shellcheck source=/dev/null
+  source "$f"
+done
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ai-server show [setting]        what this machine is set to, and why
+  ai-server set <setting> <value> change one, and apply it
+  ai-server join-overlay          register this machine on the overlay network
+
+Examples:
+  ai-server set default_ctx 65536
+  ai-server set ssh_overlay_only yes
+
+Per-model settings are not here. Use ai-model.
+EOF
+}
+
+case "${1:-}" in
+show)
+  shift
+  cmd_show "$@"
+  ;;
+set)
+  shift
+  cmd_set "$@"
+  ;;
+join-overlay)
+  cmd_join_overlay
+  ;;
+"" | -h | --help)
+  usage
+  ;;
+*)
+  printf 'ai-server: unknown command %s. Run ai-server --help.\n' "$1" >&2
+  exit 1
+  ;;
+esac
