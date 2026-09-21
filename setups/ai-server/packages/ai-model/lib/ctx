@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+#
+# The context length: what it is, what it costs, and what it can be.
+#
+# Context is the one setting that cannot be reasoned out from the model file.
+# It decides the size of the KV cache, the cache shares one pool of memory with
+# the weights, and the cost per token follows the model's attention geometry
+# rather than its size on disk. A hybrid model pays it on only some layers.
+#
+# So the cost is measured rather than calculated: read the memory in use at one
+# context, change it, reload, and read again. Everything else in the table is
+# available without that.
+
+# Sizes offered as alternatives. Powers of two, because that is what the engine
+# and every published figure use, and because a table of arbitrary numbers
+# invites picking one for no reason.
+ctx_candidates=(8192 16384 32768 65536 131072 262144 524288 1048576)
+
+# Clients that are not told a context length fall back to their own. pi's is
+# this, which is smaller than every model here was trained for.
+client_default_ctx=128000
+
+# gtt_bytes <total|used> prints the GPU memory pool, which is where both the
+# weights and the cache live.
+gtt_bytes() {
+  local field="$1" d
+  for d in /sys/class/drm/card*/device; do
+    [[ -f "$d/mem_info_gtt_total" ]] || continue
+    cat "$d/mem_info_gtt_$field"
+    return 0
+  done
+  echo 0
+}
+
+gib() { awk -v b="$1" 'BEGIN { printf "%.1f", b / 1073741824 }'; }
+
+# swap_listen prints the address the model server is configured with.
+swap_listen() {
+  local listen
+  listen="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+    tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
+  listen="${listen:-127.0.0.1:${AI_SERVER_MODEL_PORT:-8080}}"
+  local host="${listen%:*}"
+  [[ -z "$host" || "$host" == "0.0.0.0" ]] && listen="127.0.0.1:${listen##*:}"
+  printf '%s\n' "$listen"
+}
+
+# loaded_model prints the model the server currently holds, and the context it
+# was started with, as "<name> <ctx>".
+loaded_model() {
+  local running
+  running="$(curl -fsS --max-time 5 "http://$(swap_listen)/running" 2>/dev/null)" || return 1
+  python3 -c '
+import json, re, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+for r in d.get("running", []):
+    if r.get("state") == "ready":
+        m = re.search(r"--ctx-size[ =](\d+)", r.get("cmd", ""))
+        print(r.get("model", ""), m.group(1) if m else 0)
+        sys.exit(0)
+sys.exit(1)
+' <<<"$running"
+}
+
+cmd_ctx() {
+  local name="$1" arg="${2:-}"
+
+  require_model "$name"
+  registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}"
+
+  case "$arg" in
+  "") ctx_show "$name" ;;
+  --measure) ctx_measure "$name" ;;
+  *)
+    [[ "$arg" =~ ^[0-9]+$ ]] || die "'$arg' is not a number of tokens, and not --measure"
+    ctx_set "$name" "$arg"
+    ;;
+  esac
+}
+
+ctx_show() {
+  local name="$1" current trained cache repo cost total used free c fits note
+  current="$(registry_get "$name" ctx)"
+  trained="$(registry_get "$name" trained_ctx 0)"
+  cache="$(registry_get "$name" cache_type q8_0)"
+  repo="$(registry_get "$name" repo)"
+  cost="$(registry_cost_per_token "$name")"
+  total="$(gtt_bytes total)"
+  used="$(gtt_bytes used)"
+  free=$((total - used))
+
+  echo "  $name"
+  echo
+  printf '  context      %s\n' "$current"
+  if [[ "$trained" -gt 0 ]]; then
+    printf '  trained for  %s\n' "$trained"
+  else
+    printf '  trained for  unknown (copied in by hand, so there is no repository to ask)\n'
+  fi
+  printf '  cache type   %s\n' "$cache"
+
+  if [[ -n "$cost" ]]; then
+    printf '  measured     %s KiB per token\n' "$(awk -v c="$cost" 'BEGIN { printf "%.1f", c / 1024 }')"
+  else
+    printf '  measured     not yet: run ai-model ctx %s --measure\n' "$name"
+  fi
+
+  if [[ "$total" -gt 0 ]]; then
+    printf '  memory       %s GiB free of %s GiB\n' "$(gib "$free")" "$(gib "$total")"
+  fi
+
+  # The alternatives, with what each would cost and whether the model was
+  # trained for it. Without a measurement the cost column is empty rather than
+  # estimated: the cost per token cannot be derived from the model file.
+  echo
+  printf '  %10s  %10s  %s\n' CONTEXT CACHE NOTE
+  for c in "${ctx_candidates[@]}"; do
+    [[ "$trained" -gt 0 && "$c" -gt "$trained" ]] && continue
+
+    if [[ -n "$cost" ]]; then
+      fits="$(awk -v c="$c" -v b="$cost" 'BEGIN { printf "%.1f GiB", c * b / 1073741824 }')"
+    else
+      fits="-"
+    fi
+
+    note=""
+    [[ "$c" == "$current" ]] && note="current"
+    if [[ -n "$cost" && "$total" -gt 0 ]]; then
+      awk -v c="$c" -v b="$cost" -v cur="$current" -v free="$free" \
+        'BEGIN { exit !((c - cur) * b > free) }' && note="${note:+$note, }does not fit"
+    fi
+
+    printf '  %10s  %10s  %s\n' "$c" "$fits" "$note"
+  done
+
+  cat <<EOF
+
+  A client that is not told a context length uses its own. pi's is
+  $client_default_ctx, so a larger setting here is not reached until the client
+  is told about it.
+EOF
+
+  [[ -n "$repo" ]] && printf '\n  Model card: https://huggingface.co/%s\n' "$repo"
+
+  cat <<EOF
+
+  Change it with: ai-model ctx $name <tokens>
+EOF
+}
+
+ctx_set() {
+  local name="$1" want="$2" current trained
+  current="$(registry_get "$name" ctx)"
+  trained="$(registry_get "$name" trained_ctx 0)"
+
+  [[ "$want" -ge 512 ]] || die "$want is too small to serve anything."
+
+  if [[ "$trained" -gt 0 && "$want" -gt "$trained" ]]; then
+    cat >&2 <<EOF
+ai-model: $name was trained for $trained tokens, and $want is more.
+
+The engine accepts it and quality falls away beyond what the model saw in
+training. If that is deliberate, set it on the model's ceiling first and raise
+it from there once you have measured the result.
+EOF
+    exit 1
+  fi
+
+  if [[ "$want" == "$current" ]]; then
+    echo "$name is already at $want."
+    return 0
+  fi
+
+  registry_set "$name" ctx "$want"
+  echo "$name: context $current -> $want"
+  apply
+}
+
+# ctx_measure records what the loaded model costs at the context it is running
+# with. Two readings at different contexts give the cost per token.
+ctx_measure() {
+  local name="$1" running loaded loaded_ctx used cost
+  used="$(gtt_bytes used)"
+
+  [[ "$used" -gt 0 ]] || die "no GPU memory pool to read. Is this the model server?"
+
+  if ! running="$(loaded_model)"; then
+    cat >&2 <<EOF
+ai-model: no model is loaded, so there is nothing to measure.
+
+The server loads on the first request that names a model, which takes tens of
+seconds. Send one, wait for it, then run this again.
+EOF
+    exit 1
+  fi
+
+  loaded="${running%% *}"
+  loaded_ctx="${running##* }"
+
+  if [[ "$loaded" != "$name" ]]; then
+    die "$loaded is loaded, not $name. A reading of one model says nothing about another."
+  fi
+
+  registry_sample "$name" "$loaded_ctx" "$used"
+  printf '  recorded: %s GiB in use at context %s\n' "$(gib "$used")" "$loaded_ctx"
+
+  cost="$(registry_cost_per_token "$name")"
+  if [[ -z "$cost" ]]; then
+    cat <<EOF
+
+  One reading is not enough: the cost per token is the change in memory between
+  two contexts. Set a different one, let the model load again, and measure
+  again:
+
+    ai-model ctx $name <a different number>
+    # send one request, then:
+    ai-model ctx $name --measure
+EOF
+    return 0
+  fi
+
+  echo
+  ctx_show "$name"
+}

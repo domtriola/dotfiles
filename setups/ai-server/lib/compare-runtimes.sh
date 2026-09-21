@@ -20,7 +20,7 @@
 #   bash compare-runtimes.sh <model-name> [requests]
 #   bash compare-runtimes.sh --cleanup <model-name>
 #
-#   <model-name>  as llama-swap reports it, from `llama-model list`
+#   <model-name>  as llama-swap reports it, from `ai-model list`
 #   [requests]    timed requests per runtime, default 5
 #
 # Two things the first version of this script got wrong, both of which made the
@@ -60,7 +60,7 @@ fi
 
 model="${1:-}"
 runs="${2:-5}"
-[[ -n "$model" ]] || die "needs a model name. Run: llama-model list"
+[[ -n "$model" ]] || die "needs a model name. Run: ai-model list"
 
 command -v ollama >/dev/null 2>&1 || die "ollama is not installed. Install it with:
   curl -fsSL https://ollama.com/install.sh | sh

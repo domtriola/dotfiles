@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+#
+# Shared helpers: failure, model discovery, and re-running the setup step that
+# owns the generated configuration.
+
+die() {
+  printf 'ai-model: %s\n' "$1" >&2
+  exit 1
+}
+
+# model_names prints one name per model, with the shards of a split model
+# collapsed to the name the loader uses.
+model_names() {
+  find "$models_dir" -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' 2>/dev/null |
+    sed -E 's/-[0-9]{5}-of-[0-9]{5}\.gguf$/.gguf/' |
+    sed -E 's/\.gguf$//' |
+    sort -u
+}
+
+# model_id_of <filename> prints the name the loader uses, with any shard
+# suffix removed.
+model_id_of() {
+  sed -E 's/-[0-9]{5}-of-[0-9]{5}\.gguf$//; s/\.gguf$//' <<<"$1"
+}
+
+# model_files <name> prints every file that makes up one model.
+model_files() {
+  local name="$1"
+  find "$models_dir" -maxdepth 1 -type f \
+    \( -name "$name.gguf" -o -name "$name-[0-9][0-9][0-9][0-9][0-9]-of-*.gguf" \) |
+    sort
+}
+
+model_exists() {
+  [[ -n "$(model_files "$1")" ]]
+}
+
+require_model() {
+  local name="$1"
+  [[ -n "$name" ]] || die "which model? Run 'ai-model list'."
+  model_exists "$name" || die "no model named '$name'. Run 'ai-model list'."
+}
+
+# apply regenerates the llama-swap configuration from the registry.
+#
+# Settings are written, then the step that owns the generated file is re-run, so
+# there is one path that changes what the server does.
+apply() {
+  local dir="${AI_SERVER_DOTFILES_DIR:-}"
+
+  if [[ -z "$dir" ]]; then
+    cat >&2 <<EOF
+
+ai-model: the setting is saved, but the configuration was not rebuilt.
+
+AI_SERVER_DOTFILES_DIR is not set, so there is no ./setup to run. Answer it
+once with ./setup 00_preflight, or rebuild by hand from a checkout:
+
+  ./setup 20_llama
+EOF
+    return 1
+  fi
+
+  if [[ ! -x "$dir/setup" ]]; then
+    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no ./setup. Run ./setup 00_preflight from a checkout."
+  fi
+
+  echo
+  echo "--- rebuilding the model server configuration ---"
+  (cd "$dir" && ./setup 20_llama)
+}
+
+# The models directory has to be readable before anything else is worth trying.
+#
+# `test -d` fails identically for a directory that is absent and one whose
+# parent cannot be traversed, and reporting "does not exist" for the second
+# sends the reader to the wrong problem. Walking up to the deepest ancestor that
+# can be seen tells them apart, and needs no root to do it.
+require_models_dir() {
+  local probe
+
+  [[ -d "$models_dir" ]] && return 0
+
+  probe="$models_dir"
+  while [[ ! -e "$probe" && "$probe" != "/" ]]; do
+    probe="$(dirname "$probe")"
+  done
+
+  if [[ ! -x "$probe" ]]; then
+    cat >&2 <<EOF
+ai-model: $models_dir cannot be reached by $USER.
+
+$probe is not traversable:
+
+$(ls -ld "$probe" 2>/dev/null)
+
+Running ./setup on this machine sets the modes it expects, which is the safe
+way to fix this. Opening it by hand means naming the directory deliberately
+rather than pasting whatever was found above:
+
+  sudo chmod 755 /var/lib/llama
+EOF
+    exit 1
+  fi
+
+  die "$models_dir does not exist. Run ./setup on this machine first."
+}

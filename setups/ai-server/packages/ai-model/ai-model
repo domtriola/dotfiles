@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+#
+# The models this machine serves: what is installed, and how each one is
+# configured.
+#
+# Settings are written to /var/lib/llama/settings.json and the generated
+# llama-swap configuration is rebuilt from it, so a value survives the rebuild
+# and there is one path that changes what the server does.
+#
+# Run it from anywhere. The verbs live in lib/ beside this file.
+
+set -eo pipefail
+
+# The package directory, resolved through any symlink, so that the same file
+# works from a checkout and from /usr/local/bin.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  target="$(readlink "$self")"
+  [[ "$target" == /* ]] || target="$(dirname "$self")/$target"
+  self="$target"
+done
+pkg="$(cd "$(dirname "$self")" >/dev/null 2>&1 && pwd)"
+
+# Read by the verbs in lib/, which shellcheck cannot see from here.
+# shellcheck disable=SC2034
+models_dir="${LLAMA_MODELS_DIR:-/var/lib/llama/models}"
+# shellcheck disable=SC2034
+settings_file="${AI_MODEL_SETTINGS:-/var/lib/llama/settings.json}"
+# shellcheck disable=SC2034
+service_user="${LLAMA_SERVICE_USER:-llama}"
+
+# The machine's answers, for the repository path and the default context. The
+# installed package carries its own copy; a checkout reads the profile's.
+for candidate in "$pkg/config.sh" "$pkg/../../lib/config.sh"; do
+  if [[ -f "$candidate" ]]; then
+    # shellcheck source=../../lib/config.sh
+    source "$candidate"
+    ai_server_config_load
+    break
+  fi
+done
+
+for f in "$pkg"/lib/*; do
+  [[ -f "$f" ]] || continue
+  # shellcheck source=/dev/null
+  source "$f"
+done
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ai-model list                        installed models and their settings
+  ai-model add <repo> [pattern]        download from a Hugging Face repository
+  ai-model rm <name>                   remove a model and its settings
+  ai-model ctx <name>                  what the context is, costs, and could be
+  ai-model ctx <name> <tokens>         set it
+  ai-model ctx <name> --measure        record what it costs right now
+  ai-model cache <name> [type]         KV cache quantisation
+  ai-model space                       free space in the models directory
+
+Examples:
+  ai-model add unsloth/Qwen3.8-27B-GGUF '*UD-Q4_K_XL*'
+  ai-model ctx Qwen3.8-27B-UD-Q4_K_XL 65536
+
+The pattern defaults to '*.gguf', which takes every quantisation in the repo.
+That is rarely wanted: name a quantisation unless the repo holds only one.
+
+Changing a setting rebuilds the server configuration and restarts it.
+EOF
+}
+
+case "${1:-}" in
+add)
+  require_models_dir
+  shift
+  cmd_add "$@"
+  ;;
+list)
+  require_models_dir
+  cmd_list
+  ;;
+rm)
+  require_models_dir
+  shift
+  cmd_rm "$@"
+  ;;
+ctx)
+  require_models_dir
+  shift
+  cmd_ctx "$@"
+  ;;
+cache)
+  require_models_dir
+  shift
+  cmd_cache "$@"
+  ;;
+space)
+  require_models_dir
+  cmd_space
+  ;;
+"" | -h | --help)
+  usage
+  ;;
+*)
+  printf 'ai-model: unknown command %s. Run ai-model --help.\n' "$1" >&2
+  exit 1
+  ;;
+esac

@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+#
+# Per-model settings, in /var/lib/llama/settings.json.
+#
+# The llama-swap configuration is regenerated from the models directory on every
+# run, so anything set there is lost. This file is where a choice survives.
+#
+# Shape:
+#
+#   {
+#     "models": {
+#       "<model id>": {
+#         "ctx":         131072,      the configured context length
+#         "trained_ctx": 262144,      what the model was trained for, 0 if unknown
+#         "cache_type":  "q8_0",      KV cache quantisation
+#         "repo":        "owner/name",  where it came from, empty if copied by hand
+#         "samples":     { "<ctx>": <bytes of GPU memory in use> }
+#       }
+#     }
+#   }
+#
+# Mode 644, so that a report can read it without sudo. Writes go through sudo,
+# and replace the whole file, so a crash mid-write cannot leave half a setting.
+
+# registry_json prints the whole file, or an empty object when there is none.
+registry_json() {
+  [[ -r "$settings_file" ]] && cat "$settings_file" || echo '{}'
+}
+
+# registry_get <model> <key> [default]
+registry_get() {
+  local model="$1" key="$2" fallback="${3:-}"
+  registry_json | python3 -c '
+import json, sys
+model, key, fallback = sys.argv[1], sys.argv[2], sys.argv[3]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+v = (d.get("models") or {}).get(model, {}).get(key)
+print(fallback if v in (None, "") else v)
+' "$model" "$key" "$fallback"
+}
+
+# registry_set <model> <key> <value> [<key> <value>...]
+#
+# Values that read as an integer are stored as one, so that a reader does not
+# have to know which keys are numbers.
+registry_set() {
+  local model="$1" tmp
+  shift
+
+  tmp="$(mktemp)"
+  registry_json | python3 -c '
+import json, sys
+model, pairs = sys.argv[1], sys.argv[2:]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+models = d.setdefault("models", {})
+entry = models.setdefault(model, {})
+for k, v in zip(pairs[0::2], pairs[1::2]):
+    try:
+        entry[k] = int(v)
+    except ValueError:
+        entry[k] = v
+json.dump(d, sys.stdout, indent=2, sort_keys=True)
+sys.stdout.write("\n")
+' "$model" "$@" >"$tmp"
+
+  sudo install -m 644 "$tmp" "$settings_file"
+  rm -f "$tmp"
+}
+
+# registry_sample <model> <ctx> <bytes> records one memory reading.
+registry_sample() {
+  local model="$1" ctx="$2" bytes="$3" tmp
+
+  tmp="$(mktemp)"
+  registry_json | python3 -c '
+import json, sys
+model, ctx, used = sys.argv[1], sys.argv[2], int(sys.argv[3])
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+entry = d.setdefault("models", {}).setdefault(model, {})
+entry.setdefault("samples", {})[ctx] = used
+json.dump(d, sys.stdout, indent=2, sort_keys=True)
+sys.stdout.write("\n")
+' "$model" "$ctx" "$bytes" >"$tmp"
+
+  sudo install -m 644 "$tmp" "$settings_file"
+  rm -f "$tmp"
+}
+
+# registry_cost_per_token <model> prints bytes per token of context, measured
+# from the two samples furthest apart, or nothing when there are fewer than two.
+#
+# A wider gap between the two contexts makes the division less sensitive to
+# whatever else was using memory when each reading was taken.
+registry_cost_per_token() {
+  local model="$1"
+  registry_json | python3 -c '
+import json, sys
+model = sys.argv[1]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+s = (d.get("models") or {}).get(model, {}).get("samples") or {}
+pts = sorted((int(k), v) for k, v in s.items())
+if len(pts) < 2:
+    sys.exit(0)
+(c1, u1), (c2, u2) = pts[0], pts[-1]
+if c2 == c1 or u2 == u1:
+    sys.exit(0)
+print(abs(u2 - u1) / abs(c2 - c1))
+' "$model"
+}
+
+# registry_clear_samples <model> drops the memory readings, for when the thing
+# they measured has changed.
+registry_clear_samples() {
+  local model="$1" tmp
+
+  [[ -r "$settings_file" ]] || return 0
+
+  tmp="$(mktemp)"
+  registry_json | python3 -c '
+import json, sys
+model = sys.argv[1]
+d = json.load(sys.stdin)
+(d.get("models") or {}).get(model, {}).pop("samples", None)
+json.dump(d, sys.stdout, indent=2, sort_keys=True)
+sys.stdout.write("\n")
+' "$model" >"$tmp"
+
+  sudo install -m 644 "$tmp" "$settings_file"
+  rm -f "$tmp"
+}
+
+# registry_forget <model> drops an entry, for a model that is gone.
+registry_forget() {
+  local model="$1" tmp
+
+  [[ -r "$settings_file" ]] || return 0
+
+  tmp="$(mktemp)"
+  registry_json | python3 -c '
+import json, sys
+model = sys.argv[1]
+d = json.load(sys.stdin)
+(d.get("models") or {}).pop(model, None)
+json.dump(d, sys.stdout, indent=2, sort_keys=True)
+sys.stdout.write("\n")
+' "$model" >"$tmp"
+
+  sudo install -m 644 "$tmp" "$settings_file"
+  rm -f "$tmp"
+}
+
+# registry_ensure <model> gives a model an entry, so that a file copied in by
+# hand is served with the same defaults as one that was downloaded.
+#
+# trained_ctx stays 0 when it is not known. Nothing guesses it: without the
+# repository it came from there is no honest source, and a wrong ceiling is
+# worse than a missing one.
+registry_ensure() {
+  local model="$1" default_ctx="${2:-131072}" ctx trained
+
+  ctx="$(registry_get "$model" ctx)"
+  [[ -n "$ctx" ]] && return 0
+
+  trained="$(registry_get "$model" trained_ctx 0)"
+  if [[ "$trained" -gt 0 && "$trained" -lt "$default_ctx" ]]; then
+    ctx="$trained"
+  else
+    ctx="$default_ctx"
+  fi
+
+  registry_set "$model" ctx "$ctx" trained_ctx "$trained" cache_type "q8_0"
+}
