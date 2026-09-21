@@ -18,26 +18,19 @@
 # to upper-case names are honoured; anything else is ignored rather than
 # executed.
 #
-# Secrets never appear here. The file is mode 644 because every tool that
-# reports on this machine has to read it, and that is only safe while the rule
-# holds. A setup key is prompted for at the moment it is used.
-#
-# Source lives in the dotfiles repo at setups/ai-server/lib/config.sh.
-# ./setup only runs files directly inside a profile directory, so nothing under
-# lib/ is ever mistaken for a setup step.
+# Secrets never appear here. The file is mode 644 so that every tool reporting
+# on this machine can read it, which is only safe while that holds.
 
 ai_server_config="${AI_SERVER_CONFIG:-/etc/ai-server/config.env}"
 
-# Which settings came from the file. Recorded during the load, because it
-# cannot be worked out afterwards: a value present in both places has already
-# been decided by the environment, and the file still holds a line for it.
+# Which settings came from the file. Recorded during the load: afterwards a
+# value present in both places is indistinguishable from one only in the file.
 declare -A ai_server_origin=()
 
 # ---------------------------------------------------------------------------
 # ai_server_config_load reads the file into the environment, skipping anything
-# already set. It is safe to call when the file does not exist: a machine that
-# has not run 00_preflight yet has no answers, which the callers report through
-# ai_server_require rather than by failing here.
+# already set. A missing file is not an error here; ai_server_require is what
+# reports a setting the caller needs.
 # ---------------------------------------------------------------------------
 ai_server_config_load() {
   local line key value
@@ -66,11 +59,11 @@ ai_server_config_load() {
 }
 
 # ---------------------------------------------------------------------------
-# ai_server_require names the settings a script cannot run without, and stops
-# with one message listing every missing one rather than failing on the first.
+# ai_server_require names the settings a script cannot run without, and lists
+# every missing one rather than failing on the first.
 #
-# It points at the preflight rather than at the file, because editing the file
-# by hand skips the validation that makes a value safe to act on.
+# It points at the preflight rather than at the file, because a value written
+# by hand skips validation.
 # ---------------------------------------------------------------------------
 ai_server_require() {
   local key missing=()

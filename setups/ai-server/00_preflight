@@ -8,16 +8,11 @@
 # are written to /etc/ai-server/config.env where every later script, and every
 # tool, reads them from.
 #
-# Only two things are asked. A question earns a place here when getting it
-# wrong locks the machine out, breaks a boot, or destroys data, and when it
-# cannot be answered safely by a default. Everything else has a documented
-# default and is tuned later, deliberately, with the information to hand: the
-# right time to choose a context length is when a model is loaded and the cost
-# can be measured, not during an install.
+# A question earns a place here when getting it wrong locks the machine out,
+# breaks a boot, or destroys data, and when no default is safe. Everything else
+# takes a documented default and is tuned later.
 #
-# Nothing secret is written. The overlay setup key is the obvious candidate and
-# it is deliberately absent: it is prompted for at the moment it is used, and
-# never stored.
+# Nothing secret is written here.
 #
 # Rerun it any time to review or change the answers:
 #
@@ -29,9 +24,7 @@ profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 # shellcheck source=lib/config.sh
 source "$profile_dir/lib/config.sh"
 
-# The repository is not asked for. This script is in it, so it knows where it
-# is, and a path typed by hand is a path that can be wrong. The tools that
-# change settings later re-run ./setup from here.
+# Derived rather than asked: a path typed by hand is a path that can be wrong.
 dotfiles_dir="$(cd "$profile_dir/../.." >/dev/null 2>&1 && pwd)"
 
 ai_server_config_load
@@ -45,10 +38,8 @@ ai_server_config_load
 #   2. a terminal to ask on
 #   3. otherwise, stop
 #
-# Step 3 stops rather than guessing, for the same reason confirm_profile in
-# lib/profile.sh refuses to guess a profile: these answers change how well the
-# machine is protected and whether it can boot, and an unattended run must not
-# decide that quietly.
+# Stopping rather than guessing: these answers decide how well the machine is
+# protected and whether it boots.
 # ---------------------------------------------------------------------------
 ask() {
   local key="$1" prompt="$2" default="$3" explanation="$4"
@@ -118,10 +109,6 @@ echo
 # ---------------------------------------------------------------------------
 # 2. The disk
 # ---------------------------------------------------------------------------
-#
-# Asked even on a machine with nothing to claim. 12_storage does nothing when
-# the volume group is already handed out, so a "yes" costs nothing there, and
-# asking unconditionally keeps this script's behaviour the same everywhere.
 extend_lv="$(ask AI_SERVER_EXTEND_LV "Extend the root volume? [yes]/no" yes "
 The Ubuntu installer builds an LVM volume group across the whole drive and then
 gives the root volume about 100 GB. The rest sits unallocated, so a 1 TB disk

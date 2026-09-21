@@ -136,9 +136,8 @@ fi
 # ---------------------------------------------------------------------------
 #
 # The package installs and starts the service from its own post-install script,
-# so this normally finds the work already done. It is repeated because a package
-# that was installed before this script existed, or a service that was removed
-# by hand, would otherwise leave a client that is present and not running.
+# so this normally finds the work done. It runs anyway, because a client that is
+# present but not running otherwise looks like a client that is not installed.
 if ! systemctl cat netbird.service >/dev/null 2>&1; then
   echo "Installing the netbird service unit."
   sudo netbird service install
@@ -328,18 +327,13 @@ sudo ufw allow in on "$iface" to any port "$model_port" proto tcp
 # Bind the model server to the overlay
 # ---------------------------------------------------------------------------
 #
-# 20_llama binds llama-swap to 0.0.0.0, because $iface does not exist when it
-# runs. That leaves the firewall as the only thing between the model API and
-# the internet, and the API has no authentication of its own.
-#
-# This is a drop-in rather than an edit of the unit, so 20_llama stays the one
-# owner of the unit file and neither script has to know what the other wrote.
-# systemd applies drop-ins after the unit, and the later value of an
-# Environment key wins.
+# A drop-in rather than an edit, so the unit file keeps one owner. systemd
+# applies drop-ins after the unit, and the later value of an Environment key
+# wins.
 #
 # Two consequences worth knowing:
 #
-#   - The server no longer answers on 127.0.0.1. Test it at $overlay_ip.
+#   - The server does not answer on 127.0.0.1. Test it at $overlay_ip.
 #   - $iface does not exist early in a boot, so llama-swap can start first and
 #     fail to bind. Restart=always retries every 3 seconds until the overlay is
 #     up, which is under the systemd start-limit rate, so it recovers on its
