@@ -89,6 +89,46 @@ retries="${UPLOAD_RETRIES:-3}"
 retries="${UPLOAD_RETRIES:-3}"
 ```
 
+### 6.2 When reviewing, delete more than you add
+
+Reviewing a comment has three useful outcomes: delete it, cut it to the one sentence that carries a constraint, or leave it alone. Rewriting it at the same length is rarely one of them.
+
+Default to deletion. A comment that needs a long argument to justify keeping it has already answered the question.
+
+**The test.** Ask what the comment lets a reader do that the code does not. Good answers: avoid a trap, predict a consequence, recognise a failure when it happens. A bad answer, and the most common one: understand why the author chose this.
+
+**Smells that mean delete.**
+
+- Instructions for a reader to follow. Those belong in a README, and repeating them here breaks the rule against duplication.
+- A description of the code's own defensiveness, such as "the missing case is handled rather than assumed". The branch below already shows it.
+- More than one paragraph arguing for a single choice.
+- A sentence about another component that a reader does not need in order to follow this code.
+
+**Length is a liability.** Every extra sentence encodes more context, and context goes stale on its own schedule, separately from the code. A short comment is more likely to still be true in a year.
+
+The same block, before and after a review:
+
+```yaml
+# Before. Four sentences, one of which is a constraint.
+#
+# The token is required rather than defaulted, and that is deliberate: a
+# credential does not belong in a file that can be published. The installer
+# validates arguments before it builds anything, so a missing value stops the
+# build with a message instead of producing something that fails later on.
+# Supply it on the command line, or put it in the credentials file, which the
+# wrapper passes automatically.
+token:
+  required: true
+
+# After. The constraint, and nothing else. Where to put the value is a README's
+# job, and how the installer validates it is the installer's.
+#
+# Required rather than defaulted: a credential does not belong in a file that
+# can be published.
+token:
+  required: true
+```
+
 ### 7. Documentation should be extensible
 
 Don't hard-code documentation details. Well-written code allows for extension. Documentation should do the same. For example, instead of saying "these 5 scripts: ...list", just say "these scripts: ...list".
