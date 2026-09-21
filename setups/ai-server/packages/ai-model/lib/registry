@@ -161,19 +161,26 @@ sys.stdout.write("\n")
   rm -f "$tmp"
 }
 
-# registry_ensure <model> gives a model an entry, so that a file copied in by
-# hand is served with the same defaults as one that was downloaded.
+# registry_ensure <model> <default_ctx> [<file>] gives a model an entry, so that
+# a file copied in by hand is served with the same defaults as a downloaded one.
 #
-# trained_ctx stays 0 when it is not known. Nothing guesses it: without the
-# repository it came from there is no honest source, and a wrong ceiling is
-# worse than a missing one.
+# When a file is named, the ceiling is read from its own header. That is why a
+# model added before this registry existed still gets one: nothing has to
+# remember where it came from.
 registry_ensure() {
-  local model="$1" default_ctx="${2:-131072}" ctx trained
+  local model="$1" default_ctx="${2:-131072}" file="${3:-}" ctx trained
+
+  trained="$(registry_get "$model" trained_ctx 0)"
+
+  if [[ "$trained" -le 0 && -n "$file" && -r "$file" ]]; then
+    trained="$(gguf_context_length "$file")"
+    trained="${trained:-0}"
+    [[ "$trained" -gt 0 ]] && registry_set "$model" trained_ctx "$trained"
+  fi
 
   ctx="$(registry_get "$model" ctx)"
   [[ -n "$ctx" ]] && return 0
 
-  trained="$(registry_get "$model" trained_ctx 0)"
   if [[ "$trained" -gt 0 && "$trained" -lt "$default_ctx" ]]; then
     ctx="$trained"
   else

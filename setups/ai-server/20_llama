@@ -31,6 +31,8 @@ source "$profile_dir/lib/config.sh"
 ai_server_config_load
 
 settings_file="/var/lib/llama/settings.json"
+# shellcheck source=packages/ai-model/lib/gguf
+source "$profile_dir/packages/ai-model/lib/gguf"
 # shellcheck source=packages/ai-model/lib/registry
 source "$profile_dir/packages/ai-model/lib/registry"
 
@@ -301,7 +303,7 @@ while IFS= read -r gguf; do
 
   # A model with no entry gets one, so that a file copied into the directory by
   # hand is served on the same terms as one that was downloaded.
-  registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}"
+  registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}" "$gguf"
   ctx="$(registry_get "$name" ctx "${AI_SERVER_DEFAULT_CTX:-131072}")"
   cache="$(registry_get "$name" cache_type q8_0)"
   trained="$(registry_get "$name" trained_ctx 0)"

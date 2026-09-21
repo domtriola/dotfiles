@@ -119,7 +119,7 @@ Nothing was installed. Rerun to fetch it again."
   local name
   for name in "${!added[@]}"; do
     registry_set "$name" trained_ctx "${trained:-0}" repo "$repo"
-    registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}"
+    registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}" "$(model_files "$name" | head -1)"
     printf '  %s: context %s, trained for %s\n' \
       "$name" "$(registry_get "$name" ctx)" "$(registry_get "$name" trained_ctx)"
   done
