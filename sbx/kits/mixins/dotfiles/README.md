@@ -33,7 +33,7 @@ The hook takes about twenty seconds: a clone, then roughly 150 MB of packages.
 A shell opened before it finishes has the dotfiles but not yet the tools. The
 nvim plugins take longer, and no shell waits for them.
 
-Five files under `$HOME` report the state:
+These files under `$HOME` report the state:
 
 | File                          | Meaning                                               |
 | ----------------------------- | ----------------------------------------------------- |

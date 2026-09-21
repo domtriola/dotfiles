@@ -13,8 +13,8 @@ Keep workflow reminders in `cheat workflow`. To edit them: `cheat -e workflow`.
 
 ## Scripts
 
-Five scripts work together. `./sync-env` copies the first four into
-`~/.local/bin`.
+These work together. `./sync-env` copies the executables into `~/.local/bin`;
+`.ready-tmux` is a file a project holds.
 
 | Script             | What it does                                                                      |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -24,8 +24,7 @@ Five scripts work together. `./sync-env` copies the first four into
 | `troot`            | Opens the `~/troot` session, a scratch project for work that belongs to no repo.  |
 | `.ready-tmux`      | Per-project or global. Defines the windows and panes to set up.                   |
 
-`tmux-sessionizer` searches a fixed list of directories, held at the top of the
-script. It runs `ready-tmux` only for a session it creates, so switching back to
+`tmux-sessionizer` searches a fixed list of directories, set in the script. It runs `ready-tmux` only for a session it creates, so switching back to
 an open session leaves its windows alone.
 
 The session name is the directory name, with `:`, `,`, `.` and spaces replaced

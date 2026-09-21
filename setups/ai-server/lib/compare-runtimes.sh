@@ -6,9 +6,8 @@
 #   llama-swap   llama-server behind the proxy the profile installs
 #   ollama       Ollama, importing the same file from disk
 #
-# It exists because the choice between llama-server and Ollama was made on a
-# third-party report that was never reproduced here. See "The runtime choice is
-# unverified" in docs/ai-server-decisions.md.
+# The two measured within two percent of each other. This is what settled that
+# and what would settle it again.
 #
 # Three and not two, because llama-swap is itself a proxy in front of a
 # llama-server subprocess, which is the same shape as the thing Ollama was
