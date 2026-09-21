@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# Every setting this machine has, what it means, and which step applies it.
+#
+# One table, so that `show`, `set` and the report all describe the same set. A
+# knob added here needs no change anywhere else.
+#
+# `accepts` is either a list of permitted words or one of these type names:
+#
+#   int     a whole number
+#   port    1 to 65535
+#   pct     1 to 100
+#   text    anything, including empty
+
+knob_order=(
+  iommu
+  extend_lv
+  lv_free_pct
+  default_ctx
+  model_port
+  bind_overlay
+  ssh_overlay_only
+  overlay_hostname
+  overlay_up_timeout
+)
+
+declare -A knob_var=(
+  [iommu]=AI_SERVER_IOMMU
+  [extend_lv]=AI_SERVER_EXTEND_LV
+  [lv_free_pct]=AI_SERVER_LV_FREE_PCT
+  [default_ctx]=AI_SERVER_DEFAULT_CTX
+  [model_port]=AI_SERVER_MODEL_PORT
+  [bind_overlay]=AI_SERVER_BIND_OVERLAY
+  [ssh_overlay_only]=AI_SERVER_SSH_OVERLAY_ONLY
+  [overlay_hostname]=AI_SERVER_OVERLAY_HOSTNAME
+  [overlay_up_timeout]=AI_SERVER_OVERLAY_UP_TIMEOUT
+)
+
+declare -A knob_owner=(
+  [iommu]=15_gpu
+  [extend_lv]=12_storage
+  [lv_free_pct]=12_storage
+  [default_ctx]=20_llama
+  [model_port]=20_llama
+  [bind_overlay]=25_network
+  [ssh_overlay_only]=25_network
+  [overlay_hostname]=25_network
+  [overlay_up_timeout]=25_network
+)
+
+declare -A knob_accepts=(
+  [iommu]="off pt"
+  [extend_lv]="yes no"
+  [lv_free_pct]="pct"
+  [default_ctx]="int"
+  [model_port]="port"
+  [bind_overlay]="yes no"
+  [ssh_overlay_only]="yes no"
+  [overlay_hostname]="text"
+  [overlay_up_timeout]="int"
+)
+
+declare -A knob_desc=(
+  [iommu]="Whether a device in a USB4 port can reach memory directly. off is 5 to 12 percent faster and gives that protection up. Changing it rewrites a kernel parameter and needs a reboot."
+  [extend_lv]="Give the root volume the extents the installer left unallocated. Growing is online; shrinking later needs a rescue boot."
+  [lv_free_pct]="How much of the free space to take when extending. Below 100 keeps extents back for a snapshot or a second volume."
+  [default_ctx]="The context length a newly imported model starts at, clamped to what the model was trained for. Per-model values are set with ai-model ctx."
+  [model_port]="The port the model server listens on."
+  [bind_overlay]="Bind the model server to the overlay address alone. no leaves it on every interface, where the firewall is the only control in front of an API that has no authentication."
+  [ssh_overlay_only]="Accept SSH only over the overlay. This removes the only way in that does not depend on the overlay, so turn it on only while a peer is connected and a console is reachable."
+  [overlay_hostname]="The name this machine takes on the overlay. Empty means its system hostname."
+  [overlay_up_timeout]="Seconds to wait for the overlay client to finish connecting. The bound turns a stuck daemon into a message rather than deciding how long a working one may take."
+)
+
+# knob_validate <key> <value> prints nothing and returns 0 when the value is
+# allowed, or explains the problem and returns 1.
+knob_validate() {
+  local key="$1" value="$2"
+  local accepts="${knob_accepts[$key]}"
+
+  case "$accepts" in
+  int)
+    [[ "$value" =~ ^[0-9]+$ ]] && return 0
+    echo "$key takes a whole number, not '$value'." >&2
+    ;;
+  port)
+    [[ "$value" =~ ^[0-9]+$ ]] && [[ "$value" -ge 1 && "$value" -le 65535 ]] && return 0
+    echo "$key takes a port from 1 to 65535, not '$value'." >&2
+    ;;
+  pct)
+    [[ "$value" =~ ^[0-9]+$ ]] && [[ "$value" -ge 1 && "$value" -le 100 ]] && return 0
+    echo "$key takes a percentage from 1 to 100, not '$value'." >&2
+    ;;
+  text)
+    return 0
+    ;;
+  *)
+    # Unquoted: the list of permitted words is meant to split here.
+    # shellcheck disable=SC2086
+    printf '%s\n' $accepts | grep -qxF "$value" && return 0
+    echo "$key takes one of: $accepts. Not '$value'." >&2
+    ;;
+  esac
+
+  return 1
+}
+
+knob_known() {
+  [[ -n "${knob_var[$1]:-}" ]]
+}

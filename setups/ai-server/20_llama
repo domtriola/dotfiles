@@ -210,38 +210,6 @@ EOF
 fi
 printf '%s\n' "$version_out" | head -2
 
-# The download helper. It is a file rather than a heredoc so it can be read
-# and edited like any other script. It lives under lib/, which ./setup does
-# not look inside, so it is not mistaken for a setup step.
-# ai-model: the package tree goes under /usr/local/lib, and /usr/local/bin gets
-# a symlink at it. The entry point resolves that symlink to find its own lib/.
-#
-# A symlink straight into the checkout would save the copy, and would mean a
-# tool that runs sudo resolving into a directory any user can write.
-ai_model_src="$profile_dir/packages/ai-model"
-ai_model_dst="/usr/local/lib/ai-model"
-
-sudo rm -rf "$ai_model_dst"
-sudo install -d -m 755 "$ai_model_dst" "$ai_model_dst/lib"
-sudo install -m 755 "$ai_model_src/ai-model" "$ai_model_dst/ai-model"
-sudo install -m 644 "$ai_model_src"/lib/* "$ai_model_dst/lib/"
-
-# The machine's settings reader, copied in so the installed package does not
-# depend on a checkout being present.
-sudo install -m 644 "$profile_dir/lib/config.sh" "$ai_model_dst/config.sh"
-
-sudo ln -sfn "$ai_model_dst/ai-model" /usr/local/bin/ai-model
-echo "Installed /usr/local/bin/ai-model"
-
-# The names this replaced. Left in place they would keep working from an older
-# install and write settings nothing reads.
-for stale in /usr/local/bin/llama-model /usr/local/bin/llama-ctx; do
-  if [[ -e "$stale" ]]; then
-    sudo rm -f "$stale"
-    echo "Removed $stale"
-  fi
-done
-
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------

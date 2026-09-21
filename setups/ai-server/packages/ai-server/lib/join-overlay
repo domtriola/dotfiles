@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# Joining the overlay network.
+#
+# The only operation here that is not a setting: it takes a secret, contacts a
+# service, and cannot be expressed as a value in a file.
+#
+# The setup key is read from the terminal and handed to the step that uses it
+# through the environment, never written down and never passed as an argument.
+# A command line is readable by every user on the machine through /proc; an
+# environment is readable only by its owner.
+
+cmd_join_overlay() {
+  local key dir="${AI_SERVER_DOTFILES_DIR:-}"
+
+  [[ -n "$dir" ]] ||
+    die "AI_SERVER_DOTFILES_DIR is not set. Run ./setup 00_preflight from a checkout first."
+  [[ -x "$dir/setup" ]] ||
+    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no ./setup."
+
+  if command -v netbird >/dev/null 2>&1 &&
+    netbird status --json 2>/dev/null | grep -q '"connected": *true'; then
+    cat <<EOF
+This machine is already on the overlay.
+
+  netbird status --detail    what it is connected to
+  ./doctor                   how the rest of the machine reads it
+EOF
+    return 0
+  fi
+
+  [[ -t 0 ]] || die "no terminal to ask for a setup key on."
+
+  cat <<'EOF'
+A setup key registers this machine as a peer. Take a one-off key from the
+dashboard, one that auto-assigns the ai-server group.
+
+It is not stored. Registration happens once, and a later run of this command
+finds the machine already joined and asks for nothing.
+
+EOF
+
+  read -rs -p "Setup key: " key
+  echo
+  [[ -n "$key" ]] || die "no key given, nothing was changed."
+
+  echo
+  NETBIRD_SETUP_KEY="$key" "$dir/setup" 25_network
+}

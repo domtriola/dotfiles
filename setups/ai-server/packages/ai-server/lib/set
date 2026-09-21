@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+#
+# Changing a setting, and applying it.
+#
+# The value is written to the configuration file and then the step that owns it
+# is re-run, so there is one path that changes the machine and a later ./setup
+# never undoes what was set here.
+
+cmd_set() {
+  local key="${1:-}" value="${2-}" var current owner
+
+  [[ -n "$key" ]] || die "which setting? Run 'ai-server show'."
+  knob_known "$key" || die "no setting called '$key'. Run 'ai-server show'."
+
+  if [[ $# -lt 2 ]]; then
+    die "set needs a value. Run 'ai-server show $key' to see what it takes."
+  fi
+
+  var="${knob_var[$key]}"
+  owner="${knob_owner[$key]}"
+  current="${!var:-}"
+
+  knob_validate "$key" "$value" || exit 1
+
+  if [[ "$value" == "$current" ]]; then
+    echo "$key is already $value."
+    return 0
+  fi
+
+  config_write "$var" "$value"
+  printf '%s: %s -> %s\n' "$key" "${current:-<unset>}" "$value"
+
+  apply "$owner"
+}
+
+# config_write replaces one assignment, keeping the comment that explains it.
+# A key the file does not carry yet is appended, which is how a machine set up
+# before a setting existed picks it up.
+config_write() {
+  local var="$1" value="$2" tmp
+
+  [[ -w "$(dirname "$ai_server_config")" ]] ||
+    [[ -e "$ai_server_config" ]] ||
+    die "$ai_server_config does not exist. Run ./setup 00_preflight first."
+
+  tmp="$(mktemp)"
+
+  if grep -qE "^${var}=" "$ai_server_config" 2>/dev/null; then
+    sed -E "s|^${var}=.*|${var}=${value}|" "$ai_server_config" >"$tmp"
+  else
+    cat "$ai_server_config" >"$tmp" 2>/dev/null || true
+    printf '\n%s=%s\n' "$var" "$value" >>"$tmp"
+  fi
+
+  sudo install -m 644 "$tmp" "$ai_server_config"
+  rm -f "$tmp"
+}
+
+# apply re-runs one setup step from the recorded checkout.
+apply() {
+  local script="$1" dir="${AI_SERVER_DOTFILES_DIR:-}"
+
+  if [[ -z "$dir" ]]; then
+    cat >&2 <<EOF
+
+ai-server: the setting is saved, and nothing has been applied.
+
+AI_SERVER_DOTFILES_DIR is not set, so there is no ./setup to run. Record it
+with ./setup 00_preflight from a checkout, or apply this one by hand:
+
+  ./setup $script
+EOF
+    return 1
+  fi
+
+  [[ -x "$dir/setup" ]] ||
+    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no ./setup. Run ./setup 00_preflight from a checkout."
+
+  echo
+  echo "--- applying with ./setup $script ---"
+  (cd "$dir" && ./setup "$script")
+}
