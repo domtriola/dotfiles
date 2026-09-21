@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# What the sandbox and its tmux windows are called.
+
+# names_init sets four globals:
+#
+#   root           the project directory
+#   name           the sandbox name
+#   window         the tmux window that runs the agent
+#   shell_window   the tmux window that holds a plain shell
+names_init() {
+  local branch default suffix=""
+
+  root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
+
+  # The default branch gets an unsuffixed name; every other branch is suffixed.
+  branch="$(git branch --show-current 2>/dev/null || true)"
+  default="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  if [[ -n "$branch" && "$branch" != "${default#origin/}" ]]; then
+    suffix="-$branch"
+  fi
+
+  name="$(slug "$(basename "$root")$suffix")"
+  window="$(slug "sbx$suffix")"
+  shell_window="$(slug "shell$suffix")"
+}
+
+slug() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9-' '-'
+}

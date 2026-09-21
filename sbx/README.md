@@ -2,24 +2,26 @@
 
 This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 
-| Kit                                                              | What it is                                                                                    |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md) | Claude Code with custom settings. The default agent.                                          |
-| [`kits/sandboxes/local-pi`](kits/sandboxes/local-pi/README.md)   | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential.  |
-| [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md) | Ships the personal agent skills into the sandbox.                                             |
-| [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)         | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.                |
+| Kit                                                              | What it is                                                                                  |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md) | Claude Code with custom settings. The default agent.                                        |
+| [`kits/sandboxes/local-pi`](kits/sandboxes/local-pi/README.md)   | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential. |
+| [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md) | Ships the personal agent skills into the sandbox.                                           |
+| [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)         | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.              |
 
 ## Commands
 
-Three helper commands live in `env/.local/bin`, and `./sync-env` copies them
-into `~/.local/bin` for the `dev-mac` and `dev-linux` profiles. Each one holds
-its full reference in its header comment.
+`./sync-env` installs three helper commands into `~/.local/bin` for the
+`dev-mac` and `dev-linux` profiles.
 
-| Command    | What it does                                                      |
-| ---------- | ----------------------------------------------------------------- |
-| `sbx-up`   | Starts a sandbox for the current project and branch.              |
-| `sbx-wait` | Waits for a sandbox to be usable, and names the step it waits on. |
-| `sbx-pull` | Fetches commits made inside a `--clone` sandbox.                  |
+| Command    | What it does                                                      | Reference          |
+| ---------- | ----------------------------------------------------------------- | ------------------ |
+| `sbx-up`   | Starts a sandbox for the current project and branch.              | `sbx-up --help`    |
+| `sbx-wait` | Waits for a sandbox to be usable, and names the step it waits on. | its header comment |
+| `sbx-pull` | Fetches commits made inside a `--clone` sandbox.                  | its header comment |
+
+`sbx-up` is a package in `packages/sbx-up`: an entry point, and a `lib/` of one
+file per step. The other two are single files in `env/.local/bin`.
 
 ## Starting a sandbox
 
@@ -46,27 +48,15 @@ shell window.
 
 ## Per-project settings
 
-Drop a `.sbx.json` at the project root. Every key is optional, and `jq` merges
-it over the defaults:
+Drop a `.sbx.json` at the project root to choose the agent, the kits, the
+memory limit, and whether the sandbox gets its own clone. Every key is
+optional, and `sbx-up --help` lists them with their defaults.
 
-```json
-{
-  "agent": "my-claude",
-  "kits": ["dotfiles", "agent-skills"],
-  "memory": "8g",
-  "clone": true
-}
+Naming an agent on the command line overrides the file for one run:
+
+```console
+sbx-up local-pi
 ```
-
-| Key      | Default                        | Meaning                                                      |
-| -------- | ------------------------------ | ------------------------------------------------------------ |
-| `agent`  | `my-claude`                    | A kit name under `kits/sandboxes/`, or a path to any kit.    |
-| `kits`   | `["agent-skills", "dotfiles"]` | Kit names under `kits/mixins/`, or paths to other kits.      |
-| `memory` | `4g`                           | The memory limit passed to `sbx run`.                        |
-| `clone`  | `false`                        | Give the sandbox its own clone instead of the host worktree. |
-
-A value that holds a `/` is used as a path, so a kit from another repo can be
-named as well.
 
 ## Kit arguments
 

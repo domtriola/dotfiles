@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+#
+# Starts a Docker sandbox for the current project, in its own tmux windows.
+#
+# Run it from anywhere inside a project. The verbs live in lib/ beside this
+# file, and `sbx-up --help` is the reference.
+
+set -euo pipefail
+
+# The package directory, resolved through any symlink, so that the same file
+# works from a checkout and from ~/.local/bin.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  target="$(readlink "$self")"
+  [[ "$target" == /* ]] || target="$(dirname "$self")/$target"
+  self="$target"
+done
+pkg="$(cd "$(dirname "$self")" >/dev/null 2>&1 && pwd)"
+
+for f in "$pkg"/lib/*; do
+  [[ -f "$f" ]] || continue
+  # shellcheck source=/dev/null
+  source "$f"
+done
+
+usage() {
+  cat <<'EOF'
+Usage:
+  sbx-up [agent]
+
+Starts a Docker sandbox for the current project in a new tmux window, named
+after the project directory and the checked-out branch. An existing sandbox of
+that name is removed first, so every start begins from fresh state.
+
+Inside tmux a second window opens a plain shell into the same sandbox, for
+editing files or running git commands without going through the agent. Outside
+tmux the sandbox runs in the current terminal and no shell window opens.
+
+Arguments:
+  agent       A kit under sbx/kits/sandboxes, or a path to any kit. Overrides
+              the "agent" setting for this run.
+
+Examples:
+  sbx-up
+  sbx-up local-pi
+  sbx-up ~/src/other-repo/kits/its-agent
+
+Per-project settings live in a .sbx.json at the project root. Every key is
+optional:
+
+  agent     the agent kit to run, which the argument above overrides.
+            Default: my-claude
+  kits      the kits mixed into the sandbox.
+            Default: agent-skills, dotfiles
+  memory    the memory limit passed to `sbx run`.
+            Default: 4g
+  clone     give the sandbox its own clone instead of the host worktree.
+            Default: false
+
+A kit value that holds a / is a path. Every other value names a kit in this
+repository: an agent under sbx/kits/sandboxes, a mixin under sbx/kits/mixins.
+
+Environment:
+  SBX_UP_DOTFILES     the checkout that holds the kits and sync-skills.
+                      Default: ~/src/personal/dotfiles
+  SBX_KIT_ARGS_FILE   values for an agent kit that declares arguments.
+                      Default: ~/.config/sbx/kit.args
+EOF
+}
+
+agent=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  -*)
+    printf 'sbx-up: unknown argument %s. Run sbx-up --help.\n' "$1" >&2
+    exit 1
+    ;;
+  *)
+    if [[ -n "$agent" ]]; then
+      printf 'sbx-up: only one agent can be named. Run sbx-up --help.\n' >&2
+      exit 1
+    fi
+    agent="$1"
+    ;;
+  esac
+  shift
+done
+
+require_deps
+names_init
+config_load "$root" "$name" "$agent"
+
+rebuild_skills
+remove_sandbox "$name"
+
+if [[ -z "${TMUX:-}" ]]; then
+  exec "${run[@]}"
+fi
+
+find_wait_bin
+tmux_clear_windows
+tmux_open_agent
+tmux_open_shell

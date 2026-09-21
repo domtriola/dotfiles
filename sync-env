@@ -16,9 +16,12 @@
 #   dir     <src> <dest>      replace <dest> with a copy of the <src> directory
 #   subdirs <src> <dest>      replace each immediate subdirectory of <src>
 #                             inside <dest>, leaving the rest of <dest> alone
+#   package <name> <prefix>   install ./packages/<name> as <prefix>/lib/<name>,
+#                             with a symlink at <prefix>/bin/<name>
 #
 # <src> is relative to ./env/ and must exist. <dest> may use $HOME, and must
-# be $HOME or a path below it.
+# be $HOME or a path below it. A package <name> is relative to ./packages/ and
+# its <prefix> follows the same rules as a <dest>.
 #
 # The whole manifest is checked before anything is copied, so a mistake in it
 # stops the run rather than leaving $HOME half synced.
@@ -40,6 +43,9 @@ source "$script_dir/lib/profile.sh"
 
 # Location of environment files
 DEV_ENV="$script_dir/env"
+
+# Location of the command packages
+DEV_PACKAGES="$script_dir/packages"
 
 dry="0"
 profile_arg=""
@@ -132,21 +138,31 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   read -r src dest extra <<<"$rest"
 
+  # A package is read from ./packages/ rather than ./env/, so the directive
+  # decides which tree its source is relative to.
   case "$directive" in
-  file | dir | subdirs) ;;
+  file | dir | subdirs)
+    src_root="$DEV_ENV"
+    src_label="env/"
+    ;;
+  package)
+    src_root="$DEV_PACKAGES"
+    src_label="packages/"
+    ;;
   *) die "$where: unknown directive '$directive'" ;;
   esac
+
   [[ -n "$src" && -n "$dest" ]] || die "$where: $directive needs a source and a destination"
   [[ -z "$extra" ]] || die "$where: too many fields ('$extra')"
-  [[ "$src" != /* ]] || die "$where: source '$src' must be relative to env/"
-  [[ "/$src/" != */../* ]] || die "$where: source '$src' must not leave env/"
+  [[ "$src" != /* ]] || die "$where: source '$src' must be relative to $src_label"
+  [[ "/$src/" != */../* ]] || die "$where: source '$src' must not leave $src_label"
 
   dest="${dest//\$HOME/$HOME}"
   [[ "$dest" != *'$'* ]] || die "$where: destination '$dest' has an unknown variable"
   [[ "$dest" == "$HOME" || "$dest" == "$HOME"/* ]] ||
     die "$where: destination '$dest' is outside \$HOME"
 
-  src="$DEV_ENV/$src"
+  src="$src_root/$src"
 
   case "$directive" in
   file)
@@ -157,6 +173,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     # dir and subdirs both remove a path before copying, so neither may
     # target $HOME itself.
     [[ "$dest" != "$HOME" ]] || die "$where: $directive cannot target \$HOME itself"
+    ;;
+  package)
+    [[ -d "$src" ]] || die "$where: '$src' is not a directory"
+    # The entry point carries the package's name, because that is the name the
+    # symlink on PATH gets.
+    [[ -x "$src/$(basename "$src")" ]] ||
+      die "$where: '$src' holds no executable $(basename "$src")"
     ;;
   esac
 
@@ -205,6 +228,22 @@ copy_subdirs() {
   done < <(find "$src" -mindepth 1 -maxdepth 1 -type d | sort)
 }
 
+# A package is a directory of shell rather than one file: an entry point, and a
+# lib/ it sources. The tree is installed whole and reached through a symlink on
+# PATH, which the entry point resolves to find its own lib/.
+install_package() {
+  local src="$1" prefix="$2" name
+  name="$(basename "$src")"
+
+  execute mkdir -p "$prefix/lib" "$prefix/bin"
+
+  # Replaced whole, so a file dropped from the package disappears here too.
+  execute rm -rf "$prefix/lib/$name"
+  execute cp -r "$src" "$prefix/lib/$name"
+
+  execute ln -sfn "$prefix/lib/$name/$name" "$prefix/bin/$name"
+}
+
 log "------------ sync-env ------------"
 log "profile: $profile"
 
@@ -222,6 +261,7 @@ for action in "${actions[@]}"; do
   file) copy_file "$src" "$dest" ;;
   dir) copy_dir "$src" "$dest" ;;
   subdirs) copy_subdirs "$src" "$dest" ;;
+  package) install_package "$src" "$dest" ;;
   esac
 done
 

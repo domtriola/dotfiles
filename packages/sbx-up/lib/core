@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# Shared helpers: failure, and the paths every other verb reads.
+
+die() {
+  printf 'sbx-up: %s\n' "$1" >&2
+  exit 1
+}
+
+# The checkout that holds the kits and ./sync-skills.
+sbx_up_dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
+
+# Values that belong to this machine rather than to a repository, such as the
+# address of a private server. A kit reads them as ${{ kit.args.<name> }}.
+sbx_up_kit_args_file="${SBX_KIT_ARGS_FILE:-$HOME/.config/sbx/kit.args}"
+
+require_deps() {
+  local dep
+  for dep in sbx jq; do
+    command -v "$dep" >/dev/null 2>&1 || die "$dep is not installed"
+  done
+}
+
+# find_wait_bin sets wait_bin to an absolute path. The shell window runs
+# sbx-wait through tmux, which does not necessarily inherit this shell's PATH.
+find_wait_bin() {
+  local fallback="$sbx_up_dotfiles/env/.local/bin/sbx-wait"
+
+  wait_bin="$(command -v sbx-wait 2>/dev/null || true)"
+
+  if [[ -z "$wait_bin" && -x "$fallback" ]]; then
+    wait_bin="$fallback"
+  fi
+
+  [[ -n "$wait_bin" ]] || die "sbx-wait is not installed; run ./sync-env"
+}

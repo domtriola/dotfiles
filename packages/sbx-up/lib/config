@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# What the sandbox is made of: the defaults here, the project's .sbx.json over
+# them, and the agent named on the command line over both.
+
+sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g", "clone": false}'
+
+# config_load resolves the settings for one sandbox and sets two globals:
+#
+#   run             the `sbx` command line, as an array
+#   uses_dotfiles   "true" when the dotfiles kit configures this sandbox
+config_load() {
+  local root="$1" name="$2" agent="$3"
+  local config="$root/.sbx.json" settings override args arg spec
+
+  settings="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
+
+  override='{}'
+  if [[ -n "$agent" ]]; then
+    override="$(jq -n --arg agent "$agent" '{agent: $agent}')"
+  fi
+
+  # jq merges the three sources and builds the arguments in one pass.
+  if ! args="$(jq -r \
+    --arg dotfiles "$sbx_up_dotfiles" \
+    --arg name "$name" \
+    --argjson defaults "$sbx_up_defaults" \
+    --argjson override "$override" '
+    def kit($kind):
+      if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
+
+    ($defaults * . * $override)
+    | ["run", (.agent | kit("sandboxes")), "--name", $name, "--memory", .memory]
+      + (if .clone then ["--clone"] else [] end)
+      + (.kits | map("--kit", kit("mixins")))
+    | .[]
+  ' <<<"$settings")"; then
+    die "could not read $config"
+  fi
+
+  run=(sbx)
+  while IFS= read -r arg; do
+    run+=("$arg")
+  done <<<"$args"
+
+  # The dotfiles kit configures the sandbox after it starts, so the shell
+  # window waits for it rather than opening on a half-configured sandbox.
+  uses_dotfiles="$(jq -r --argjson defaults "$sbx_up_defaults" \
+    '($defaults * .) | .kits | any(test("(^|/)dotfiles$"))' \
+    <<<"$settings" 2>/dev/null || echo false)"
+
+  # `sbx` rejects an argument that no resolved kit declares, so the file is
+  # passed only to an agent kit that asks for one.
+  spec="$(config_agent_spec "$settings" "$override")"
+  if [[ -f "$sbx_up_kit_args_file" && -f "$spec" ]] && grep -q '^args:' "$spec"; then
+    run+=(--kit-args-file "$sbx_up_kit_args_file")
+  fi
+}
+
+# config_agent_spec prints the path of the agent kit's spec.yaml, which is what
+# declares the arguments the kit takes. A kit named by a URL or a zip has no
+# file here, and takes --kit-arg by hand.
+config_agent_spec() {
+  jq -r --arg dotfiles "$sbx_up_dotfiles" \
+    --argjson defaults "$sbx_up_defaults" \
+    --argjson override "$2" '
+    ($defaults * . * $override)
+    | .agent
+    | (if test("/") then . else "\($dotfiles)/sbx/kits/sandboxes/\(.)" end)
+    + "/spec.yaml"
+  ' <<<"$1" 2>/dev/null || true
+}

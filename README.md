@@ -4,13 +4,14 @@ Environment configurations for quick set-up of a new machine.
 
 ## Layout
 
-| Path      | Contents                                                      |
-| --------- | ------------------------------------------------------------- |
-| `env/`    | The files that are copied into `$HOME`.                       |
-| `setups/` | One directory per profile, holding its scripts and manifest.  |
-| `lib/`    | Shell functions the top-level scripts share.                  |
-| `sbx/`    | Docker Sandbox kits. See [sbx/README.md](sbx/README.md).      |
-| `docs/`   | Notes and reminders. See [Further reading](#further-reading). |
+| Path        | Contents                                                      |
+| ----------- | ------------------------------------------------------------- |
+| `env/`      | The files that are copied into `$HOME`.                       |
+| `packages/` | Scripts as deep modules. See [Packages](#packages).           |
+| `setups/`   | One directory per profile, holding its scripts and manifest.  |
+| `lib/`      | Shell functions the top-level scripts share.                  |
+| `sbx/`      | Docker Sandbox kits. See [sbx/README.md](sbx/README.md).      |
+| `docs/`     | Notes and reminders. See [Further reading](#further-reading). |
 
 ## Scripts
 
@@ -35,6 +36,24 @@ Every script accepts `--dry`, which prints the actions and changes nothing.
 A profile's checks live in `setups/<profile>/lib/doctor.sh`. Everything a
 profile owns that is not a setup step goes in its `lib/`, which `./setup` never
 looks inside.
+
+## Packages
+
+A command that outgrows one file becomes a package under `packages/`: an entry
+point, and a `lib/` of one file per step that the entry point sources.
+
+```text
+packages/sbx-up/
+  sbx-up     # the entry point, and the whole of what a reader has to know
+  lib/       # one file per step
+```
+
+The `package` directive in a manifest installs one. The tree goes to
+`~/.local/lib/<name>`, and `~/.local/bin/<name>` becomes a symlink to the entry
+point, which resolves that symlink to find its own `lib/`.
+
+A command that still fits in one file lives in `env/.local/bin` instead, and is
+copied with the `file` directive.
 
 ## Profiles
 
@@ -94,8 +113,9 @@ Some steps cannot or have not be scripted. See [docs/manual_steps.md](docs/manua
 
 ## Updates
 
-Run `./sync-env` after a change to anything in `env/`. A new file or directory
-also needs a line in the `env.manifest` of every profile that wants it.
+Run `./sync-env` after a change to anything in `env/` or `packages/`. A new
+file, directory or package also needs a line in the `env.manifest` of every
+profile that wants it.
 
 Run `./setup` after a change to anything in `setups/<profile>/`.
 
