@@ -512,26 +512,53 @@ else
 fi
 
 # Where the model server listens decides how much the firewall has to carry. On
-# the overlay address, a wrong firewall rule exposes nothing. On 0.0.0.0 the
-# firewall is the only control, and the model API has no authentication of its
-# own.
-swap_listen="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
+# the overlay address, a wrong firewall rule exposes nothing. On every address
+# the firewall is the only control, and the model API has no authentication of
+# its own.
+#
+# The socket is read from the kernel and not from the unit. Those two disagreed
+# once: llama-swap takes its address from a flag, the unit set only an
+# environment variable, and the variable happened to name the same address the
+# binary defaults to. Everything that read the configuration agreed with
+# itself, and the process was listening on every interface. A check that reads
+# the intent cannot see that class of fault at all, which is the class worth
+# checking for here.
+swap_intent="$(systemctl show -p Environment --value llama-swap 2>/dev/null |
   tr ' ' '\n' | sed -n 's/^LLAMA_SWAP_LISTEN=//p' | tail -1)"
 
-if [[ -z "$swap_listen" ]]; then
+if [[ -z "$swap_intent" ]]; then
   pending "model server bind" "llama-swap is not installed"
 else
-  swap_host="${swap_listen%:*}"
-  swap_port="${swap_listen##*:}"
+  swap_port="${swap_intent##*:}"
 
-  if [[ -n "$overlay_ip" && "$swap_host" == "$overlay_ip" ]]; then
+  swap_listen=""
+  if have ss; then
+    swap_listen="$(sudo ss -tlnp 2>/dev/null |
+      awk -v p=":$swap_port" '$4 ~ p"$" { print $4; exit }')"
+  fi
+
+  swap_host="${swap_listen%:*}"
+
+  if [[ -z "$swap_listen" ]]; then
+    if have ss; then
+      fail "model server bind" "nothing is listening on port $swap_port"
+    else
+      warn "model server bind" "ss is not installed, the socket was not read"
+    fi
+  elif [[ -n "$overlay_ip" && "$swap_host" == "$overlay_ip" ]]; then
     ok "model server bind" "$swap_listen, overlay only"
-  elif [[ "$swap_host" == "0.0.0.0" ]]; then
-    warn "model server bind" "$swap_listen, every interface, run ./setup 25_network"
+  elif [[ "$swap_host" == "0.0.0.0" || "$swap_host" == "*" || "$swap_host" == "[::]" ]]; then
+    fail "model server bind" "$swap_listen, every interface, ufw is the only control"
   else
     # An address the interface no longer holds stops the service from binding,
     # and its own log does not say why.
-    fail "model server bind" "$swap_listen is not an address on $overlay_iface"
+    warn "model server bind" "$swap_listen is not an address on $overlay_iface"
+  fi
+
+  # The two disagreeing is the fault above, named directly, so that fixing it
+  # is not a matter of noticing that two lines differ.
+  if [[ -n "$swap_listen" && "$swap_listen" != "$swap_intent" ]]; then
+    fail "bind matches the unit" "listening on $swap_listen, unit says $swap_intent"
   fi
 
   if ufw_overlay="$(sudo ufw status 2>/dev/null)"; then

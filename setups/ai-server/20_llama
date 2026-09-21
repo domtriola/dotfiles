@@ -366,8 +366,19 @@ SupplementaryGroups=$render_group
 # Every address, because the overlay interface does not exist when this script
 # first runs. 25_network narrows it to the overlay address with a drop-in, once
 # there is an address to narrow it to.
+#
+# The variable is passed to --listen below, and is not read by llama-swap
+# itself. LLAMA_SWAP_* variables are a feature of the project's Docker images,
+# implemented in their entrypoint; the binary this unit runs knows only the
+# flag, and falls back to every address when it is not given one.
+#
+# This is worth the comment because setting the variable alone looked exactly
+# right and did nothing. The default happened to equal the value, so the bind
+# was never the address the unit named, and a check that read the variable
+# reported a control that was not there. It is kept as a variable, rather than
+# written into the command, so a drop-in can still change one line.
 Environment=LLAMA_SWAP_LISTEN=$listen
-ExecStart=$swap_root/current/llama-swap --config $config
+ExecStart=$swap_root/current/llama-swap --config $config --listen \${LLAMA_SWAP_LISTEN}
 Restart=always
 RestartSec=3
 
