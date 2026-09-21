@@ -295,7 +295,7 @@ ctx_for() {
   if [[ -n "${LLAMA_CTX_SIZE:-}" ]]; then
     printf '%s\n' "$LLAMA_CTX_SIZE"
   elif [[ "$gb" -gt 80 ]]; then
-    printf '65536\n'
+    printf '131072\n'
   elif [[ "$gb" -gt 40 ]]; then
     printf '131072\n'
   else
