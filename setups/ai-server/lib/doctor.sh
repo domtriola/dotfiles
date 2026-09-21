@@ -646,7 +646,9 @@ if [[ -r "$ai_server_pkg/lib/keys" ]]; then
     tunable "$knob" "$knob_detail"
   done
 
+  echo
   printf '  %-7s %-34s %s\n' "" "" "ai-server set <name> <value>"
+  echo
 else
   pending "machine settings" "the ai-server package is missing, run ./setup 30_tools"
 fi
@@ -682,6 +684,7 @@ if [[ -r "$ai_model_pkg/lib/registry" ]]; then
     sed -E 's/-[0-9]{5}-of-[0-9]{5}\.gguf$//; s/\.gguf$//' | sort -u)
 
   if [[ "$model_rows" -gt 0 ]]; then
+    echo
     printf '  %-7s %-34s %s\n' "" "" "ai-model ctx <model> [tokens|--measure]"
     printf '  %-7s %-34s %s\n' "" "" "ai-model cache <model> <type>"
   fi

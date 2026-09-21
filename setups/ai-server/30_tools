@@ -5,8 +5,8 @@
 #   ai-model    the models: what is installed, and how each one is served
 #   ai-server   the machine: what it is set to, and changing it
 #
-# Each package is a directory: an entry point beside a lib/ of one file per
-# verb. The tree goes under /usr/local/lib and /usr/local/bin gets a symlink at
+# Each package is a directory: an entry point, a lib/ of one file per verb, and
+# a libexec/ for helpers that are not shell. The tree goes under /usr/local/lib and /usr/local/bin gets a symlink at
 # the entry point, which resolves that symlink to find its own lib/.
 #
 # A symlink straight into the checkout would save the copy, and would mean a
@@ -32,7 +32,20 @@ for name in ai-model ai-server; do
   sudo rm -rf "$dst"
   sudo install -d -m 755 "$dst" "$dst/lib"
   sudo install -m 755 "$src/$name" "$dst/$name"
-  sudo install -m 644 "$src"/lib/* "$dst/lib/"
+
+  # Files only. A directory that appears beside them, such as a Python cache,
+  # is not part of the package and stops `install` if it is handed one.
+  for part in "$src"/lib/*; do
+    [[ -f "$part" ]] && sudo install -m 644 "$part" "$dst/lib/"
+  done
+
+  # Helpers that are not shell, and so are run rather than sourced.
+  if [[ -d "$src/libexec" ]]; then
+    sudo install -d -m 755 "$dst/libexec"
+    for part in "$src"/libexec/*; do
+      [[ -f "$part" ]] && sudo install -m 755 "$part" "$dst/libexec/"
+    done
+  fi
 
   # The settings reader, copied in so the installed package does not depend on
   # a checkout being present.

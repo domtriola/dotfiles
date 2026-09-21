@@ -71,11 +71,25 @@ A startup hook renders `~/.pi/agent/models.json` on every start, and seeds
 `~/.pi/agent/settings.json` with the default model only on the first start, so
 `/model` + Ctrl+S keeps working afterwards.
 
+Both setup steps are scripts rather than commands inside `spec.yaml`:
+
+| Script | When | What |
+| ------ | ---- | ---- |
+| `files/home/.local-pi-kit/install.sh` | once, at create | Points npm at the sandbox proxy. |
+| `files/home/.local-pi-kit/startup.sh` | every start | Renders the pi configuration. |
+
+They are copied into the agent's home at create time, so they can be read in a
+running sandbox as well as in this repository.
+
 ## Which models the sandbox sees
 
 **By default, whatever the server says it serves.** The startup hook asks
 `/v1/models` and uses the ids it gets back, in the order it gets them. The
 first is the startup default, and `/model` switches between the rest.
+
+It also takes each model's context window from that answer and gives it to pi.
+Without that, pi rations every conversation to its own default of 128000
+tokens whatever the server is configured to serve.
 
 This kit does not own the models, so it names none. A list written into the
 kit is a copy of another machine's state, and it is wrong the moment a model is

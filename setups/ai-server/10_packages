@@ -40,6 +40,11 @@ packages=(
 
   # Processor profile, applied by 15_gpu.
   tuned:tuned-adm
+
+  # Used to read JSON from Hugging Face, and to parse a GGUF header. Named
+  # here because the profile depends on it, whether or not the base install
+  # happens to carry it.
+  python3:python3
 )
 
 missing=()
