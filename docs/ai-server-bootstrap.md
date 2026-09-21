@@ -6,8 +6,6 @@ profile can run. This is the source of truth for those steps.
 Nothing here is scripted, and each step says why. Everything after the last
 step is done by `setups/ai-server/`.
 
-Unresolved choices are in [ai-server-decisions.md](ai-server-decisions.md).
-
 The Ubuntu side of this follows
 [their networking](https://ubuntu.com/server/docs/#networking) and
 [security](https://ubuntu.com/server/docs/#security) documentation.
@@ -47,8 +45,8 @@ step 5 has to repair by hand.
      partition on it. A second EFI partition keeps a failed install from
      stopping the other operating system on the machine from starting.
    - **Whether to encrypt the disk.** This decides whether the machine can
-     restart without a person at the console. Read decision 1 in
-     [ai-server-decisions.md](ai-server-decisions.md) before answering.
+     restart without a person at the console. Decide based on your
+     threat model for this machine and its use-case.
 5. On the "installation complete" screen, remove the USB drive, then restart.
 
 ## 3. Set the boot order

@@ -114,7 +114,7 @@ Run `./setup` after a change to anything in `setups/<profile>/`.
 ## Agent skills
 
 `env/.agents/skills/` is the one source of truth for agent skills. Skills are
-authored there, on the host. Three scripts move them:
+authored there, on the host. These scripts move them:
 
 | Script          | Where the skills go                                                          |
 | --------------- | ---------------------------------------------------------------------------- |
@@ -140,3 +140,4 @@ a tracked one of the same name, in `$HOME` and in a sandbox.
 - [docs/app_configs/README.md](docs/app_configs/README.md): installation notes for GUI applications.
 - [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and helper commands.
 - [docs/ai-server-bootstrap.md](docs/ai-server-bootstrap.md): the steps done by hand before the `ai-server` profile runs.
+- [docs/ai-server.md](docs/ai-server.md): what that hardware does, what is still undecided, and how to change the model it runs.
