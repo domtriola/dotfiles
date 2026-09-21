@@ -69,16 +69,18 @@ if [[ -t 1 ]]; then
   C_WARN=$'\033[33m'
   C_FAIL=$'\033[31m'
   C_SKIP=$'\033[90m'
+  C_TUNE=$'\033[36m'
   C_HEAD=$'\033[1m'
   C_OFF=$'\033[0m'
 else
-  C_OK="" C_WARN="" C_FAIL="" C_SKIP="" C_HEAD="" C_OFF=""
+  C_OK="" C_WARN="" C_FAIL="" C_SKIP="" C_TUNE="" C_HEAD="" C_OFF=""
 fi
 
 count_ok=0
 count_warn=0
 count_fail=0
 count_pending=0
+count_tunable=0
 
 _report() {
   local colour="$1" word="$2" label="$3" detail="${4:-}"
@@ -89,6 +91,7 @@ _report() {
 # warn     working, but not what was intended, and worth a look
 # fail     broken, or a setting that silently does nothing
 # pending  not configured yet, and not expected to be
+# tunable  a choice, currently set this way, that can be changed at any time
 section() { printf '\n%s%s%s\n' "$C_HEAD" "$1" "$C_OFF"; }
 ok() {
   count_ok=$((count_ok + 1))
@@ -105,6 +108,14 @@ fail() {
 pending() {
   count_pending=$((count_pending + 1))
   _report "$C_SKIP" pending "$@"
+}
+
+# A tunable is not a result, so it counts towards nothing and never decides the
+# exit status. It is listed so that a setting is visible as a choice rather
+# than found later in a file.
+tunable() {
+  count_tunable=$((count_tunable + 1))
+  _report "$C_TUNE" tunable "$@"
 }
 
 # have reports whether a command exists, for checks that depend on one.
@@ -194,6 +205,11 @@ source "$checks"
 printf '\n%s%s%s\n' "$C_HEAD" "Summary" "$C_OFF"
 printf '  %d ok, %d warn, %d failed, %d pending\n' \
   "$count_ok" "$count_warn" "$count_fail" "$count_pending"
+# Only when there are any. A profile with no settings to change should not
+# have a line about settings.
+if [[ $count_tunable -gt 0 ]]; then
+  printf '  %d tunable\n' "$count_tunable"
+fi
 
 if [[ $count_fail -gt 0 ]]; then
   exit 1

@@ -613,3 +613,76 @@ fi
 # fault: the machine works, and a newer build may or may not be worth taking.
 check_release "llama.cpp" ggml-org/llama.cpp "${llama_installed:-$llama_pinned}" b
 check_release "llama-swap" mostlygeek/llama-swap "${swap_installed:-$swap_pinned}" v
+
+# ---------------------------------------------------------------------------
+section "Tunables"
+# ---------------------------------------------------------------------------
+#
+# Choices, not results. Everything above answers "is this working"; this
+# answers "what did I decide, and what could I decide instead".
+#
+# The machine's settings come from the same table `ai-server` reads, so a knob
+# added there appears here with no change. The per-model rows come from the
+# registry `ai-model` writes.
+
+ai_server_pkg="$profile_dir/packages/ai-server"
+ai_model_pkg="$profile_dir/packages/ai-model"
+
+# The machine's answers, so the values below are the ones in effect rather than
+# the owning script's fallbacks.
+if [[ -r "$profile_dir/lib/config.sh" ]]; then
+  # shellcheck source=../lib/config.sh
+  source "$profile_dir/lib/config.sh"
+  ai_server_config_load
+fi
+
+if [[ -r "$ai_server_pkg/lib/keys" ]]; then
+  # shellcheck source=../packages/ai-server/lib/keys
+  source "$ai_server_pkg/lib/keys"
+
+  for knob in "${knob_order[@]}"; do
+    knob_value="${!knob_var[$knob]:-}"
+    printf -v knob_detail '%-10s  %s' "${knob_value:--}" "${knob_accepts[$knob]}"
+    tunable "$knob" "$knob_detail"
+  done
+
+  printf '  %-7s %-34s %s\n' "" "" "ai-server set <name> <value>"
+else
+  pending "machine settings" "the ai-server package is missing, run ./setup 30_tools"
+fi
+
+# Per-model context and cache. A model is only listed when it is on disk: an
+# entry left behind for a model that is gone is a stale setting, not a choice.
+if [[ -r "$ai_model_pkg/lib/registry" ]]; then
+  settings_file="/var/lib/llama/settings.json"
+  # shellcheck source=../packages/ai-model/lib/registry
+  source "$ai_model_pkg/lib/registry"
+
+  model_rows=0
+  while IFS= read -r model; do
+    [[ -n "$model" ]] || continue
+    model_rows=$((model_rows + 1))
+
+    model_ctx="$(registry_get "$model" ctx "<unset>")"
+    model_trained="$(registry_get "$model" trained_ctx 0)"
+    model_cache="$(registry_get "$model" cache_type "-")"
+
+    # A model copied in by hand has no repository to ask, so its ceiling is
+    # unknown rather than absent. Said plainly, because a context cannot be
+    # checked against a number nobody has.
+    if [[ "$model_trained" == "0" ]]; then
+      model_ceiling="trained max unknown"
+    else
+      model_ceiling="of $model_trained trained"
+    fi
+
+    printf -v model_detail '%-10s  %s, cache %s' "$model_ctx" "$model_ceiling" "$model_cache"
+    tunable "${model:0:32}" "$model_detail"
+  done < <(find /var/lib/llama/models -maxdepth 1 -type f -name '*.gguf' -printf '%f\n' 2>/dev/null |
+    sed -E 's/-[0-9]{5}-of-[0-9]{5}\.gguf$//; s/\.gguf$//' | sort -u)
+
+  if [[ "$model_rows" -gt 0 ]]; then
+    printf '  %-7s %-34s %s\n' "" "" "ai-model ctx <model> [tokens|--measure]"
+    printf '  %-7s %-34s %s\n' "" "" "ai-model cache <model> <type>"
+  fi
+fi
