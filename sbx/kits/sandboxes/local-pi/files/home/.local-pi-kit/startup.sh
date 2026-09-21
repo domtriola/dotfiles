@@ -9,9 +9,8 @@
 
 set -eu
 
-# The defaults are repeated because a startup hook is not guaranteed to inherit
-# environment.variables. They are argument references rather than literals, so
-# there is one place that decides the address.
+# Defaulted because a startup hook is not guaranteed to inherit
+# environment.variables.
 base_url="${MODEL_BASE_URL:-http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1}"
 models="${MODEL_IDS:-${{ kit.args.modelIds }}}"
 
@@ -22,19 +21,14 @@ exec >"$HOME/.local-pi-kit.log" 2>&1
 echo "--- local-pi kit ---"
 echo "baseUrl=$base_url"
 
-# node parses the server's answer. It is not part of the kit tool floor, so it
-# comes from the image: this kit runs pi, which is an npm package, so an image
-# without node could not run the agent either. Absence is still handled, one
-# step down, rather than assumed away.
+# node is not part of the kit tool floor. It comes from the image, which runs
+# pi, an npm package.
 have_node=0
 command -v node >/dev/null 2>&1 && have_node=1
 
 # One request, two jobs: it proves the path, and it supplies the model ids when
-# the caller pinned none.
-#
-# It does not prove the models. A server lists what it is configured to serve
-# whether or not any of it can load, and loading one to find out is not work
-# for a startup hook.
+# the caller pinned none. It does not prove the models: a server lists what it
+# is configured to serve whether or not any of it can load.
 served=""
 curl_out=""
 if curl_out="$(curl -fsS --max-time 10 "$base_url/models" 2>/dev/null)"; then
@@ -75,17 +69,12 @@ else
 fi
 default_model="${models%%,*}"
 
-# The model list pi is given, with each entry's context window taken from what
-# the server publishes for it.
-#
 # Without contextWindow, pi rations a conversation to its own default of 128000
-# tokens whatever the server serves. That is wrong in both directions: it wastes
-# a model configured higher, and it overruns one configured lower, which fails
-# as a refused request part way through a session rather than as a budget.
+# tokens whatever the server serves: wasting a model configured higher, and
+# overrunning one configured lower as a refused request mid-session.
 #
 # An id can be read out of the JSON with sed; a number attached to the right id
-# cannot, not reliably. Without node the ids are still written and pi falls back
-# to its own default, which is the behaviour this kit had before.
+# cannot, not reliably.
 if [ "$have_node" -eq 1 ]; then
   entries="$(printf '%s' "$curl_out" | MODELS="$models" node -e '
     let raw = "";
@@ -135,8 +124,6 @@ elif [ "$have_node" -eq 1 ]; then
   ' 2>/dev/null || true
 fi
 
-# The provider is named for its role rather than for the engine behind it.
-#
 # apiKey is sent and ignored by a server that has no authentication. pi wants
 # the field set for an openai-completions provider.
 #
@@ -161,8 +148,7 @@ EOF
 echo "wrote $conf/models.json"
 
 # Seeded once and then left alone: pi writes this file itself when `/model`
-# saves a choice with Ctrl+S, and overwriting it every start would throw that
-# away.
+# saves a choice, and overwriting it every start would throw that away.
 if [ -f "$conf/settings.json" ]; then
   echo "kept the existing $conf/settings.json"
 elif [ -z "$default_model" ]; then

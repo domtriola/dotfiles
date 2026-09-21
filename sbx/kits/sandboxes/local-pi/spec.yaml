@@ -5,21 +5,11 @@ displayName: Local Pi
 description: >-
   Pi, pointed at a self-hosted OpenAI-compatible model server.
 
-# The server is named by the caller, never by this file.
-#
 # modelHost is required rather than defaulted: the address of a private machine
-# does not belong in a repository that can be published. `sbx` validates
-# arguments before it creates the sandbox, so a missing value is a refusal with
-# a message rather than a sandbox that talks to nothing.
+# does not belong in a repository that can be published.
 #
-# Supply it per run, or once in a file that sbx-up passes for you:
-#
-#   sbx run ./sbx/kits/sandboxes/local-pi --kit-arg modelHost=<host>
-#   printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
-#
-# Prefer a name to an address. A name survives the address changing, and the
-# sandbox proxy matches its policy on the name it was given, so the allow list
-# below keeps working too.
+# Prefer a name to an address. The proxy matches its policy on the name it was
+# given, so the allow list below is built from the same value.
 args:
   modelHost:
     required: true
@@ -34,13 +24,8 @@ args:
       server for its own list, which is the usual case.
 
 sandbox:
-  # Pre-baked image: pi at the latest upstream release, on the shell-docker
-  # template. Published by the shared kit-image pipeline, so creating a sandbox
-  # does not wait on an npm install.
-  #
   # Not `extends: pi`. Composition is a union, so a child cannot drop the
-  # upstream kit's hosted-provider credential or its network allows. Copying
-  # the two parts worth keeping is the only way to inherit nothing else.
+  # upstream kit's hosted-provider credential or its network allows.
   image: docker.io/sbx/pi-image:latest
   entrypoint:
     - pi
@@ -65,41 +50,25 @@ agentInstructions:
 
 environment:
   variables:
-    # The model server, as seen from inside the sandbox.
-    #
-    # Named for the role and not for the engine: every server behind this
-    # speaks the same OpenAI-compatible HTTP interface, so a name tied to one
-    # of them goes wrong when it is replaced. OPENAI_ is the usual name for
-    # this value and is avoided because pi may read it for its own hosted
-    # provider.
+    # Not OPENAI_BASE_URL: pi may read that for its own hosted provider.
     MODEL_BASE_URL: "http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1"
-    # Empty by default, which means "ask the server". This kit does not own the
-    # models and so names none: a list written here is a copy of another
-    # machine's state, and it is wrong the moment a model is added or removed
-    # there. Set it to choose the startup default, which is the first id.
+    # Empty means "ask the server". Set it to pin the list and its order; the
+    # first id is the startup default.
     MODEL_IDS: "${{ kit.args.modelIds }}"
 
 permissions:
   network:
     allow:
-      # The model server. Traffic out of a sandbox goes through the proxy and
-      # is denied unless it is listed, so declaring it here is what makes the
-      # sandbox work without a hand-written `sbx policy allow` per machine.
-      #
-      # The entry carries the port, which is the narrowest form the proxy
-      # enforces. A CIDR would be the obvious way to write "that private
-      # range", and it is declared by the grammar but not enforced, so it would
-      # match nothing and read as a routing fault.
+      # host:port is the narrowest form the proxy enforces. A CIDR is declared
+      # by the grammar and not enforced, so it matches nothing and reads as a
+      # routing fault.
       - "${{ kit.args.modelHost }}:${{ kit.args.modelPort }}"
-      # pi's runtime package installs (extensions, skills, prompt templates,
-      # themes) and the packages named in settings, fetched on startup.
+      # pi fetches extensions, skills, prompt templates and themes on startup.
       - registry.npmjs.org
 
 setup:
-  # Both steps are scripts under files/, copied to the agent's home at create
-  # time. They are named by their installed path rather than by $HOME, because
-  # that is what files/home/ is specified to map to, and a startup command is
-  # exec-style argv with no shell to expand a variable.
+  # Named by installed path rather than $HOME: a startup command is exec-style
+  # argv, with no shell to expand a variable.
   install:
     - command: "sh /home/agent/.local-pi-kit/install.sh"
       user: "1000"
