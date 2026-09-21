@@ -143,13 +143,18 @@ setup:
           # out is not work for a startup hook.
           served=""
           if curl_out="$(curl -fsS --max-time 10 "$base_url/models" 2>/dev/null)"; then
-            # Split on commas so each "id": "..." lands on its own line. Model
-            # ids hold no quotes, so this does not need a JSON parser, and the
-            # image is not guaranteed to have one.
-            served="$(printf '%s' "$curl_out" |
-              tr ',' '\n' |
-              sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
-              tr '\n' ',' | sed 's/,$//')"
+            served="$(printf '%s' "$curl_out" | node -e '
+              let raw = "";
+              process.stdin.on("data", (d) => (raw += d)).on("end", () => {
+                let data;
+                try {
+                  data = JSON.parse(raw).data || [];
+                } catch (e) {
+                  process.exit(1);
+                }
+                process.stdout.write(data.map((m) => m.id).join(","));
+              });
+            ')"
             echo "the server answered, and serves: ${served:-nothing}"
           else
             echo "WARNING: no answer from $base_url"
@@ -168,18 +173,53 @@ setup:
           fi
           default_model="${models%%,*}"
 
-          # `{ "id": "a" }, { "id": "b" }` from `a,b`.
-          entries=""
-          sep=""
-          for id in $(printf '%s' "$models" | tr ',' ' '); do
-            entries="${entries}${sep}{ \"id\": \"${id}\" }"
-            sep=", "
-          done
+          # The model list pi is given, with each entry's context window taken
+          # from what the server publishes for it.
+          #
+          # Without contextWindow, pi rations a conversation to its own default
+          # of 128000 tokens, whatever the server is configured to serve. That
+          # is wrong in both directions: it wastes a model configured higher,
+          # and it overruns one configured lower, which fails as a refused
+          # request part way through a session rather than as a budget.
+          #
+          # Parsed with node, which a pi image has by definition. An id can be
+          # read out of the JSON with sed; a number attached to the right id
+          # cannot, not reliably.
+          entries="$(printf '%s' "${curl_out:-}" | MODELS="$models" node -e '
+            let raw = "";
+            process.stdin.on("data", (d) => (raw += d)).on("end", () => {
+              const wanted = (process.env.MODELS || "").split(",").filter(Boolean);
+              let served = [];
+              try {
+                served = JSON.parse(raw).data || [];
+              } catch (e) {
+                served = [];
+              }
+              const byId = new Map(served.map((m) => [m.id, m]));
+              const ids = wanted.length ? wanted : served.map((m) => m.id);
+              const out = ids.map((id) => {
+                const m = byId.get(id) || {};
+                const ctx = m.context_length || m.context_window || (m.meta || {}).n_ctx;
+                return ctx ? { id, contextWindow: ctx } : { id };
+              });
+              process.stdout.write(JSON.stringify(out));
+            });
+          ' 2>/dev/null)"
+          entries="${entries:-[]}"
 
-          if [ -z "$entries" ]; then
+          if [ "$entries" = "[]" ]; then
             echo "WARNING: no models. The server named none and none were pinned."
             echo "  pi starts with an empty provider. Set modelIds, or fix the"
             echo "  server, then restart the sandbox."
+          else
+            printf '%s' "$entries" | node -e '
+              let raw = "";
+              process.stdin.on("data", (d) => (raw += d)).on("end", () => {
+                for (const m of JSON.parse(raw)) {
+                  console.log("  " + m.id + ": context " + (m.contextWindow || "pi default"));
+                }
+              });
+            ' 2>/dev/null || true
           fi
 
           # The provider is named for its role rather than for the engine
@@ -201,7 +241,7 @@ setup:
                   "supportsDeveloperRole": false,
                   "supportsReasoningEffort": false
                 },
-                "models": [$entries]
+                "models": $entries
               }
             }
           }

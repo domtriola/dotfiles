@@ -310,15 +310,25 @@ while IFS= read -r gguf; do
 
   echo "  $name: ${size_gb} GB, context $ctx, cache $cache"
 
-  # The context is published in the model's metadata as well as passed to the
-  # engine. A client that reads /v1/models can then ration itself to what this
-  # machine actually serves, rather than to its own default.
+  # The context is published as well as passed to the engine, so a client that
+  # reads /v1/models can ration itself to what this machine serves rather than
+  # to its own default.
+  #
+  # It goes under `capabilities`, not `metadata`. llama-swap renders
+  # capabilities.context into the top-level context_length, context_window and
+  # meta.n_ctx of /v1/models, and strips those same names from a metadata block
+  # so that the renderer stays the only source. A context written as metadata
+  # is accepted by the configuration and never appears in the response.
+  #
+  # The trained ceiling has no renderer of its own, so metadata is where it
+  # belongs and where it survives.
   cat >>"$tmp_config" <<EOF
   "$name":
     # ttl 0 keeps the model loaded. Nothing else competes for this machine.
     ttl: 0
+    capabilities:
+      context: $ctx
     metadata:
-      context_length: $ctx
       trained_context: $trained
     cmd: |
       \${server}
