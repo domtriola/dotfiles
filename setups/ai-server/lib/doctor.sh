@@ -276,7 +276,7 @@ else
   pending "llama-swap binary" "not installed"
 fi
 
-for helper in llama-model llama-ctx; do
+for helper in ai-model; do
   if [[ -x "/usr/local/bin/$helper" ]]; then
     ok "$helper helper" "/usr/local/bin/$helper"
   else

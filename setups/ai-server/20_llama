@@ -25,6 +25,15 @@
 
 set -eo pipefail
 
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/config.sh
+source "$profile_dir/lib/config.sh"
+ai_server_config_load
+
+settings_file="/var/lib/llama/settings.json"
+# shellcheck source=packages/ai-model/lib/registry
+source "$profile_dir/packages/ai-model/lib/registry"
+
 # Pinned, and overridable for a one-off upgrade. Raising these here is the
 # supported way to move the whole machine to a new build.
 llama_build="${LLAMA_CPP_BUILD:-b11057}"
@@ -51,7 +60,7 @@ config_dir="/etc/llama-swap"
 config="$config_dir/config.yaml"
 unit="/etc/systemd/system/llama-swap.service"
 service_user="llama"
-listen="${LLAMA_SWAP_LISTEN:-0.0.0.0:8080}"
+listen="${LLAMA_SWAP_LISTEN:-0.0.0.0:${AI_SERVER_MODEL_PORT:-8080}}"
 
 # ---------------------------------------------------------------------------
 # Guard: refuse to install a GPU server that would run on the processor.
@@ -204,15 +213,34 @@ printf '%s\n' "$version_out" | head -2
 # The download helper. It is a file rather than a heredoc so it can be read
 # and edited like any other script. It lives under lib/, which ./setup does
 # not look inside, so it is not mistaken for a setup step.
-sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-model.sh" \
-  /usr/local/bin/llama-model
-echo "Installed /usr/local/bin/llama-model"
+# ai-model: the package tree goes under /usr/local/lib, and /usr/local/bin gets
+# a symlink at it. The entry point resolves that symlink to find its own lib/.
+#
+# A symlink straight into the checkout would save the copy, and would mean a
+# tool that runs sudo resolving into a directory any user can write.
+ai_model_src="$profile_dir/packages/ai-model"
+ai_model_dst="/usr/local/lib/ai-model"
 
-# The context measurement, for the same reason: a procedure written in a
-# comment is a procedure nobody runs.
-sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-ctx.sh" \
-  /usr/local/bin/llama-ctx
-echo "Installed /usr/local/bin/llama-ctx"
+sudo rm -rf "$ai_model_dst"
+sudo install -d -m 755 "$ai_model_dst" "$ai_model_dst/lib"
+sudo install -m 755 "$ai_model_src/ai-model" "$ai_model_dst/ai-model"
+sudo install -m 644 "$ai_model_src"/lib/* "$ai_model_dst/lib/"
+
+# The machine's settings reader, copied in so the installed package does not
+# depend on a checkout being present.
+sudo install -m 644 "$profile_dir/lib/config.sh" "$ai_model_dst/config.sh"
+
+sudo ln -sfn "$ai_model_dst/ai-model" /usr/local/bin/ai-model
+echo "Installed /usr/local/bin/ai-model"
+
+# The names this replaced. Left in place they would keep working from an older
+# install and write settings nothing reads.
+for stale in /usr/local/bin/llama-model /usr/local/bin/llama-ctx; do
+  if [[ -e "$stale" ]]; then
+    sudo rm -f "$stale"
+    echo "Removed $stale"
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -254,54 +282,18 @@ macros:
   # --jinja selects the model's own chat template, which is what makes tool
   # calling work. A coding agent is unusable without it.
   #
-  # The KV cache is stored at 8 bits rather than 16. That halves it for a loss
-  # the llama.cpp documentation describes as usually unnoticeable, and on this
-  # machine the cache competes with the weights for the same memory. Flash
-  # attention is required for a quantised cache to be used.
+  # Flash attention is required before the KV cache can be quantised, and the
+  # quantisation itself is set per model, below.
   "server": >
     /opt/llama.cpp/current/llama-server
     --host 127.0.0.1
     --port ${PORT}
     -ngl all
     --flash-attn on
-    --cache-type-k q8_0
-    --cache-type-v q8_0
     --jinja
 
 models:
 HEADER
-
-# ctx_for prints a context length for a model of a given size in GB.
-#
-# llama-server defaults to --ctx-size 0, which means "use the model's own
-# maximum". These models declare 256K or more, and the cache for that does not
-# fit beside weights that already fill most of the machine. Leaving it unset is
-# what made a 111 GB model load for 39 seconds and then exit.
-#
-# The cache competes with the weights for one pool of memory, so the bigger the
-# model the less context it can afford. $LLAMA_CTX_SIZE overrides the lot.
-#
-# These are coarse defaults and nothing more. The cost per token follows the
-# model's attention geometry, not its size on disk, so a band can only be a
-# starting point. `llama-ctx` measures what a loaded model actually costs and
-# says how far its context can go; run it before changing a number here.
-#
-# The bands never rise with size. A smaller model leaves more room, so it can
-# afford at least as much context as a larger one, and a ladder that says
-# otherwise is wrong however the numbers were arrived at.
-ctx_for() {
-  local gb="$1"
-
-  if [[ -n "${LLAMA_CTX_SIZE:-}" ]]; then
-    printf '%s\n' "$LLAMA_CTX_SIZE"
-  elif [[ "$gb" -gt 80 ]]; then
-    printf '131072\n'
-  elif [[ "$gb" -gt 40 ]]; then
-    printf '131072\n'
-  else
-    printf '131072\n'
-  fi
-}
 
 model_count=0
 while IFS= read -r gguf; do
@@ -335,22 +327,35 @@ while IFS= read -r gguf; do
     size_bytes="$(stat -c %s "$gguf" 2>/dev/null)"
   fi
 
-  # A size that cannot be read is not worth ending the run for. Zero falls
-  # through to the most generous context, and the printed line below shows it.
+  # A size that cannot be read is not worth ending the run for.
   [[ "$size_bytes" =~ ^[0-9]+$ ]] || size_bytes=0
   size_gb=$((size_bytes / 1000000000))
-  ctx="$(ctx_for "$size_gb")"
 
-  echo "  $name: ${size_gb} GB, context $ctx"
+  # A model with no entry gets one, so that a file copied into the directory by
+  # hand is served on the same terms as one that was downloaded.
+  registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}"
+  ctx="$(registry_get "$name" ctx "${AI_SERVER_DEFAULT_CTX:-131072}")"
+  cache="$(registry_get "$name" cache_type q8_0)"
+  trained="$(registry_get "$name" trained_ctx 0)"
 
+  echo "  $name: ${size_gb} GB, context $ctx, cache $cache"
+
+  # The context is published in the model's metadata as well as passed to the
+  # engine. A client that reads /v1/models can then ration itself to what this
+  # machine actually serves, rather than to its own default.
   cat >>"$tmp_config" <<EOF
   "$name":
     # ttl 0 keeps the model loaded. Nothing else competes for this machine.
     ttl: 0
+    metadata:
+      context_length: $ctx
+      trained_context: $trained
     cmd: |
       \${server}
       --model $gguf
       --ctx-size $ctx
+      --cache-type-k $cache
+      --cache-type-v $cache
       --alias $name
 EOF
 done < <(find "$models_dir" -maxdepth 1 -type f -name '*.gguf' | sort)
@@ -448,10 +453,10 @@ No models are installed, so llama-swap is enabled but not started.
 
 Download one, then run this again:
 
-  llama-model add <repo> '<pattern>'
-  llama-model add unsloth/Qwen3.8-Flash-Next-GGUF '*UD-Q4_K_XL*'
+  ai-model add <repo> '<pattern>'
+  ai-model add unsloth/Qwen3.8-Flash-Next-GGUF '*UD-Q4_K_XL*'
 
-Run "llama-model --help" for the rest. A file copied into $models_dir by
+Run "ai-model --help" for the rest. A file copied into $models_dir by
 hand works too, as long as the $service_user user can read it.
 EOF
   exit 0

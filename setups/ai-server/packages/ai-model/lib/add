@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+#
+# Downloading a model from Hugging Face.
+#
+# The Hugging Face CLI is not a dependency. The public API lists a repository's
+# files with their sizes and digests, and every file has a stable download URL,
+# so curl and the json module of the system python do the whole job. A model
+# server has no other use for a Python package ecosystem.
+#
+# The same response also reports what the model was trained for, which is the
+# ceiling a context length is clamped to.
+
+cmd_add() {
+  local repo="$1" pattern="${2:-*.gguf}"
+  local listing staging total_gb avail_gb moved=0 trained arch
+  local -A added=()
+
+  [[ -n "$repo" ]] || die "add needs a repository, such as unsloth/Qwen3.8-27B-GGUF"
+
+  echo "Listing $repo, files matching $pattern"
+
+  listing="$(curl -fsSL --max-time 60 "https://huggingface.co/api/models/${repo}?blobs=true" 2>/dev/null |
+    python3 -c '
+import json, sys, fnmatch
+pat = sys.argv[1]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+g = d.get("gguf") or {}
+print("#\t%s\t%s" % (g.get("context_length") or 0, g.get("architecture") or "-"))
+for f in d.get("siblings", []):
+    n = f["rfilename"]
+    if n.endswith(".gguf") and fnmatch.fnmatch(n, pat):
+        lfs = f.get("lfs") or {}
+        print(str(f.get("size") or 0) + "\t" + (lfs.get("sha256") or "-") + "\t" + n)
+' "$pattern")" || die "could not read $repo. Check the name, and that it is public."
+
+  # The first line carries what the repository says about the model itself.
+  trained="$(head -1 <<<"$listing" | cut -f2)"
+  arch="$(head -1 <<<"$listing" | cut -f3)"
+  listing="$(tail -n +2 <<<"$listing")"
+
+  [[ -n "$listing" ]] || die "no .gguf file in $repo matches '$pattern'"
+
+  # The size is known before anything is downloaded, so the disk is checked
+  # first rather than filling up part way through a hundred gigabytes. Rounded
+  # up, because a space check that under-reports what it needs is worse than one
+  # that refuses a download which would just have fitted.
+  total_gb="$(awk -F'\t' '{s+=$1} END {printf "%d", int(s/1000000000)+1}' <<<"$listing")"
+  avail_gb="$(df -BG --output=avail "$models_dir" | tail -1 | tr -dc '0-9')"
+
+  printf '\n%-58s %s\n' "FILE" "SIZE"
+  awk -F'\t' '{printf "%-58s %6.1f GB\n", $3, $1/1000000000}' <<<"$listing"
+  printf '\n  total %s GB, free %s GB\n' "$total_gb" "$avail_gb"
+  printf '  architecture %s, trained for %s tokens of context\n\n' \
+    "${arch:--}" "${trained:-unknown}"
+
+  if [[ "$total_gb" -ge "$avail_gb" ]]; then
+    die "not enough space: needs ${total_gb} GB, ${avail_gb} GB free in $models_dir"
+  fi
+
+  # Staged outside the models directory, so a cancelled download never leaves a
+  # partial file where the configuration would pick it up.
+  staging="$(mktemp -d)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$staging'" EXIT
+
+  while IFS=$'\t' read -r _ want path; do
+    local name="${path##*/}"
+
+    if [[ -e "$models_dir/$name" ]]; then
+      echo "  have $name already"
+      continue
+    fi
+
+    echo "  fetching $name"
+    # -C - resumes a partial file, and the redirect to the CDN is followed.
+    curl -fL -C - --retry 5 --retry-delay 5 \
+      -o "$staging/$name" \
+      "https://huggingface.co/${repo}/resolve/main/${path}" ||
+      die "download of $name failed. Rerun to resume."
+
+    # Weights are data rather than code, but llama.cpp parses them in a C++
+    # process, and a truncated or altered file is the input a parser bug needs.
+    # Checked while the file is still in staging.
+    if [[ "$want" == "-" ]]; then
+      echo "  WARNING: no digest published for $name, not verified" >&2
+    else
+      local got
+      got="$(sha256sum "$staging/$name" | cut -d" " -f1)"
+      if [[ "$got" != "$want" ]]; then
+        rm -f "$staging/$name"
+        die "$name does not match the digest Hugging Face published.
+  expected $want
+  got      $got
+Nothing was installed. Rerun to fetch it again."
+      fi
+      echo "  digest ok"
+    fi
+
+    sudo install -o "$service_user" -g "$service_user" -m 644 \
+      "$staging/$name" "$models_dir/$name"
+    rm -f "$staging/$name"
+    added["$(model_id_of "$name")"]=1
+    moved=$((moved + 1))
+  done <<<"$listing"
+
+  if [[ $moved -eq 0 ]]; then
+    echo "Nothing new to add."
+    return 0
+  fi
+
+  echo
+  echo "Added $moved file(s)."
+
+  # Recorded against the models this run installed, and no others: the ceiling
+  # and the repository belong to the model, not to the directory.
+  local name
+  for name in "${!added[@]}"; do
+    registry_set "$name" trained_ctx "${trained:-0}" repo "$repo"
+    registry_ensure "$name" "${AI_SERVER_DEFAULT_CTX:-131072}"
+    printf '  %s: context %s, trained for %s\n' \
+      "$name" "$(registry_get "$name" ctx)" "$(registry_get "$name" trained_ctx)"
+  done
+
+  apply
+}
