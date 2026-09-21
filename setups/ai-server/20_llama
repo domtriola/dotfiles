@@ -208,6 +208,12 @@ sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-model.sh" \
   /usr/local/bin/llama-model
 echo "Installed /usr/local/bin/llama-model"
 
+# The context measurement, for the same reason: a procedure written in a
+# comment is a procedure nobody runs.
+sudo install -m 755 "$(dirname "${BASH_SOURCE[0]}")/lib/llama-ctx.sh" \
+  /usr/local/bin/llama-ctx
+echo "Installed /usr/local/bin/llama-ctx"
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -275,40 +281,14 @@ HEADER
 # The cache competes with the weights for one pool of memory, so the bigger the
 # model the less context it can afford. $LLAMA_CTX_SIZE overrides the lot.
 #
-# To change a number here, measure. The cache scales with the context, so
-# doubling the context doubles the cache, and the room it has is whatever the
-# weights leave in the GTT pool.
+# These are coarse defaults and nothing more. The cost per token follows the
+# model's attention geometry, not its size on disk, so a band can only be a
+# starting point. `llama-ctx` measures what a loaded model actually costs and
+# says how far its context can go; run it before changing a number here.
 #
-# Load the model, wait for "ready", then read the pool:
-#
-#   curl -fsS http://<listen-address>/running | jq -r '.running[].state'
-#   for d in /sys/class/drm/card*/device; do
-#     echo "total $(( $(cat "$d/mem_info_gtt_total") / 1024**3 )) GiB"
-#     echo "used  $(( $(cat "$d/mem_info_gtt_used")  / 1024**3 )) GiB"
-#   done
-#
-# The difference is what a larger cache can grow into. Change the number, run
-# ./setup 20_llama, load the model again, and read the pool again: the change
-# in "used" is what the change cost, and it is the only figure that settles
-# whether the next step up fits.
-#
-# Both directions fail loudly, and neither message names this function:
-#
-#   too high  The model loads and then exits. `journalctl -u llama-swap` holds
-#             the allocation that failed.
-#   too low   Requests are refused with "exceeds the available context size,
-#             try increasing it". The limit in that message is this number.
-#
-# Concurrency divides it. llama-server runs several slots against one shared
-# cache when kv_unified is set, so this is how many tokens are held in total
-# across every request in flight, while any single request may use all of it.
-# The load line reports both:
-#
-#   load_model: initializing, n_slots = 4, n_ctx_slot = 65536, kv_unified = 'true'
-#
-# An agent that makes parallel calls needs headroom above its largest single
-# prompt for that reason. Where the memory costs more than the parallelism is
-# worth, bound the slots with -np in the macro above instead.
+# The bands never rise with size. A smaller model leaves more room, so it can
+# afford at least as much context as a larger one, and a ladder that says
+# otherwise is wrong however the numbers were arrived at.
 ctx_for() {
   local gb="$1"
 
@@ -317,9 +297,9 @@ ctx_for() {
   elif [[ "$gb" -gt 80 ]]; then
     printf '65536\n'
   elif [[ "$gb" -gt 40 ]]; then
-    printf '32768\n'
+    printf '131072\n'
   else
-    printf '65536\n'
+    printf '131072\n'
   fi
 }
 

@@ -276,11 +276,13 @@ else
   pending "llama-swap binary" "not installed"
 fi
 
-if [[ -x /usr/local/bin/llama-model ]]; then
-  ok "llama-model helper" "/usr/local/bin/llama-model"
-else
-  pending "llama-model helper" "not installed"
-fi
+for helper in llama-model llama-ctx; do
+  if [[ -x "/usr/local/bin/$helper" ]]; then
+    ok "$helper helper" "/usr/local/bin/$helper"
+  else
+    pending "$helper helper" "not installed"
+  fi
+done
 
 # Models are counted two ways, because the two can disagree. The configuration
 # is what llama-swap serves. The directory is what is on disk. A file added
