@@ -13,6 +13,7 @@ source "$profile_dir/lib/brew.sh"
 # Python
 # #######################################
 curl -LsSf https://astral.sh/uv/install.sh | sh
+"$HOME/.local/bin/uv" python install 3.14 --default
 
 # JavaScript
 # #######################################
@@ -30,6 +31,9 @@ set +e
 set -e
 
 nvm install 24
+
+# pnpm
+npx get-pnpm
 
 # Elixir
 # #######################################
