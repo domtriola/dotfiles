@@ -24,6 +24,9 @@ brew_install cheat
 # https://www.gnu.org/software/coreutils/manual/html_node/index.html
 brew_install coreutils
 
+# GitHub
+brew_install gh
+
 # For API requests
 brew_install httpie
 
