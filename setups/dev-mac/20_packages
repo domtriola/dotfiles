@@ -7,8 +7,11 @@
 set -eox pipefail
 
 profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+root_dir="$(cd "$profile_dir/../.." >/dev/null 2>&1 && pwd)"
 # shellcheck source=lib/brew.sh
 source "$profile_dir/lib/brew.sh"
+# shellcheck source=../../lib/prompt.sh
+source "$root_dir/lib/prompt.sh"
 
 # CLI tools
 # #######################################################
@@ -47,8 +50,12 @@ brew_install neovim
 brew_install --cask ghostty
 brew_install tmux
 
-# Terminal Prompt
-curl -sS https://starship.rs/install.sh | sh
+# Starship terminal prompt
+if ! command -v starship &>/dev/null || confirm "Update starship?"; then
+  curl -sS https://starship.rs/install.sh | sh -s -- --yes
+else
+  echo "Keeping the installed starship."
+fi
 
 # AI
 # #######################################################

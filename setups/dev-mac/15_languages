@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 #
 # Language toolchains.
-#
-# The Go step needs sudo, so this script prompts for a password.
 
 set -eox pipefail
 
@@ -33,7 +31,7 @@ set -e
 nvm install 24
 
 # pnpm
-npx get-pnpm
+npx --yes get-pnpm
 
 # Elixir
 # #######################################
