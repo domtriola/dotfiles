@@ -1,7 +1,7 @@
 schemaVersion: "2"
 kind: sandbox
-name: local-pi
-displayName: Local Pi
+name: pi-ailo
+displayName: Pi Ailo
 description: >-
   Pi, pointed at a self-hosted OpenAI-compatible model server.
 
@@ -46,7 +46,7 @@ agentInstructions:
     switching per task.
 
     The last start, and whether the server answered, is in
-    `~/.local-pi-kit.log`.
+    `~/.pi-ailo-kit.log`.
 
 environment:
   variables:
@@ -70,11 +70,11 @@ setup:
   # Named by installed path rather than $HOME: a startup command is exec-style
   # argv, with no shell to expand a variable.
   install:
-    - command: "sh /home/agent/.local-pi-kit/install.sh"
+    - command: "sh /home/agent/.pi-ailo-kit/install.sh"
       user: "1000"
       description: Point npm at the sandbox proxy in ~/.npmrc, so pi's run-time npm use works in exec contexts that do not inherit the proxy environment
 
   startup:
-    - command: ["sh", "/home/agent/.local-pi-kit/startup.sh"]
+    - command: ["sh", "/home/agent/.pi-ailo-kit/startup.sh"]
       user: "1000"
       description: "Write ~/.pi/agent/models.json for the model server, with each model's context window, and check that the server answers"

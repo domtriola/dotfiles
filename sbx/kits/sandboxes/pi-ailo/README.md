@@ -1,4 +1,4 @@
-# local-pi
+# pi-ailo
 
 A sandbox kit for the [pi](https://pi.dev) coding agent, pointed at a
 self-hosted model server. There are no hosted models configured, and no API
@@ -25,7 +25,7 @@ printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
 Or supply it per run:
 
 ```console
-sbx run ./sbx/kits/sandboxes/local-pi --kit-arg modelHost=<host>
+sbx run ./sbx/kits/sandboxes/pi-ailo --kit-arg modelHost=<host>
 ```
 
 **Prefer a name to an address.** A name survives the address changing, and the
@@ -43,7 +43,7 @@ curl -fsS http://<host>:8080/v1/models
 ## Quick start
 
 ```console
-sbx run ./sbx/kits/sandboxes/local-pi --kit-arg modelHost=<host>
+sbx run ./sbx/kits/sandboxes/pi-ailo --kit-arg modelHost=<host>
 ```
 
 `sbx` refuses to create the sandbox when the argument is missing, so a
@@ -75,8 +75,8 @@ Both setup steps are scripts rather than commands inside `spec.yaml`:
 
 | Script | When | What |
 | ------ | ---- | ---- |
-| `files/home/.local-pi-kit/install.sh` | once, at create | Points npm at the sandbox proxy. |
-| `files/home/.local-pi-kit/startup.sh` | every start | Renders the pi configuration. |
+| `files/home/.pi-ailo-kit/install.sh` | once, at create | Points npm at the sandbox proxy. |
+| `files/home/.pi-ailo-kit/startup.sh` | every start | Renders the pi configuration. |
 
 They are copied into the agent's home at create time, so they can be read in a
 running sandbox as well as in this repository.
@@ -116,7 +116,7 @@ that is true, staying on one model beats switching per task.
 
 ## If the models do not answer
 
-Read `~/.local-pi-kit.log` in the sandbox. The startup hook records the server
+Read `~/.pi-ailo-kit.log` in the sandbox. The startup hook records the server
 it used, whether it answered, which ids it found, and the three things that can
 be wrong when it did not.
 
