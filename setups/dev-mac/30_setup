@@ -1,6 +1,27 @@
 #!/usr/bin/env bash
+#
+# Configures tools.
+#
+# Needs sudo for the Claude Code policy, so this script prompts for a password.
 
-set -x
+set -eox pipefail
 
-# Security scanning
-tirith setup claude-code --scope user
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+# Claude Code policy.
+#
+# Claude Code on this machine authenticates the sandbox. Agent work happens in
+# a Docker Sandbox, so the host copy needs no tools. The deny list is a glob in
+# the tool-name position, which matches every tool including any added by a
+# later release, and a bare tool name in a deny rule takes the tool out of the
+# model's context rather than prompting for it.
+#
+# Managed settings rank above user, project and --settings, so a session cannot
+# relax this. The file is read from a system directory on this machine only: a
+# sandbox is a separate VM and never sees it.
+#
+# Deleting the installed file restores an ordinary Claude Code.
+sudo mkdir -p "/Library/Application Support/ClaudeCode"
+sudo install -m 644 \
+  "$profile_dir/lib/managed-settings.json" \
+  "/Library/Application Support/ClaudeCode/managed-settings.json"
