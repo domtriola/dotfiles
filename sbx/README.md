@@ -29,16 +29,18 @@ Run `sbx-up` anywhere inside a project. The sandbox is named after the project
 directory and the checked-out branch, and any existing sandbox of that name is
 removed first, so every start begins from fresh state.
 
-Inside tmux it opens two windows:
+Inside tmux it opens an `sbx` window, which runs the agent.
 
-- `sbx`, which runs the agent.
-- `shell`, which holds a plain shell into the same sandbox
-  (`sbx exec -it <name> -- bash -l`), for editing files or running git commands
-  without going through the agent.
+A `--clone` sandbox gets a second window, `shell`, which holds a plain shell
+into the same sandbox (`sbx exec -it <name> -- bash -l`), for editing files or
+running git commands without going through the agent. It runs `sbx-wait` first,
+because the `dotfiles` kit configures the sandbox after it starts.
+
+A sandbox that shares the host worktree gets no `shell` window: its files are
+already on the host, where an ordinary window reaches them.
 
 Both window names carry the branch as a suffix, unless the branch is the
-default one. The shell window runs `sbx-wait` first, because the `dotfiles` kit
-configures the sandbox after it starts.
+default one.
 
 `sbx-up` also runs `./sync-skills` before it starts the sandbox, so the
 `agent-skills` kit ships the skills that are on disk at that moment.

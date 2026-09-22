@@ -32,7 +32,8 @@ tmux_open_agent() {
   tmux new-window -n "$window" "$launch"
 }
 
-# tmux_open_shell replaces this process with the shell window.
+# tmux_open_shell replaces this process with the shell window, which only a
+# --clone sandbox gets.
 #
 # `sbx run` is still creating the container, and the dotfiles kit then clones
 # and installs into it, so the window waits before it opens a shell. sbx-wait
@@ -64,7 +65,6 @@ fi
   #
   # A login shell, so ~/.bash_profile runs and the prompt and PATH match my
   # other machines.
-  # TODO: skip the shell window for non-clone sandboxes
   launch+="exec $(printf '%q ' sbx exec -it "$name" -- bash -l)"
 
   exec tmux new-window -n "$shell_window" "$launch"

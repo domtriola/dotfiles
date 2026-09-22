@@ -32,9 +32,11 @@ Starts a Docker sandbox for the current project in a new tmux window, named
 after the project directory and the checked-out branch. An existing sandbox of
 that name is removed first, so every start begins from fresh state.
 
-Inside tmux a second window opens a plain shell into the same sandbox, for
-editing files or running git commands without going through the agent. Outside
-tmux the sandbox runs in the current terminal and no shell window opens.
+A "clone" sandbox also gets a second window, holding a plain shell into the
+same sandbox, because the work done inside one only exists there. A sandbox
+that shares the host worktree gets no such window.
+
+Outside tmux the sandbox runs in the current terminal, and no window opens.
 
 Arguments:
   agent       A kit under sbx/kits/sandboxes, or a path to any kit. Overrides
@@ -54,7 +56,8 @@ optional:
             Default: agent-skills, dotfiles
   memory    the memory limit passed to `sbx run`.
             Default: 4g
-  clone     give the sandbox its own clone instead of the host worktree.
+  clone     give the sandbox its own clone instead of the host worktree,
+            and a shell window to reach it with.
             Default: false
 
 A kit value that holds a / is a path. Every other value names a kit in this
@@ -95,6 +98,18 @@ require_deps
 names_init
 config_load "$root" "$name" "$agent"
 
+# A sandbox that shares the host worktree needs no shell of its own, because
+# its files are already on this machine. A --clone sandbox holds the only copy
+# of the work done inside it, so it gets a window to reach it with.
+#
+# Resolved before anything is started, so a missing sbx-wait is reported while
+# the previous sandbox is still there.
+opens_shell="false"
+if [[ -n "${TMUX:-}" && "$is_clone" == "true" ]]; then
+  opens_shell="true"
+  find_wait_bin
+fi
+
 rebuild_skills
 remove_sandbox "$name"
 
@@ -102,7 +117,9 @@ if [[ -z "${TMUX:-}" ]]; then
   exec "${run[@]}"
 fi
 
-find_wait_bin
 tmux_clear_windows
 tmux_open_agent
-tmux_open_shell
+
+if [[ "$opens_shell" == "true" ]]; then
+  tmux_open_shell
+fi
