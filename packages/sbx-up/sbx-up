@@ -44,7 +44,7 @@ Arguments:
 
 Examples:
   sbx-up
-  sbx-up local-pi
+  sbx-up pi-ailo
   sbx-up ~/src/other-repo/kits/its-agent
 
 Per-project settings live in a .sbx.json at the project root. Every key is

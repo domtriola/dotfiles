@@ -5,7 +5,7 @@
 # Runs on every sandbox start, so everything here is idempotent.
 #
 # The engine does not stop a sandbox whose startup hook fails, so
-# ~/.local-pi-kit.log is the only place a failure can be read afterwards.
+# ~/.pi-ailo-kit.log is the only place a failure can be read afterwards.
 
 set -eu
 
@@ -17,8 +17,8 @@ models="${MODEL_IDS:-${{ kit.args.modelIds }}}"
 conf="$HOME/.pi/agent"
 mkdir -p "$conf"
 
-exec >"$HOME/.local-pi-kit.log" 2>&1
-echo "--- local-pi kit ---"
+exec >"$HOME/.pi-ailo-kit.log" 2>&1
+echo "--- pi-ailo kit ---"
 echo "baseUrl=$base_url"
 
 # node is not part of the kit tool floor. It comes from the image, which runs
@@ -164,4 +164,4 @@ EOF
   echo "  the first request loads it, which can take tens of seconds"
 fi
 
-echo "--- local-pi kit finished ---"
+echo "--- pi-ailo kit finished ---"
