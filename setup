@@ -90,11 +90,13 @@ run_script() {
 run_dir() {
   local dir="$1"
   local -a scripts
-  local script
+  local script line
   [[ -d "$dir" ]] || return 0
   log "--- $dir ---"
 
-  mapfile -t scripts < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+  scripts=()
+  while IFS= read -r line; do scripts+=("$line"); done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+
   for script in "${scripts[@]}"; do
     [[ -f "$script" && -x "$script" ]] || continue
     run_script "$script"

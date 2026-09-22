@@ -71,14 +71,18 @@ function recentmods() {
 # Language Setups
 ##################################
 
-# Go
-########################
-export PATH="$PATH:$HOME/go/bin"
-
 # JavaScript
 ########################
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+
+# pnpm
+export PNPM_HOME='/Users/dominicktriola/Library/pnpm'
+case ":$PATH:" in
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+esac
+# pnpm end
 
 ##################################
 # CLI Tools
@@ -90,6 +94,7 @@ else
   # Fedora
   [ -f /usr/share/autojump/autojump.zsh ] && . /usr/share/autojump/autojump.zsh
 fi
+
 # fzf fuzzy finder
 command -v fzf >/dev/null && source <(fzf --zsh)
 

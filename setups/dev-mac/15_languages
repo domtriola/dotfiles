@@ -1,21 +1,38 @@
 #!/usr/bin/env bash
+#
+# Language toolchains.
 
-set -x
+set -eox pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/brew.sh
+source "$profile_dir/lib/brew.sh"
 
 # Python
 # #######################################
 curl -LsSf https://astral.sh/uv/install.sh | sh
+"$HOME/.local/bin/uv" python install 3.14 --default
 
 # JavaScript
 # #######################################
-# Install nvm (null PROFILE prevents script from writing to shell config)
+# Install nvm (null PROFILE prevents script from writing to shell config).
+# Homebrew installs of nvm are unsupported upstream.
 PROFILE=/dev/null bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash'
 
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+
+# nvm.sh returns non-zero during an ordinary init, so it cannot be sourced
+# while errexit is on.
+set +e
+# shellcheck source=/dev/null
+. "$NVM_DIR/nvm.sh"
+set -e
 
 nvm install 24
 
-brew install node
-brew install go
-brew install elixir
+# pnpm
+npx --yes get-pnpm
+
+# Elixir
+# #######################################
+brew_install elixir

@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 
-set -x
+set -eox pipefail
 
 if xcode-select -p &>/dev/null && pkgutil --pkg-info=com.apple.pkg.CLTools_Executables &>/dev/null; then
   echo "Xcode Command Line Tools already installed. Skipping."
 else
   echo "Installing Xcode Command Line Tools..."
-  xcode-select --install
+  # Exits non-zero when a GUI install is already in flight.
+  xcode-select --install || true
 fi
 
 if command -v brew &>/dev/null; then
   echo "Homebrew already installed. Updating..."
-  brew update && brew upgrade && brew cleanup
+  # brew upgrade exits non-zero when there is nothing to do.
+  brew update || true
+  brew upgrade || true
+  brew cleanup || true
 else
   echo "Homebrew not found. Installing..."
+  # HEAD, so this runs whatever is on the install repo's default branch.
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi

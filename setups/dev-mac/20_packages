@@ -1,56 +1,93 @@
 #!/usr/bin/env bash
+#
+# Third party packages
+#
+# Trust a tap only if it is owned by the vendor of the software it ships.
 
-set -x
+set -eox pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+root_dir="$(cd "$profile_dir/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/brew.sh
+source "$profile_dir/lib/brew.sh"
+# shellcheck source=../../lib/prompt.sh
+source "$root_dir/lib/prompt.sh"
 
 # CLI tools
-# ##############
+# #######################################################
 
-brew install jq
-brew install fzf
-brew install tree
-brew install autojump
-brew install ripgrep
-brew install wget
-brew install parallel
-brew install cheat
-brew install httpie
+brew_install jq
+brew_install fzf
+brew_install tree
+brew_install autojump
+brew_install ripgrep
+brew_install wget
+brew_install cheat
+
+# https://www.gnu.org/software/coreutils/manual/html_node/index.html
+brew_install coreutils
+
+# GitHub
+brew_install gh
+
+# For API requests
+brew_install httpie
 
 # Example usage: `magick ./image.heic ./image.jpeg`
-brew install imagemagick
+brew_install imagemagick
 
-# For psql and other postgres tools
-brew install postgresql
+# Postgres client tools: psql, pg_dump, pg_restore, pgbench.
+#
+# Keg-only, because it conflicts with the postgresql formula, so the link is
+# what puts psql on PATH.
+brew_install libpq
+brew link --force --overwrite libpq
 
 # Development Environment
-# ##########################
+# #######################################################
 
-brew install neovim
-brew install --cask ghostty
-brew install tmux
+brew_install neovim
+brew_install --cask ghostty
+brew_install tmux
+
+# Starship terminal prompt
+if ! command -v starship &>/dev/null || confirm "Update starship?"; then
+  curl -sS https://starship.rs/install.sh | sh -s -- --yes
+else
+  echo "Keeping the installed starship."
+fi
 
 # AI
-# ##############
+# #######################################################
 
-brew install --cask claude-code
-brew install copilot-cli
-
-# Local models
-brew install ollama
+brew_install --cask claude-code
 
 # Sandboxing
-brew install docker/tap/sbx
-
-# Terminal command security
-brew install sheeki03/tap/tirith
+brew_trust docker/tap
+brew_install docker/tap/sbx
 
 # Desktop Management
-# ####################
+# #######################################################
 
 # For automating macOS with Lua scripts
-brew install hammerspoon --cask
+brew_install --cask hammerspoon
 
 # Network Management
-# ####################
+# #######################################################
 
-brew install netbirdio/tap/netbird
-brew install --cask netbirdio/tap/netbird-ui
+# Installs a root daemon and a VPN interface.
+brew_trust netbirdio/tap
+brew_install netbirdio/tap/netbird
+brew_install --cask netbirdio/tap/netbird-ui
+
+# InfoSec
+# #######################################################
+
+# Privacy Guard
+# https://gnupg.org/documentation/manuals/gnupg/
+# gpg --help
+brew_install gnupg
+
+# Terminal command security
+brew_trust sheeki03/tap
+brew_install sheeki03/tap/tirith
