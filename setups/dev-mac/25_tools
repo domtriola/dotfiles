@@ -3,7 +3,7 @@
 # Tools installed from their own installers rather than from Homebrew.
 # Runs after 15_languages, because the pi agent needs npm.
 
-set -x
+set -eox pipefail
 
 # Terminal Prompt
 curl -sS https://starship.rs/install.sh | sh
