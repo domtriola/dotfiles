@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 #
-# Usage: sbx-wait [--dotfiles] [--timeout <seconds>] <name>
+# sbx-wait [--dotfiles] [--timeout <seconds>] <name>
 #
 # Waits for a Docker Sandbox to become usable, and says what it is waiting for
-# while it does. Called by `sbx-up` before it opens its shell window, so that
-# shell starts on a sandbox that is already configured.
+# while it does. It is in libexec/ because the shell window is a process tmux
+# starts, so this is run rather than sourced.
+#
+# It runs first in that window, so the shell starts on a sandbox that is
+# already configured.
 #
 # There are two stages:
 #

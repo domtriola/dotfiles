@@ -7,6 +7,10 @@ die() {
   exit 1
 }
 
+# This package's own directory. Only the entry point is ever symlinked, so the
+# path of this file needs no resolving.
+sbx_up_pkg="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+
 # The checkout that holds the kits and ./sync-skills.
 sbx_up_dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
 
@@ -21,16 +25,9 @@ require_deps() {
   done
 }
 
-# find_wait_bin sets wait_bin to an absolute path. The shell window runs
-# sbx-wait through tmux, which does not necessarily inherit this shell's PATH.
+# find_wait_bin sets wait_bin to an absolute path, because tmux starts the
+# shell window without necessarily inheriting this shell's PATH.
 find_wait_bin() {
-  local fallback="$sbx_up_dotfiles/env/.local/bin/sbx-wait"
-
-  wait_bin="$(command -v sbx-wait 2>/dev/null || true)"
-
-  if [[ -z "$wait_bin" && -x "$fallback" ]]; then
-    wait_bin="$fallback"
-  fi
-
-  [[ -n "$wait_bin" ]] || die "sbx-wait is not installed; run ./sync-env"
+  wait_bin="$sbx_up_pkg/libexec/sbx-wait"
+  [[ -x "$wait_bin" ]] || die "$wait_bin is missing; run ./sync-env"
 }

@@ -40,12 +40,14 @@ looks inside.
 ## Packages
 
 A command that outgrows one file becomes a package under `packages/`: an entry
-point, and a `lib/` of one file per step that the entry point sources.
+point, a `lib/` of one file per step that the entry point sources, and a
+`libexec/` for a helper that another process runs instead.
 
 ```text
 packages/sbx-up/
   sbx-up     # the entry point, and the whole of what a reader has to know
-  lib/       # one file per step
+  lib/       # one file per step, sourced
+  libexec/   # helpers that are run rather than sourced
 ```
 
 The `package` directive in a manifest installs one. The tree goes to
