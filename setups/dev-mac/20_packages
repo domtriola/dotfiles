@@ -70,8 +70,13 @@ brew_trust netbirdio/tap
 brew_install netbirdio/tap/netbird
 brew_install --cask netbirdio/tap/netbird-ui
 
-# Security
+# InfoSec
 # #######################################################
+
+# Privacy Guard
+# https://gnupg.org/documentation/manuals/gnupg/
+# gpg --help
+brew_install gnupg
 
 # Terminal command security
 brew_trust sheeki03/tap
