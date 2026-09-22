@@ -21,6 +21,9 @@ brew_install ripgrep
 brew_install wget
 brew_install cheat
 
+# https://www.gnu.org/software/coreutils/manual/html_node/index.html
+brew_install coreutils
+
 # For API requests
 brew_install httpie
 
