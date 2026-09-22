@@ -47,6 +47,9 @@ brew_install neovim
 brew_install --cask ghostty
 brew_install tmux
 
+# Terminal Prompt
+curl -sS https://starship.rs/install.sh | sh
+
 # AI
 # #######################################################
 
