@@ -31,35 +31,6 @@ set -e
 
 nvm install 24
 
-# Go
-# #######################################
-# go.dev publishes only the .pkg installer. The Homebrew formula is
-# community-maintained.
-
-if [[ "$(uname -m)" == "arm64" ]]; then
-  go_arch="arm64"
-else
-  go_arch="amd64"
-fi
-
-go_version="$(curl -fsSL 'https://go.dev/VERSION?m=text' | head -1)"
-
-if [[ "$(go version 2>/dev/null | awk '{print $3}')" == "$go_version" ]]; then
-  echo "Already installed: $go_version"
-else
-  go_pkg="${go_version}.darwin-${go_arch}.pkg"
-  go_tmp="$(mktemp -d)"
-  trap 'rm -rf "$go_tmp"' EXIT
-
-  curl -fsSL -o "$go_tmp/$go_pkg" "https://go.dev/dl/${go_pkg}"
-
-  # The certificate common name moves between "Google, Inc." and "Google LLC",
-  # so the Apple Team ID is the stable thing to match.
-  pkgutil --check-signature "$go_tmp/$go_pkg" | grep -q 'EQHXZ8M8AV'
-
-  sudo installer -pkg "$go_tmp/$go_pkg" -target /
-fi
-
 # Elixir
 # #######################################
 brew_install elixir
