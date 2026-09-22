@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "deny": ["*"],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "allowManagedPermissionRulesOnly": true
+}
