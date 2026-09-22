@@ -94,7 +94,6 @@ run_dir() {
   [[ -d "$dir" ]] || return 0
   log "--- $dir ---"
 
-  # `mapfile` is bash 4, so this stays a read loop for macOS's bash 3.2.
   scripts=()
   while IFS= read -r line; do scripts+=("$line"); done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
 
