@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# What the sandbox is made of: the defaults here, the project's .sbx.json over
+# them, and the agent named on the command line over both.
+
+sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g", "clone": false}'
+
+# config_load resolves the settings for one sandbox and sets three globals:
+#
+#   run             the `sbx` command line, as an array
+#   is_clone        "true" when the sandbox holds its own clone of the project
+#   uses_dotfiles   "true" when the dotfiles kit configures this sandbox
+config_load() {
+  local root="$1" name="$2" agent="$3"
+  local config="$root/.sbx.json" given override plan arg spec
+
+  given="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
+
+  override='{}'
+  if [[ -n "$agent" ]]; then
+    override="$(jq -n --arg agent "$agent" '{agent: $agent}')"
+  fi
+
+  # One pass: the three sources merged, and everything this reads off the
+  # result. A setting of the wrong shape, such as a "kits" that is not a list,
+  # fails here rather than part way through the answers.
+  if ! plan="$(jq \
+    --arg dotfiles "$sbx_up_dotfiles" \
+    --arg name "$name" \
+    --argjson defaults "$sbx_up_defaults" \
+    --argjson override "$override" '
+    def kit($kind):
+      if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
+
+    ($defaults * . * $override)
+    | {
+        args: (
+          ["run", (.agent | kit("sandboxes")), "--name", $name, "--memory", .memory]
+          + (if .clone then ["--clone"] else [] end)
+          + (.kits | map("--kit", kit("mixins")))
+        ),
+        clone: (.clone == true),
+        dotfiles: (.kits | any(test("(^|/)dotfiles$"))),
+        spec: ((.agent | kit("sandboxes")) + "/spec.yaml")
+      }
+  ' <<<"$given")"; then
+    die "could not read $config"
+  fi
+
+  run=(sbx)
+  while IFS= read -r arg; do
+    run+=("$arg")
+  done < <(jq -r '.args[]' <<<"$plan")
+
+  is_clone="$(jq -r '.clone' <<<"$plan")"
+  uses_dotfiles="$(jq -r '.dotfiles' <<<"$plan")"
+
+  # `sbx` rejects an argument that no resolved kit declares, so the file is
+  # passed only to an agent kit that asks for one. The check reads the kit's
+  # spec, so a kit named by a URL or a zip is left alone and takes --kit-arg
+  # by hand.
+  spec="$(jq -r '.spec' <<<"$plan")"
+  if [[ -f "$sbx_up_kit_args_file" && -f "$spec" ]] && grep -q '^args:' "$spec"; then
+    run+=(--kit-args-file "$sbx_up_kit_args_file")
+  fi
+}

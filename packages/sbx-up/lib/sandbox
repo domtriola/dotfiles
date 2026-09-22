@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# What happens to the machine before a sandbox starts.
+
+# The agent-skills kit ships a payload that ./sync-skills generates from
+# env/.agents/, and which is gitignored rather than committed. A failure is a
+# warning, not a stop: a stale skill set beats no sandbox.
+rebuild_skills() {
+  local out
+
+  [[ -x "$sbx_up_dotfiles/sync-skills" ]] || return 0
+
+  if ! out="$("$sbx_up_dotfiles/sync-skills" 2>&1)"; then
+    printf 'sbx-up: sync-skills failed, the sandbox may have stale skills:\n%s\n' \
+      "$out" >&2
+  fi
+}
+
+# --force skips the confirmation prompt and removes a sandbox that is in use;
+# closing stdin keeps any future prompt from hanging the script. A missing
+# sandbox is the common case and not worth reporting; anything else is.
+remove_sandbox() {
+  local name="$1" out
+
+  if ! out="$(sbx rm --force "$name" </dev/null 2>&1)"; then
+    if ! grep -qiE 'not found|no such|does not exist|unknown' <<<"$out"; then
+      printf 'sbx-up: could not remove the existing %s sandbox, continuing anyway:\n%s\n' \
+        "$name" "$out" >&2
+    fi
+  fi
+}
