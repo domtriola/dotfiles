@@ -60,6 +60,9 @@ config_load() {
   # spec, so a kit named by a URL or a zip is left alone and takes --kit-arg
   # by hand.
   spec="$(jq -r '.spec' <<<"$plan")"
+  if [[ ! -d "$(dirname "$spec")" ]]; then
+    die "agent kit not found: $spec"
+  fi
   if [[ -f "$sbx_up_kit_args_file" && -f "$spec" ]] && grep -q '^args:' "$spec"; then
     run+=(--kit-args-file "$sbx_up_kit_args_file")
   fi
