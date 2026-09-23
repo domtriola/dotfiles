@@ -1,11 +1,4 @@
 ##################################
-# Security
-##################################
-# Terminal command filter
-command -v tirith >/dev/null && eval "$(tirith init --shell zsh)"
-
-
-##################################
 # CLI Defaults
 ##################################
 

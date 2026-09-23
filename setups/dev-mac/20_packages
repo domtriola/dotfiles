@@ -87,7 +87,3 @@ brew_install --cask netbirdio/tap/netbird-ui
 # https://gnupg.org/documentation/manuals/gnupg/
 # gpg --help
 brew_install gnupg
-
-# Terminal command security
-brew_trust sheeki03/tap
-brew_install sheeki03/tap/tirith
