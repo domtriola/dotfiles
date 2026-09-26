@@ -256,4 +256,4 @@ address, so it stops answering on `127.0.0.1` afterwards. Test it at the
 address the script prints.
 
 Run `./packages/sync-env/sync-env` to pull environment configs. It also puts
-`setup`, `sync-env` and `doctor` on PATH, so later runs need no path.
+the commands that `env.manifest` lists on PATH, so later runs need no path.

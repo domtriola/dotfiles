@@ -41,8 +41,7 @@
 
 set -eo pipefail
 
-# The checkout this works on: the one that holds this file, else the one that
-# sync-env last installed from. $DOTFILES_DIR overrides both.
+# Lookup order: packages/README.md, "Finding the checkout".
 dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
 [[ -d "$dotfiles_dir/setups" ]] ||
   dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"

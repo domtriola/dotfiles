@@ -49,5 +49,4 @@ this order:
 3. The path in `~/.config/dotfiles/checkout`. `sync-env` writes it on every
    real run, so it names the checkout that the installed copies came from.
 
-`sbx-up` reads `$SBX_UP_DOTFILES` instead, and uses `~/src/personal/dotfiles`
-when it is not set.
+`sbx-up` finds the checkout in a different way. See `sbx-up --help`.

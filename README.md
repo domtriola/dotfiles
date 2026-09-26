@@ -12,6 +12,7 @@ Environment configurations for quick set-up of a new machine.
    1. `./packages/sync-env/sync-env --profile <name>`
    2. `./packages/setup/setup`
 1. Open a new shell. The commands are now on PATH, so later runs need no path.
+1. Run `doctor` to verify final system state
 
 ## Updates
 
@@ -32,15 +33,7 @@ Run `setup` after a change to anything in `setups/<profile>/`.
 
 ## Commands
 
-The commands I run most often. [packages/README.md](packages/README.md) lists
-all of them.
-
-| Command    | What it does                                                              |
-| ---------- | ------------------------------------------------------------------------- |
-| `setup`    | Runs the scripts in `setups/<profile>/`, in filename order.               |
-| `sync-env` | Copies the files that `setups/<profile>/env.manifest` lists into `$HOME`. |
-| `doctor`   | Reports whether this machine matches what its profile intends.            |
-| `sbx-up`   | Starts a Docker sandbox for the current project.                          |
+[packages/README.md](packages/README.md) describes every command.
 
 ## Profiles
 
