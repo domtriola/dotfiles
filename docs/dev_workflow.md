@@ -13,7 +13,7 @@ Keep workflow reminders in `cheat workflow`. To edit them: `cheat -e workflow`.
 
 ## Scripts
 
-These work together. `./sync-env` copies the executables into `~/.local/bin`;
+These work together. `sync-env` copies the executables into `~/.local/bin`;
 `.ready-tmux` is a file a project holds.
 
 | Script             | What it does                                                                      |

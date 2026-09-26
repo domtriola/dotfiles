@@ -3,7 +3,7 @@
 # The machine's own settings: what it is set to, and changing it.
 #
 # Every tunable is a key in /etc/ai-server/config.env. Setting one writes the
-# file and re-runs the step that applies it, so a later ./setup never undoes
+# file and re-runs the step that applies it, so a later setup never undoes
 # the change and there is one path that touches the machine.
 #
 # Models are not here. Their settings are per model and live in ai-model.
@@ -37,7 +37,7 @@ for candidate in "$pkg/config.sh" "$pkg/../../lib/config.sh"; do
 done
 
 [[ -n "${ai_server_config:-}" ]] ||
-  die "the settings reader is missing. Reinstall with ./setup 30_tools."
+  die "the settings reader is missing. Reinstall with setup 30_tools."
 
 for f in "$pkg"/lib/*; do
   [[ -f "$f" ]] || continue

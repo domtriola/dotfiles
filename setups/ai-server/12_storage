@@ -87,7 +87,7 @@ no | false | 0)
   ;;
 *)
   echo "12_storage: \$AI_SERVER_EXTEND_LV is '$AI_SERVER_EXTEND_LV'. Use yes or no." >&2
-  echo "  Change it with: ./setup 00_preflight" >&2
+  echo "  Change it with: setup 00_preflight" >&2
   exit 1
   ;;
 esac

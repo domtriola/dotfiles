@@ -7,7 +7,7 @@ description: >-
   to whichever coding agent is running.
 
 setup:
-  # The payload at ~/skills comes from files/home/skills, which ./sync-skills
+  # The payload at ~/skills comes from files/home/skills, which sync-skills
   # generates from env/.agents/ on the host.
   #
   # The copy into the agent directories runs in `install`, not `startup`,
@@ -25,12 +25,12 @@ setup:
         [ -n "$home" ] || home=/home/agent
         src="$home/skills"
 
-        # sbx-up runs ./sync-skills before it starts a sandbox, so a missing
+        # sbx-up runs sync-skills before it starts a sandbox, so a missing
         # payload means the sandbox was started another way. Say so and let the
         # sandbox come up without skills, rather than failing the build.
         if [ ! -d "$src" ]; then
           echo "agent-skills: no payload at $src." >&2
-          echo "agent-skills: run ./sync-skills in the dotfiles repo, then start again." >&2
+          echo "agent-skills: run sync-skills in the dotfiles repo, then start again." >&2
           exit 0
         fi
 

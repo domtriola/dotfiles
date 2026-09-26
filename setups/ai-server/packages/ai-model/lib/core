@@ -53,21 +53,21 @@ apply() {
 
 ai-model: the setting is saved, but the configuration was not rebuilt.
 
-AI_SERVER_DOTFILES_DIR is not set, so there is no ./setup to run. Answer it
-once with ./setup 00_preflight, or rebuild by hand from a checkout:
+AI_SERVER_DOTFILES_DIR is not set, so there is no setup to run. Answer it
+once with setup 00_preflight, or rebuild by hand from a checkout:
 
-  ./setup 20_llama
+  setup 20_llama
 EOF
     return 1
   fi
 
-  if [[ ! -x "$dir/setup" ]]; then
-    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no ./setup. Run ./setup 00_preflight from a checkout."
+  if [[ ! -x "$dir/packages/setup/setup" ]]; then
+    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no packages/setup/setup. Run setup 00_preflight from a checkout."
   fi
 
   echo
   echo "--- rebuilding the model server configuration ---"
-  (cd "$dir" && ./setup 20_llama)
+  "$dir/packages/setup/setup" 20_llama
 }
 
 # The models directory has to be readable before anything else is worth trying.
@@ -94,7 +94,7 @@ $probe is not traversable:
 
 $(ls -ld "$probe" 2>/dev/null)
 
-Running ./setup on this machine sets the modes it expects, which is the safe
+Running setup on this machine sets the modes it expects, which is the safe
 way to fix this. Opening it by hand means naming the directory deliberately
 rather than pasting whatever was found above:
 
@@ -103,5 +103,5 @@ EOF
     exit 1
   fi
 
-  die "$models_dir does not exist. Run ./setup on this machine first."
+  die "$models_dir does not exist. Run setup on this machine first."
 }

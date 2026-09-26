@@ -43,7 +43,7 @@ pt)
   ;;
 *)
   echo "15_gpu: \$AI_SERVER_IOMMU is '$AI_SERVER_IOMMU'. Use 'off' or 'pt'." >&2
-  echo "  Change it with: ./setup 00_preflight" >&2
+  echo "  Change it with: setup 00_preflight" >&2
   exit 1
   ;;
 esac

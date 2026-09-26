@@ -2,15 +2,15 @@
 #
 # What happens to the machine before a sandbox starts.
 
-# The agent-skills kit ships a payload that ./sync-skills generates from
+# The agent-skills kit ships a payload that sync-skills generates from
 # env/.agents/, and which is gitignored rather than committed. A failure is a
 # warning, not a stop: a stale skill set beats no sandbox.
 rebuild_skills() {
   local out
 
-  [[ -x "$sbx_up_dotfiles/sync-skills" ]] || return 0
+  [[ -x "$sbx_up_dotfiles/packages/sync-skills/sync-skills" ]] || return 0
 
-  if ! out="$("$sbx_up_dotfiles/sync-skills" 2>&1)"; then
+  if ! out="$("$sbx_up_dotfiles/packages/sync-skills/sync-skills" 2>&1)"; then
     printf 'sbx-up: sync-skills failed, the sandbox may have stale skills:\n%s\n' \
       "$out" >&2
   fi

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: ./sync-skills [--dry]
+# Usage: sync-skills [--dry]
 #
 # Copies the skills in ./env/.agents/ into the agent-skills kit, which is how
 # they reach a sandbox. The copy is generated and gitignored: the kit is loaded
@@ -13,7 +13,7 @@
 # Two sources, in order, so that a local copy shadows a tracked skill of the
 # same name:
 #
-#   env/.agents/skills/        tracked: written here, or vendored by ./pull-skills
+#   env/.agents/skills/        tracked: written here, or vendored by pull-skills
 #   env/.agents/skills-local/  untracked scratch
 #
 # A directory is a skill only if it holds a SKILL.md.
@@ -34,10 +34,19 @@
 
 set -eo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-tracked="$script_dir/env/.agents/skills"
-local_skills="$script_dir/env/.agents/skills-local"
-kit_home="$script_dir/sbx/kits/mixins/agent-skills/files/home"
+# The checkout this works on: the one that holds this file, else the one that
+# sync-env last installed from. $DOTFILES_DIR overrides both.
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+[[ -d "$dotfiles_dir/setups" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ ! -d "$dotfiles_dir/setups" ]]; then
+  echo "sync-skills: no dotfiles checkout found. Run sync-env from one, or set \$DOTFILES_DIR." >&2
+  exit 1
+fi
+tracked="$dotfiles_dir/env/.agents/skills"
+local_skills="$dotfiles_dir/env/.agents/skills-local"
+kit_home="$dotfiles_dir/sbx/kits/mixins/agent-skills/files/home"
 
 LAYOUT="${SKILLS_LAYOUT:-hooks}"
 

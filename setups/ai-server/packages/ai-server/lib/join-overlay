@@ -14,9 +14,9 @@ cmd_join_overlay() {
   local key dir="${AI_SERVER_DOTFILES_DIR:-}"
 
   [[ -n "$dir" ]] ||
-    die "AI_SERVER_DOTFILES_DIR is not set. Run ./setup 00_preflight from a checkout first."
-  [[ -x "$dir/setup" ]] ||
-    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no ./setup."
+    die "AI_SERVER_DOTFILES_DIR is not set. Run setup 00_preflight from a checkout first."
+  [[ -x "$dir/packages/setup/setup" ]] ||
+    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no packages/setup/setup."
 
   if command -v netbird >/dev/null 2>&1 &&
     netbird status --json 2>/dev/null | grep -q '"connected": *true'; then
@@ -24,7 +24,7 @@ cmd_join_overlay() {
 This machine is already on the overlay.
 
   netbird status --detail    what it is connected to
-  ./doctor                   how the rest of the machine reads it
+  doctor                   how the rest of the machine reads it
 EOF
     return 0
   fi
@@ -45,5 +45,5 @@ EOF
   [[ -n "$key" ]] || die "no key given, nothing was changed."
 
   echo
-  NETBIRD_SETUP_KEY="$key" "$dir/setup" 25_network
+  NETBIRD_SETUP_KEY="$key" "$dir/packages/setup/setup" 25_network
 }

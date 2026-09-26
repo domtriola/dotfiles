@@ -1,7 +1,7 @@
-# Checks for the ai-server profile. Sourced by ./doctor, which supplies
+# Checks for the ai-server profile. Sourced by doctor, which supplies
 # section, ok, warn, fail, pending and have.
 #
-# Lives under lib/ because it is not a setup step. ./setup only runs files
+# Lives under lib/ because it is not a setup step. setup only runs files
 # directly inside the profile directory and never looks into lib/.
 #
 # Each check reports what it found rather than only whether it passed, because
@@ -286,7 +286,7 @@ done
 
 # Models are counted two ways, because the two can disagree. The configuration
 # is what llama-swap serves. The directory is what is on disk. A file added
-# without a later ./setup shows up here rather than being silently unserved.
+# without a later setup shows up here rather than being silently unserved.
 # An unreadable models directory reports the same as an empty one, so it is
 # checked before anything is counted. A home made by `useradd --create-home`
 # gets HOME_MODE from /etc/login.defs, which is 0700 or 0750 on Ubuntu, and
@@ -360,7 +360,7 @@ if [[ -f "$swap_config" ]]; then
   elif [[ "$configured_count" -eq "$gguf_count" ]]; then
     ok "models" "$configured_count configured"
   else
-    warn "models" "$gguf_count file(s) in $models_dir, $configured_count configured, run ./setup"
+    warn "models" "$gguf_count file(s) in $models_dir, $configured_count configured, run setup"
   fi
 else
   pending "llama-swap config" "not written"
@@ -495,7 +495,7 @@ if have netbird; then
     warn "netbird" "installed but not connected"
   fi
 else
-  pending "netbird" "not installed, run ./setup 25_network"
+  pending "netbird" "not installed, run setup 25_network"
 fi
 
 overlay_ip=""
@@ -591,7 +591,7 @@ llama_pinned="$(pin_from_20_llama llama_build)"
 swap_pinned="$(pin_from_20_llama swap_version)"
 
 # What is on disk, which is the version actually serving requests. It can
-# differ from the pin when the pin moved and ./setup has not run since.
+# differ from the pin when the pin moved and setup has not run since.
 llama_installed=""
 [[ -L /opt/llama.cpp/current ]] &&
   llama_installed="$(basename "$(readlink -f /opt/llama.cpp/current)")"
@@ -600,13 +600,13 @@ swap_installed=""
 [[ -L /opt/llama-swap/current ]] &&
   swap_installed="$(basename "$(readlink -f /opt/llama-swap/current)")"
 
-# Pin against installed. A difference here is fixed by running ./setup, and
+# Pin against installed. A difference here is fixed by running setup, and
 # needs no network, so it is reported before the upstream comparison.
 if [[ -n "$llama_installed" && -n "$llama_pinned" && "$llama_installed" != "$llama_pinned" ]]; then
-  warn "llama.cpp pin" "20_llama pins $llama_pinned, $llama_installed installed, run ./setup"
+  warn "llama.cpp pin" "20_llama pins $llama_pinned, $llama_installed installed, run setup"
 fi
 if [[ -n "$swap_installed" && -n "$swap_pinned" && "$swap_installed" != "$swap_pinned" ]]; then
-  warn "llama-swap pin" "20_llama pins $swap_pinned, $swap_installed installed, run ./setup"
+  warn "llama-swap pin" "20_llama pins $swap_pinned, $swap_installed installed, run setup"
 fi
 
 # Installed against upstream. A warning here is a decision to make, not a
@@ -650,7 +650,7 @@ if [[ -r "$ai_server_pkg/lib/keys" ]]; then
   printf '  %-7s %-34s %s\n' "" "" "ai-server set <name> <value>"
   echo
 else
-  pending "machine settings" "the ai-server package is missing, run ./setup 30_tools"
+  pending "machine settings" "the ai-server package is missing, run setup 30_tools"
 fi
 
 # Per-model context and cache. A model is only listed when it is on disk: an

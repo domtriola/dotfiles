@@ -10,10 +10,10 @@ sbx run claude --kit ./sbx/kits/mixins/agent-skills
 ## How skills get in
 
 `env/.agents/skills/` is the one source of truth for every machine. Skills are
-authored there, on the host, or vendored there by `./pull-skills`. See
+authored there, on the host, or vendored there by `pull-skills`. See
 [Agent skills](../../../../README.md#agent-skills) in the root README.
 
-`./sync-skills` copies them into this kit's `files/` tree, and `sbx-up` runs it
+`sync-skills` copies them into this kit's `files/` tree, and `sbx-up` runs it
 before it starts a sandbox. The payload is generated and gitignored: the kit is
 loaded from this working tree, so there is nothing to commit and nothing that
 can drift.
@@ -27,8 +27,8 @@ why the two hooks differ.
 ## Local, untracked skills
 
 `env/.agents/skills-local/` is a scratch area whose contents are ignored by git.
-Drop a skill in and it is picked up on the next `./sync-skills`, in `$HOME` on
-the next `./sync-env`, and in the sandbox on the next start:
+Drop a skill in and it is picked up on the next `sync-skills`, in `$HOME` on
+the next `sync-env`, and in the sandbox on the next start:
 
 ```console
 cp -R ../some-repo/skills/thing env/.agents/skills-local/
@@ -40,7 +40,7 @@ skill shadows it. To promote one, move it into `env/.agents/skills/` and commit.
 ## Starting a sandbox without sbx-up
 
 The payload is built ahead of time, so a bare `sbx run` ships whatever
-`./sync-skills` wrote last. Run it by hand after editing a skill.
+`sync-skills` wrote last. Run it by hand after editing a skill.
 
 If the payload is missing entirely, the sandbox still comes up, with no skills
 and a note in the log. To check what arrived:

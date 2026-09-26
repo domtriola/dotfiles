@@ -11,7 +11,7 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 
 ## Commands
 
-`./sync-env` installs two commands into `~/.local/bin` for the `dev-mac` and
+`sync-env` installs two commands into `~/.local/bin` for the `dev-mac` and
 `dev-linux` profiles.
 
 | Command    | What it does                                         | Reference          |
@@ -43,7 +43,7 @@ already on the host, where an ordinary window reaches them.
 Both window names carry the branch as a suffix, unless the branch is the
 default one.
 
-`sbx-up` also runs `./sync-skills` before it starts the sandbox, so the
+`sbx-up` also runs `sync-skills` before it starts the sandbox, so the
 `agent-skills` kit ships the skills that are on disk at that moment.
 
 Outside tmux, `sbx-up` runs the sandbox in the current terminal and opens no

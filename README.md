@@ -8,63 +8,45 @@ Environment configurations for quick set-up of a new machine.
 1. Clone these dotfiles:
    `cd ~/src/personal && git clone git@github.com:domtriola/dotfiles.git && cd dotfiles`
 1. Perform steps if any in `setups/<profile>/bootstrap.md`
-1. Run the setup tools, naming the profile the first time:
-   1. `./sync-env --profile <name>`
-   2. `./setup`
+1. Run the setup tools from the checkout, naming the profile the first time:
+   1. `./packages/sync-env/sync-env --profile <name>`
+   2. `./packages/setup/setup`
+1. Open a new shell. The commands are now on PATH, so later runs need no path.
 
 ## Updates
 
-Run `./sync-env` after a change to anything in `env/` or `packages/`. A new file, directory or package also needs a line in the `env.manifest` of every profile that wants it.
+Run `sync-env` after a change to anything in `env/` or `packages/`. A new file, directory or package also needs a line in the `env.manifest` of every profile that wants it.
 
-Run `./setup` after a change to anything in `setups/<profile>/`.
+Run `setup` after a change to anything in `setups/<profile>/`.
 
 ## Layout
 
 | Path        | Contents                                                      |
 | ----------- | ------------------------------------------------------------- |
 | `env/`      | The files that are copied into `$HOME`.                       |
-| `packages/` | Scripts as deep modules. See [Packages](#packages).           |
+| `packages/` | The commands. See [packages/README.md](packages/README.md).   |
 | `setups/`   | One directory per profile, holding its scripts and manifest.  |
-| `lib/`      | Shell functions the top-level scripts share.                  |
+| `lib/`      | Shell functions the commands share.                           |
 | `sbx/`      | Docker Sandbox kits. See [sbx/README.md](sbx/README.md).      |
 | `docs/`     | Notes and reminders. See [Further reading](#further-reading). |
 
-## Scripts
+## Commands
 
-| Script          | What it does                                                              |
-| --------------- | ------------------------------------------------------------------------- |
-| `./setup`       | Runs the scripts in `setups/<profile>/`, in filename order.               |
-| `./sync-env`    | Copies the files that `setups/<profile>/env.manifest` lists into `$HOME`. |
-| `./pull-skills` | Vendors third-party agent skills into `env/.agents/skills/`.              |
-| `./sync-skills` | Copies the agent skills into the `agent-skills` kit.                      |
-| `./pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                     |
-| `./doctor`      | Reports whether this machine matches what its profile intends.            |
+The commands I run most often. [packages/README.md](packages/README.md) lists
+all of them.
 
-## Packages
-
-A command that outgrows one file becomes a package under `packages/`: an entry
-point, a `lib/` of one file per step that the entry point sources, and a
-`libexec/` for a helper that another process runs instead.
-
-```text
-packages/sbx-up/
-  sbx-up     # the entry point, and the whole of what a reader has to know
-  lib/       # one file per step, sourced
-  libexec/   # helpers that are run rather than sourced
-```
-
-The `package` directive in a manifest installs one. The tree goes to
-`~/.local/lib/<name>`, and `~/.local/bin/<name>` becomes a symlink to the entry
-point, which resolves that symlink to find its own `lib/`.
-
-A command that still fits in one file lives in `env/.local/bin` instead, and is
-copied with the `file` directive.
+| Command    | What it does                                                              |
+| ---------- | ------------------------------------------------------------------------- |
+| `setup`    | Runs the scripts in `setups/<profile>/`, in filename order.               |
+| `sync-env` | Copies the files that `setups/<profile>/env.manifest` lists into `$HOME`. |
+| `doctor`   | Reports whether this machine matches what its profile intends.            |
+| `sbx-up`   | Starts a Docker sandbox for the current project.                          |
 
 ## Profiles
 
 Every machine has a profile. A profile names what the machine is **for**, not
-only which operating system it runs on. It decides which scripts `./setup` runs
-and which files `./sync-env` copies.
+only which operating system it runs on. It decides which scripts `setup` runs
+and which files `sync-env` copies.
 
 | Profile         | Machine                                      |
 | --------------- | -------------------------------------------- |
@@ -78,16 +60,16 @@ Each profile owns a directory under `setups/`:
 
 ```text
 setups/<profile>/
-  env.manifest    # what ./sync-env copies
+  env.manifest    # what sync-env copies
   bootstrap.md    # steps done by hand, if the profile has any
-  00_bootstrap    # what ./setup runs, in filename order
+  00_bootstrap    # what setup runs, in filename order
   10_settings
   ...
   lib/            # code that is not a setup step
-    doctor.sh     # the checks ./doctor runs, if the profile has any
+    doctor.sh     # the checks doctor runs, if the profile has any
 ```
 
-`./setup` never looks inside `lib/`, and skips files that are not executable.
+`setup` never looks inside `lib/`, and skips files that are not executable.
 
 Profiles share no scripts. The same tool can appear in more than one profile,
 and that duplication is deliberate: every machine installs what its use-case
@@ -102,7 +84,7 @@ needs, and nothing else.
   somewhere disposable:
 
   ```console
-  mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./sync-env
+  mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./packages/sync-env/sync-env
   ```
 
 ## Agent skills
@@ -110,13 +92,13 @@ needs, and nothing else.
 `env/.agents/skills/` is the one source of truth for agent skills. Skills are
 authored there, on the host. These scripts move them:
 
-| Script          | Where the skills go                                                          |
-| --------------- | ---------------------------------------------------------------------------- |
-| `./pull-skills` | Into `env/.agents/skills/`, from the upstreams in `env/.agents/skills.json`. |
-| `./sync-env`    | Into `~/.claude/skills` and `~/.agents/skills`.                              |
-| `./sync-skills` | Into the `agent-skills` kit, for sandboxes.                                  |
+| Command       | Where the skills go                                                          |
+| ------------- | ---------------------------------------------------------------------------- |
+| `pull-skills` | Into `env/.agents/skills/`, from the upstreams in `env/.agents/skills.json`. |
+| `sync-env`    | Into `~/.claude/skills` and `~/.agents/skills`.                              |
+| `sync-skills` | Into the `agent-skills` kit, for sandboxes.                                  |
 
-Vendored skills are pinned in `env/.agents/skills.lock`, which `./pull-skills`
+Vendored skills are pinned in `env/.agents/skills.lock`, which `pull-skills`
 generates. A vendored skill that was edited locally stops the next pull, rather
 than being discarded.
 
