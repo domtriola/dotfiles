@@ -4,7 +4,7 @@ Every step from a bare Framework Desktop to the point where the `ai-server`
 profile can run. This is the source of truth for those steps.
 
 Nothing here is scripted, and each step says why. Everything after the last
-step is done by `setups/ai-server/`.
+step is done by the scripts in this directory.
 
 The Ubuntu side of this follows
 [their networking](https://ubuntu.com/server/docs/#networking) and

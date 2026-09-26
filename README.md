@@ -2,6 +2,22 @@
 
 Environment configurations for quick set-up of a new machine.
 
+## Fresh system setup
+
+1. Install git
+1. Clone these dotfiles:
+   `cd ~/src/personal && git clone git@github.com:domtriola/dotfiles.git && cd dotfiles`
+1. Perform steps if any in `setups/<profile>/bootstrap.md`
+1. Run the setup tools, naming the profile the first time:
+   1. `./sync-env --profile <name>`
+   2. `./setup`
+
+## Updates
+
+Run `./sync-env` after a change to anything in `env/` or `packages/`. A new file, directory or package also needs a line in the `env.manifest` of every profile that wants it.
+
+Run `./setup` after a change to anything in `setups/<profile>/`.
+
 ## Layout
 
 | Path        | Contents                                                      |
@@ -24,18 +40,10 @@ Environment configurations for quick set-up of a new machine.
 | `./pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                     |
 | `./doctor`      | Reports whether this machine matches what its profile intends.            |
 
-`./setup` also accepts a pattern to run only scripts that match:
-
-```console
-./setup packages
-```
-
-Every script accepts `--dry`, which prints the actions and changes nothing.
-`./doctor` needs no `--dry`, because it only reads.
-
-A profile's checks live in `setups/<profile>/lib/doctor.sh`. Everything a
-profile owns that is not a setup step goes in its `lib/`, which `./setup` never
-looks inside.
+A profile's checks live in `setups/<profile>/lib/doctor.sh`. Code a profile
+owns that is not a setup step goes in its `lib/`, which `./setup` never looks
+inside. `./setup` also skips files that are not executable, such as a profile's
+`bootstrap.md`.
 
 ## Packages
 
@@ -76,6 +84,7 @@ Each profile owns a directory under `setups/`:
 ```text
 setups/dev-mac/
   env.manifest    # what ./sync-env copies
+  bootstrap.md    # steps done by hand, if the profile has any
   00_bootstrap    # what ./setup runs, in filename order
   10_settings
   ...
@@ -85,43 +94,7 @@ Profiles share no scripts. The same tool can appear in more than one profile,
 and that duplication is deliberate: every machine installs what its use-case
 needs, and nothing else.
 
-### Choosing the profile
-
-Name the profile once. It is saved to
-`${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile` and reused after that:
-
-```console
-./setup --profile dev-mac
-```
-
-With no `--profile` and no saved profile, a real run detects one and asks for
-confirmation. `$DOTFILES_PROFILE` overrides the saved profile for a single run,
-and is never saved.
-
-## Fresh dev system setup
-
-1. Install git:
-   1. macOS: `xcode-select --install`
-   2. Linux: often included by default. If not,
-      [install it with the distribution's package manager](https://git-scm.com/install/linux).
-2. [Set up a new ssh key for GitHub](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent).
-3. Clone the repo:
-   `cd ~/src/personal && git clone git@github.com:domtriola/dotfiles.git && cd dotfiles`
-4. Run the setup tools, naming the profile the first time:
-   1. `./sync-env --profile <name>`
-   2. `./setup`
-
-Some steps cannot or have not be scripted. See [docs/manual_steps.md](docs/manual_steps.md).
-
-## Updates
-
-Run `./sync-env` after a change to anything in `env/` or `packages/`. A new
-file, directory or package also needs a line in the `env.manifest` of every
-profile that wants it.
-
-Run `./setup` after a change to anything in `setups/<profile>/`.
-
-### Testing a change safely
+## Testing changes safely
 
 - `--dry` prints what a command would do, and changes nothing.
 - `--profile <name>` previews another machine's profile from this one. A dry run
@@ -158,7 +131,4 @@ a tracked one of the same name, in `$HOME` and in a sandbox.
 ## Further reading
 
 - [docs/dev_workflow.md](docs/dev_workflow.md): the tmux project workflow.
-- [docs/manual_steps.md](docs/manual_steps.md): setup steps that haven't been automated.
-- [docs/app_configs/README.md](docs/app_configs/README.md): installation notes for GUI applications.
 - [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and helper commands.
-- [docs/ai-server-bootstrap.md](docs/ai-server-bootstrap.md): the steps done by hand before the `ai-server` profile runs.
