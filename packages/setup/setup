@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: ./setup [<pattern>] [--profile <name>] [--dry]
+# Usage: setup [<pattern>] [--profile <name>] [--dry]
 #
 # Discovers and executes the scripts for this machine's profile under ./setups/.
 #
@@ -21,16 +21,24 @@
 #              never writes the profile file and never prompts.
 #
 # Examples:
-#   ./setup                          # run all platform-appropriate scripts
-#   ./setup packages                 # run only scripts matching "packages"
-#   ./setup packages --dry           # preview which scripts would run
-#   ./setup --profile dev-mac --dry  # preview a profile, saving nothing
+#   setup                          # run all platform-appropriate scripts
+#   setup packages                 # run only scripts matching "packages"
+#   setup packages --dry           # preview which scripts would run
+#   setup --profile dev-mac --dry  # preview a profile, saving nothing
 
 set -eo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-source "$script_dir/lib/platform.sh"
-source "$script_dir/lib/profile.sh"
+# Lookup order: packages/README.md, "Finding the checkout".
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+[[ -d "$dotfiles_dir/setups" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ ! -d "$dotfiles_dir/setups" ]]; then
+  echo "setup: no dotfiles checkout found. Run sync-env from one, or set \$DOTFILES_DIR." >&2
+  exit 1
+fi
+source "$dotfiles_dir/lib/platform.sh"
+source "$dotfiles_dir/lib/profile.sh"
 
 filter=""
 dry="0"
@@ -103,12 +111,12 @@ run_dir() {
   done
 }
 
-log "$script_dir -- $filter"
+log "$dotfiles_dir -- $filter"
 log "profile: $profile"
 
-cd "$script_dir"
+cd "$dotfiles_dir"
 
-run_dir "$script_dir/setups/$profile"
+run_dir "$dotfiles_dir/setups/$profile"
 
 echo "----------------------------------------"
 echo "All scripts executed"

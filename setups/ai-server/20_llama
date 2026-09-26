@@ -205,7 +205,7 @@ binary itself:
   ldd $llama_root/current/*.so $llama_root/current/llama-server 2>/dev/null |
     grep 'not found' | sort -u
 
-If something is missing, run ./setup with no filter, so that 10_packages
+If something is missing, run setup with no filter, so that 10_packages
 installs the libraries first. If it is still missing after that, add it there.
 EOF
   exit 1
@@ -217,7 +217,7 @@ printf '%s\n' "$version_out" | head -2
 # ---------------------------------------------------------------------------
 #
 # Rebuilt from the models directory on every run, so adding a model is a file
-# copy followed by ./setup. Editing this file by hand does not last.
+# copy followed by setup. Editing this file by hand does not last.
 #
 # ${PORT} is a llama-swap macro and has to reach the file literally, which is
 # why the heredoc below is quoted and the model entries are appended after it.

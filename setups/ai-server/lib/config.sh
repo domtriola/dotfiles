@@ -80,11 +80,11 @@ ${0##*/}: this machine has no answer for: ${missing[*]}
 
 These are asked once, before anything is installed:
 
-  ./setup 00_preflight
+  setup 00_preflight
 
 They can also be given in the environment for an unattended run:
 
-  ${missing[0]}=<value> ./setup
+  ${missing[0]}=<value> setup
 
 EOF
   return 1

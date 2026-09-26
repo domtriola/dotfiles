@@ -17,7 +17,7 @@ set -eo pipefail
 # for packages that install a library or a driver manifest rather than a
 # binary.
 packages=(
-  # Shell and editor, for the configuration that ./sync-env copies.
+  # Shell and editor, for the configuration that sync-env copies.
   git:git
   curl:curl
   jq:jq

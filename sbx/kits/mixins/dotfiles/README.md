@@ -18,7 +18,7 @@ Four variables in `spec.yaml` decide what the startup hook does:
 | ----------------------- | --------------------------------------- | ------------------------------------------------------------------ |
 | `DOTFILES_REPO`         | `https://github.com/domtriola/dotfiles` | The repo to clone.                                                 |
 | `DOTFILES_REF`          | `main`                                  | The branch or tag to check out.                                    |
-| `DOTFILES_PROFILE`      | `sbx-linux`                             | The profile `./sync-env` and `./setup` use.                        |
+| `DOTFILES_PROFILE`      | `sbx-linux`                             | The profile `sync-env` and `setup` use.                            |
 | `DOTFILES_NVIM_PREWARM` | `1`                                     | Install the nvim plugins in the background. Set to `0` to skip it. |
 
 To test a branch before it merges, change `DOTFILES_REF` and start a sandbox:
@@ -64,7 +64,7 @@ sbx exec <name> -- cat /home/agent/.dotfiles-kit.nvim.log
   shell on a silently unconfigured sandbox.
 - **Do not commit from the clone.** It is shallow, the checkout is detached,
   and every start resets it. Edit the dotfiles in their own project instead.
-- Both `./sync-env` and `./setup` are idempotent, so a restart costs little:
+- Both `sync-env` and `setup` are idempotent, so a restart costs little:
   the packages are already there, and the files are copied again.
 - The `sbx-linux` manifest leaves the agent skills out on purpose. The
   [`agent-skills`](../agent-skills/README.md) kit delivers those before the

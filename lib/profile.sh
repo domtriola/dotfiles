@@ -4,7 +4,7 @@
 #
 # A profile names the use-case of a machine, not just its operating system. It
 # decides which scripts under ./setups/ run and which environment files
-# ./sync-env copies.
+# sync-env copies.
 #
 # Resolution order, first match wins:
 #   1. $DOTFILES_PROFILE          (a one-off override; never persisted)

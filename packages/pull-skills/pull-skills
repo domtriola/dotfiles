@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Usage: ./pull-skills [--dry] [--force] [--only <text>]
+# Usage: pull-skills [--dry] [--force] [--only <text>]
 #
 # Vendors third-party agent skills into ./env/.agents/skills/, the source of
-# truth that ./sync-env copies into $HOME and ./sync-skills copies into the
+# truth that sync-env copies into $HOME and sync-skills copies into the
 # agent-skills kit.
 #
 # The upstreams are listed in env/.agents/skills.json:
@@ -41,10 +41,18 @@
 
 set -eo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-manifest="$script_dir/env/.agents/skills.json"
-lock="$script_dir/env/.agents/skills.lock"
-skills_dir="$script_dir/env/.agents/skills"
+# Lookup order: packages/README.md, "Finding the checkout".
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+[[ -d "$dotfiles_dir/setups" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ ! -d "$dotfiles_dir/setups" ]]; then
+  echo "pull-skills: no dotfiles checkout found. Run sync-env from one, or set \$DOTFILES_DIR." >&2
+  exit 1
+fi
+manifest="$dotfiles_dir/env/.agents/skills.json"
+lock="$dotfiles_dir/env/.agents/skills.lock"
+skills_dir="$dotfiles_dir/env/.agents/skills"
 
 dry="0"
 force="0"

@@ -128,10 +128,10 @@ setup:
           profile="${DOTFILES_PROFILE:-sbx-linux}"
 
           step "copying the config files"
-          ./sync-env --profile "$profile"
+          ./packages/sync-env/sync-env --profile "$profile"
 
           step "installing the packages"
-          ./setup --profile "$profile"
+          ./packages/setup/setup --profile "$profile"
 
           # LazyVim clones about forty plugins on the first nvim start, which
           # takes minutes. Doing it here instead means nvim is usually warm by
@@ -163,9 +163,9 @@ agentInstructions:
     My dotfiles are cloned to ~/src/personal/dotfiles and applied on every
     sandbox start, with the `sbx-linux` profile ($DOTFILES_PROFILE).
 
-    - `./sync-env` copies the files listed in
+    - `sync-env` copies the files listed in
       `setups/sbx-linux/env.manifest` into $HOME.
-    - `./setup` runs the scripts in `setups/sbx-linux/`, which install a small
+    - `setup` runs the scripts in `setups/sbx-linux/`, which install a small
       CLI set with apt.
     - The nvim plugins are then installed in the background. Until
       `~/.dotfiles-kit.nvim-status` reads `ready`, nvim is still warming up.

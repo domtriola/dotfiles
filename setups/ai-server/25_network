@@ -257,7 +257,7 @@ Not registered, and \$NETBIRD_SETUP_KEY is empty. Skipping.
 The key is a secret, so it is not held in this repository. Take a one-off key
 from the dashboard, one that auto-assigns the ai-server group, then:
 
-  NETBIRD_SETUP_KEY='<key>' ./setup 25_network
+  NETBIRD_SETUP_KEY='<key>' setup 25_network
 
 Everything after this point needs the $iface interface, which does not exist
 until the machine is registered. Nothing here has been changed.
@@ -398,7 +398,7 @@ fi
 # person at the console for a reboot.
 #
 # 05_hardening reads the firewall to see whether this was applied, so a later
-# ./setup does not put the general rule back.
+# setup does not put the general rule back.
 case "${AI_SERVER_SSH_OVERLAY_ONLY:-}" in
 yes | true | 1)
   ssh_overlay_only=1

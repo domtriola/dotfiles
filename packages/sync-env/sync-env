@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: ./sync-env [--profile <name>] [--dry]
+# Usage: sync-env [--profile <name>] [--dry]
 #
 # Copies the environment files that this machine's profile asks for from ./env/
 # into $HOME. The list lives in setups/<profile>/env.manifest.
@@ -27,7 +27,7 @@
 # stops the run rather than leaving $HOME half synced.
 #
 # To test against a fake home:
-# mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./sync-env
+# mkdir -p /tmp/fakehome && HOME=/tmp/fakehome packages/sync-env/sync-env
 #
 # Arguments:
 #   --profile  The use-case of this machine, named by a directory under
@@ -37,15 +37,23 @@
 
 set -eo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-source "$script_dir/lib/platform.sh"
-source "$script_dir/lib/profile.sh"
+# Lookup order: packages/README.md, "Finding the checkout".
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+[[ -d "$dotfiles_dir/setups" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ ! -d "$dotfiles_dir/setups" ]]; then
+  echo "sync-env: no dotfiles checkout found. Run sync-env from one, or set \$DOTFILES_DIR." >&2
+  exit 1
+fi
+source "$dotfiles_dir/lib/platform.sh"
+source "$dotfiles_dir/lib/profile.sh"
 
 # Location of environment files
-DEV_ENV="$script_dir/env"
+DEV_ENV="$dotfiles_dir/env"
 
 # Location of the command packages
-DEV_PACKAGES="$script_dir/packages"
+DEV_PACKAGES="$dotfiles_dir/packages"
 
 dry="0"
 profile_arg=""
@@ -97,7 +105,7 @@ execute() {
 }
 
 profile="$(resolve_profile "$profile_arg" "$dry")"
-manifest="$script_dir/setups/$profile/env.manifest"
+manifest="$dotfiles_dir/setups/$profile/env.manifest"
 
 [[ -f "$manifest" ]] || die "no manifest for profile '$profile' at $manifest"
 
@@ -250,8 +258,19 @@ install_package() {
   execute ln -sfn "$prefix/lib/$name/$name" "$prefix/bin/$name"
 }
 
+# The installed commands sit outside any checkout, and read its path from here.
+record_checkout() {
+  local file="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout"
+
+  log "record checkout $dotfiles_dir in $file"
+  [[ $dry == "1" ]] && return
+  mkdir -p "$(dirname "$file")"
+  printf '%s\n' "$dotfiles_dir" >"$file"
+}
+
 log "------------ sync-env ------------"
 log "profile: $profile"
+record_checkout
 
 for action in "${actions[@]}"; do
   directive="${action%%|*}"

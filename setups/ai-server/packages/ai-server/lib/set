@@ -3,7 +3,7 @@
 # Changing a setting, and applying it.
 #
 # The value is written to the configuration file and then the step that owns it
-# is re-run, so there is one path that changes the machine and a later ./setup
+# is re-run, so there is one path that changes the machine and a later setup
 # never undoes what was set here.
 
 cmd_set() {
@@ -41,7 +41,7 @@ config_write() {
 
   [[ -w "$(dirname "$ai_server_config")" ]] ||
     [[ -e "$ai_server_config" ]] ||
-    die "$ai_server_config does not exist. Run ./setup 00_preflight first."
+    die "$ai_server_config does not exist. Run setup 00_preflight first."
 
   tmp="$(mktemp)"
 
@@ -65,18 +65,18 @@ apply() {
 
 ai-server: the setting is saved, and nothing has been applied.
 
-AI_SERVER_DOTFILES_DIR is not set, so there is no ./setup to run. Record it
-with ./setup 00_preflight from a checkout, or apply this one by hand:
+AI_SERVER_DOTFILES_DIR is not set, so there is no setup to run. Record it
+with setup 00_preflight from a checkout, or apply this one by hand:
 
-  ./setup $script
+  setup $script
 EOF
     return 1
   fi
 
-  [[ -x "$dir/setup" ]] ||
-    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no ./setup. Run ./setup 00_preflight from a checkout."
+  [[ -x "$dir/packages/setup/setup" ]] ||
+    die "AI_SERVER_DOTFILES_DIR is $dir, which holds no packages/setup/setup. Run setup 00_preflight from a checkout."
 
   echo
-  echo "--- applying with ./setup $script ---"
-  (cd "$dir" && ./setup "$script")
+  echo "--- applying with setup $script ---"
+  "$dir/packages/setup/setup" "$script"
 }

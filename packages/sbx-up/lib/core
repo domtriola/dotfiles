@@ -11,7 +11,7 @@ die() {
 # path of this file needs no resolving.
 sbx_up_pkg="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 
-# The checkout that holds the kits and ./sync-skills.
+# The checkout that holds the kits and sync-skills.
 sbx_up_dotfiles="${SBX_UP_DOTFILES:-$HOME/src/personal/dotfiles}"
 
 # Values that belong to this machine rather than to a repository, such as the
@@ -29,5 +29,5 @@ require_deps() {
 # shell window without necessarily inheriting this shell's PATH.
 find_wait_bin() {
   wait_bin="$sbx_up_pkg/libexec/sbx-wait"
-  [[ -x "$wait_bin" ]] || die "$wait_bin is missing; run ./sync-env"
+  [[ -x "$wait_bin" ]] || die "$wait_bin is missing; run sync-env"
 }

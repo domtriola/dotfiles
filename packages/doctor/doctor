@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# Usage: ./doctor [--profile <name>]
+# Usage: doctor [--profile <name>]
 #
 # Reports whether this machine is configured the way its profile intends.
 # Changes nothing.
 #
 # The checks for a profile live in setups/<profile>/lib/doctor.sh, which this
-# script sources. Anything under lib/ is invisible to ./setup, which only
+# script sources. Anything under lib/ is invisible to setup, which only
 # looks at files directly inside the profile directory.
 #
 # Some checks read configuration that only root can see, so sudo may prompt
@@ -28,9 +28,17 @@
 
 set -o pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-source "$script_dir/lib/platform.sh"
-source "$script_dir/lib/profile.sh"
+# Lookup order: packages/README.md, "Finding the checkout".
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+[[ -d "$dotfiles_dir/setups" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ ! -d "$dotfiles_dir/setups" ]]; then
+  echo "doctor: no dotfiles checkout found. Run sync-env from one, or set \$DOTFILES_DIR." >&2
+  exit 1
+fi
+source "$dotfiles_dir/lib/platform.sh"
+source "$dotfiles_dir/lib/profile.sh"
 
 profile_arg=""
 doctor_offline="0"
@@ -184,7 +192,7 @@ check_release() {
 # Run the profile's checks
 # ---------------------------------------------------
 
-profile_dir="$script_dir/setups/$profile"
+profile_dir="$dotfiles_dir/setups/$profile"
 checks="$profile_dir/lib/doctor.sh"
 
 printf '%sdoctor: %s%s\n' "$C_HEAD" "$profile" "$C_OFF"

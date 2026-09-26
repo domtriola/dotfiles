@@ -16,7 +16,7 @@
 #
 # Rerun it any time to review or change the answers:
 #
-#   ./setup 00_preflight
+#   setup 00_preflight
 
 set -eo pipefail
 
@@ -136,7 +136,7 @@ cat >"$tmp" <<EOF
 # Managed by dotfiles: setups/ai-server/00_preflight
 #
 # The answers this machine cannot work out for itself. Rewritten whole by a
-# rerun of ./setup 00_preflight.
+# rerun of setup 00_preflight.
 #
 # An environment variable of the same name overrides the value here, which is
 # how an unattended run states an answer without editing anything.
@@ -146,7 +146,7 @@ cat >"$tmp" <<EOF
 # the moment it is used and never written down.
 
 # Where this profile is checked out. Tools that change a setting re-run
-# ./setup from here, so a moved or deleted clone breaks them; ./doctor says so.
+# setup from here, so a moved or deleted clone breaks them; doctor says so.
 AI_SERVER_DOTFILES_DIR=$dotfiles_dir
 
 # Asked. amd_iommu=off is faster and gives up DMA protection; iommu=pt keeps
