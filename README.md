@@ -40,11 +40,6 @@ Run `./setup` after a change to anything in `setups/<profile>/`.
 | `./pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                     |
 | `./doctor`      | Reports whether this machine matches what its profile intends.            |
 
-A profile's checks live in `setups/<profile>/lib/doctor.sh`. Code a profile
-owns that is not a setup step goes in its `lib/`, which `./setup` never looks
-inside. `./setup` also skips files that are not executable, such as a profile's
-`bootstrap.md`.
-
 ## Packages
 
 A command that outgrows one file becomes a package under `packages/`: an entry
@@ -82,13 +77,17 @@ and which files `./sync-env` copies.
 Each profile owns a directory under `setups/`:
 
 ```text
-setups/dev-mac/
+setups/<profile>/
   env.manifest    # what ./sync-env copies
   bootstrap.md    # steps done by hand, if the profile has any
   00_bootstrap    # what ./setup runs, in filename order
   10_settings
   ...
+  lib/            # code that is not a setup step
+    doctor.sh     # the checks ./doctor runs, if the profile has any
 ```
+
+`./setup` never looks inside `lib/`, and skips files that are not executable.
 
 Profiles share no scripts. The same tool can appear in more than one profile,
 and that duplication is deliberate: every machine installs what its use-case
