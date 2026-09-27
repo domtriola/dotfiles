@@ -8,7 +8,13 @@ Steps that are not scripted by `setup`.
 xcode-select --install
 ```
 
-[Set up a new ssh key for GitHub](https://help.github.com/en/github/authenticating-to-github/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) if access to private repos is required.
+## Set up SSH key
+
+NOTE: run this step after `setup` to create ssh key in [secretive](https://github.com/maxgoedjen/secretive).
+
+1. [ ] Create a new key in secretive
+1. [ ] Go through the secretive configuration steps
+1. [ ] Add the key to GitHub
 
 ## Caps Lock remap (MacOS)
 
