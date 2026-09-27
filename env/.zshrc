@@ -1,4 +1,10 @@
 ##################################
+# SSH
+##################################
+
+export SSH_AUTH_SOCK=/Users/dominicktriola/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
+
+##################################
 # CLI Defaults
 ##################################
 
