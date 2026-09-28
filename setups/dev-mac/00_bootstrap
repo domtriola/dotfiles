@@ -6,6 +6,7 @@ if xcode-select -p &>/dev/null && pkgutil --pkg-info=com.apple.pkg.CLTools_Execu
   echo "Xcode Command Line Tools already installed. Skipping."
 else
   echo "Installing Xcode Command Line Tools..."
+  echo "NOTE: A macOS dialog opens. Click Install, and wait for it to finish."
   # Exits non-zero when a GUI install is already in flight.
   xcode-select --install || true
 fi
@@ -18,6 +19,7 @@ if command -v brew &>/dev/null; then
   brew cleanup || true
 else
   echo "Homebrew not found. Installing..."
+  echo "NOTE: Enter your macOS password for sudo, then press Enter to continue the Homebrew install."
   # HEAD, so this runs whatever is on the install repo's default branch.
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi

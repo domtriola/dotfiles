@@ -27,17 +27,30 @@ chmod 700 "$HOME/.ssh"
 
 # OpenSSH supports p-256-ne only. It does not support p-384-ne.
 if ! sc_auth list-ctk-identities -t ssh | grep -q "$key_label"; then
+  echo "NOTE: Use Touch ID if asked. This creates the key in the Secure Enclave."
   sc_auth create-ctk-identity -l "$key_label" -k p-256-ne -t bio
 fi
 
-# ssh-keygen -K writes every resident key to id_ecdsa_sk_rk in the current
-# directory, and each key overwrites the previous one. A temporary directory
-# keeps that output out of ~/.ssh until the result is known.
+# ssh-keygen -K writes every resident key to the current directory. Newer
+# macOS names each file after its label (id_ecdsa_sk_rk_ssh). Older macOS
+# writes every key to id_ecdsa_sk_rk, and each key overwrites the previous
+# one. A temporary directory keeps that output out of ~/.ssh until the result
+# is known.
 if [[ ! -f "$key_file" ]]; then
+  echo "NOTE: Use Touch ID. Then, at \"Enter PIN for authenticator\", press Enter."
+  echo "      The key has no PIN. ssh-keygen asks for one because it treats the"
+  echo "      Secure Enclave as a FIDO security key."
   tmp_dir="$(mktemp -d)"
   (cd "$tmp_dir" && /usr/bin/ssh-keygen -w "$provider" -K -N "")
-  mv "$tmp_dir/id_ecdsa_sk_rk" "$key_file"
-  mv "$tmp_dir/id_ecdsa_sk_rk.pub" "$key_file.pub"
+  downloaded="$tmp_dir/id_ecdsa_sk_rk_$key_label"
+  [[ -f "$downloaded" ]] || downloaded="$tmp_dir/id_ecdsa_sk_rk"
+  if [[ ! -f "$downloaded" ]]; then
+    echo "ssh-keygen did not write the \"$key_label\" key. It wrote:" >&2
+    ls "$tmp_dir" >&2
+    exit 1
+  fi
+  mv "$downloaded" "$key_file"
+  mv "$downloaded.pub" "$key_file.pub"
   rm -rf "$tmp_dir"
   chmod 600 "$key_file"
 fi
