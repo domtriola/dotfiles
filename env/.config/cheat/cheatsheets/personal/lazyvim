@@ -1,0 +1,11 @@
+# LazyVim commands
+
+# Toggle comments
+gcc
+
+# Add surrounding
+gsa<selection><char>
+
+# File manager
+<leader>fm   # = to save
+
