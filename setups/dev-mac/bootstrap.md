@@ -18,7 +18,7 @@ Do this before you run `setup`. The SSH key from `40_ssh_key` needs Touch ID for
 
 NOTE: run this step after `setup`, because `40_ssh_key` creates the key.
 
-1. [ ] Add the key to GitHub for authentication and for signing. Use the web UI, not `gh`, because a stored `gh` token lets any process that runs as you use your repositories without Touch ID.
+1. [ ] Add the key to GitHub for authentication and for signing. Use the web UI. The `gh` token (see [Set up the GitHub CLI](#set-up-the-github-cli)) cannot manage keys.
 
    1. Copy the public key:
 
@@ -46,6 +46,24 @@ The key cannot be exported, so it has no backup. If Touch ID stops working for t
 
 1. Run `40_ssh_key` again to make a new key.
 1. At https://github.com/settings/keys, delete the old key from both the authentication and the signing lists. Then add the new key with the steps above.
+
+## Set up the GitHub CLI
+
+`gh` stores its token where any process that runs as you can read it. So the token gets only the permissions that issue management needs, and it cannot read code, push, or delete repositories. Git operations use the SSH key.
+
+1. [ ] At https://github.com/settings/personal-access-tokens, make a fine-grained token:
+   - Repository access: only the repositories whose issues you manage.
+   - Permissions: **Issues** read and write. **Metadata** read-only is added automatically. Give no other permissions.
+   - Expiration: 90 days or less.
+1. [ ] Copy the token, then log in:
+
+   ```sh
+   pbpaste | gh auth login --with-token --git-protocol ssh && pbcopy </dev/null
+   ```
+
+1. [ ] Test it: `gh issue list --repo <owner>/<repo>`.
+
+When the token expires, make a new one and log in again.
 
 ## Caps Lock remap (MacOS)
 
