@@ -21,6 +21,7 @@ profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 # sandbox is a separate VM and never sees it.
 #
 # Deleting the installed file restores an ordinary Claude Code.
+echo "NOTE: Enter your macOS password. sudo installs the Claude Code managed settings."
 sudo mkdir -p "/Library/Application Support/ClaudeCode"
 sudo install -m 644 \
   "$profile_dir/lib/managed-settings.json" \

@@ -67,6 +67,62 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "SSH key"
+# ---------------------------------------------------------------------------
+
+# Columns: Key Type, Public Key Hash, Prot, Label. A key with any protection
+# other than bio can be used without Touch ID.
+key_prot="$(sc_auth list-ctk-identities 2>/dev/null | awk '$4 == "ssh" { print $3 }')"
+if [[ -z "$key_prot" ]]; then
+  fail "secure enclave key" "missing, run setup 40_ssh_key"
+elif [[ "$key_prot" == "bio" ]]; then
+  ok "secure enclave key" "present, needs Touch ID"
+else
+  fail "secure enclave key" "not a single key with bio protection, see sc_auth list-ctk-identities"
+fi
+
+if [[ -f "$HOME/.ssh/id_ecdsa_sk" && -f "$HOME/.ssh/id_ecdsa_sk.pub" ]]; then
+  ok "key reference" "$HOME/.ssh/id_ecdsa_sk"
+else
+  fail "key reference" "missing, run setup 40_ssh_key"
+fi
+
+if [[ "$(git config --global gpg.format 2>/dev/null)" == "ssh" &&
+  "$(git config --global user.signingkey 2>/dev/null)" == "$HOME/.ssh/id_ecdsa_sk" ]]; then
+  ok "git signing" "secure enclave key"
+else
+  fail "git signing" "not set to the secure enclave key, run setup 40_ssh_key"
+fi
+
+# ssh -G prints the config that ssh uses for a host, after every Include and
+# Match, so this reads the result and not the file. ssh stops trying its
+# default key files as soon as any IdentityFile is set.
+ssh_effective="$(ssh -G github.com 2>/dev/null || true)"
+if grep -qE "^identityfile (~|$HOME)/\.ssh/id_ecdsa_sk$" <<<"$ssh_effective"; then
+  ok "ssh config" "offers the secure enclave key"
+else
+  fail "ssh config" "does not offer ~/.ssh/id_ecdsa_sk, run setup 40_ssh_key"
+fi
+
+# macOS asks the terminal for "access data from other apps" each time a
+# process opens a socket in another app's container.
+if [[ "${SSH_AUTH_SOCK:-}" == "$HOME/Library/Containers/"* ]]; then
+  warn "SSH_AUTH_SOCK" "points into an app container: $SSH_AUTH_SOCK"
+fi
+identity_agent="$(awk '$1 == "identityagent" { print $2 }' <<<"$ssh_effective")"
+if [[ "$identity_agent" == *"/Library/Containers/"* ]]; then
+  warn "ssh IdentityAgent" "points into an app container: $identity_agent"
+fi
+
+# A private key file on disk can be read by any process that runs as you,
+# without Touch ID.
+for old_key in id_rsa id_ecdsa id_ed25519 id_dsa; do
+  if [[ -f "$HOME/.ssh/$old_key" ]]; then
+    warn "old ssh key" "~/.ssh/$old_key is a private key on disk, remove it from GitHub and delete it"
+  fi
+done
+
+# ---------------------------------------------------------------------------
 section "Environment"
 # ---------------------------------------------------------------------------
 

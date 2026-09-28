@@ -52,6 +52,7 @@ brew_install tmux
 
 # Starship terminal prompt
 if ! command -v starship &>/dev/null || confirm "Update starship?"; then
+  echo "NOTE: Enter your macOS password if asked. Starship uses sudo to write to /usr/local/bin."
   curl -sS https://starship.rs/install.sh | sh -s -- --yes
 else
   echo "Keeping the installed starship."
@@ -78,13 +79,11 @@ brew_install --cask hammerspoon
 # Installs a root daemon and a VPN interface.
 brew_trust netbirdio/tap
 brew_install netbirdio/tap/netbird
+echo "NOTE: Enter your macOS password if asked. The NetBird package installer needs sudo."
 brew_install --cask netbirdio/tap/netbird-ui
 
 # InfoSec
 # #######################################################
-
-# Extra ssh key protection via Secure Enclave
-brew install secretive
 
 # Privacy Guard
 # https://gnupg.org/documentation/manuals/gnupg/

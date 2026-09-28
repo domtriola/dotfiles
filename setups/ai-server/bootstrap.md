@@ -191,11 +191,10 @@ cat ~/.ssh/authorized_keys
 ```
 
 Otherwise run this **on the client**, while password authentication still
-works. `ls ~/.ssh/*.pub` shows whether a key already exists, and
-`ssh-keygen -t ed25519 -C "dev-mac"` makes one if not:
+works. On a `dev-mac` client, `setups/dev-mac/40_ssh_key` makes the key:
 
 ```console
-ssh-copy-id <user>@<server-address>
+ssh-copy-id -i ~/.ssh/id_ecdsa_sk.pub <user>@<server-address>
 ```
 
 Then prove that the key alone is enough, in a second terminal, keeping the
