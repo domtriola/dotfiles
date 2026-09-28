@@ -123,6 +123,31 @@ for old_key in id_rsa id_ecdsa id_ed25519 id_dsa; do
 done
 
 # ---------------------------------------------------------------------------
+section "GitHub CLI"
+# ---------------------------------------------------------------------------
+
+if have gh; then
+  if [[ "$(gh config get git_protocol 2>/dev/null)" == "ssh" ]]; then
+    ok "gh git protocol" "ssh"
+  else
+    fail "gh git protocol" "not ssh, run setup 30_setup"
+  fi
+
+  # Any process that runs as you can read the stored token, so it must be a
+  # fine-grained token with small permissions. Other token types (gho_, ghp_)
+  # can have access to every repository.
+  gh_token="$(gh auth token 2>/dev/null || true)"
+  if [[ -z "$gh_token" ]]; then
+    pending "gh token" "none stored, see bootstrap.md"
+  elif [[ "$gh_token" == github_pat_* ]]; then
+    ok "gh token" "fine-grained"
+  else
+    warn "gh token" "not fine-grained, run gh auth logout and see bootstrap.md"
+  fi
+  unset gh_token
+fi
+
+# ---------------------------------------------------------------------------
 section "Environment"
 # ---------------------------------------------------------------------------
 
