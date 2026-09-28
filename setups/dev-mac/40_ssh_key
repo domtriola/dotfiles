@@ -6,16 +6,23 @@
 # ID. macOS supplies the provider (/usr/lib/ssh-keychain.dylib), so no agent
 # socket is used.
 #
-# The key file in ~/.ssh is a reference to the key, not the private key. It is
-# named id_ecdsa_sk, which ssh tries by default, so ~/.ssh/config needs no
-# IdentityFile.
+# The key file in ~/.ssh is a reference to the key, not the private key.
+# ~/.ssh/config names it with IdentityFile, because ssh stops trying its
+# default key files as soon as any IdentityFile is set. IdentitiesOnly stops
+# ssh from also offering keys from an agent.
 #
 # Needs Touch ID, so this script cannot run unattended the first time.
 
 set -eox pipefail
 
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+root_dir="$(cd "$profile_dir/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/prompt.sh
+source "$root_dir/lib/prompt.sh"
+
 key_label="ssh"
 key_file="$HOME/.ssh/id_ecdsa_sk"
+ssh_config="$HOME/.ssh/config"
 allowed_signers="$HOME/.ssh/allowed_signers"
 provider="/usr/lib/ssh-keychain.dylib"
 
@@ -54,6 +61,32 @@ if [[ ! -f "$key_file" ]]; then
   rm -rf "$tmp_dir"
   chmod 600 "$key_file"
 fi
+
+# SSH config
+# #######################################################
+
+# SecurityKeyProvider is set here as well as in .zshrc, so that apps that do
+# not read the shell rc files (GUI Git clients) can also use the key.
+new_config="$(mktemp)"
+cat >"$new_config" <<EOF
+Host *
+  SecurityKeyProvider $provider
+  IdentityFile ~/.ssh/id_ecdsa_sk
+  IdentitiesOnly yes
+EOF
+
+if [[ ! -f "$ssh_config" ]]; then
+  mv "$new_config" "$ssh_config"
+elif cmp -s "$new_config" "$ssh_config"; then
+  rm "$new_config"
+elif confirm "Replace $ssh_config? The old file is kept as $ssh_config.bak."; then
+  cp "$ssh_config" "$ssh_config.bak"
+  mv "$new_config" "$ssh_config"
+else
+  rm "$new_config"
+  echo "Kept $ssh_config. ssh may not offer the Secure Enclave key."
+fi
+chmod 600 "$ssh_config"
 
 # Git commit signing
 # #######################################################
