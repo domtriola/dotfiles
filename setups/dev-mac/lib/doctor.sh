@@ -67,6 +67,35 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "SSH key"
+# ---------------------------------------------------------------------------
+
+if sc_auth list-ctk-identities -t ssh 2>/dev/null | grep -q "ssh"; then
+  ok "secure enclave key" "present"
+else
+  fail "secure enclave key" "missing, run setup 40_ssh_key"
+fi
+
+if [[ -f "$HOME/.ssh/id_ecdsa_sk" && -f "$HOME/.ssh/id_ecdsa_sk.pub" ]]; then
+  ok "key reference" "$HOME/.ssh/id_ecdsa_sk"
+else
+  fail "key reference" "missing, run setup 40_ssh_key"
+fi
+
+if [[ "$(git config --global gpg.format 2>/dev/null)" == "ssh" &&
+  "$(git config --global user.signingkey 2>/dev/null)" == "$HOME/.ssh/id_ecdsa_sk" ]]; then
+  ok "git signing" "secure enclave key"
+else
+  fail "git signing" "not set to the secure enclave key, run setup 40_ssh_key"
+fi
+
+# macOS asks the terminal for "access data from other apps" each time a
+# process opens a socket in another app's container.
+if [[ "${SSH_AUTH_SOCK:-}" == "$HOME/Library/Containers/"* ]]; then
+  warn "SSH_AUTH_SOCK" "points into an app container: $SSH_AUTH_SOCK"
+fi
+
+# ---------------------------------------------------------------------------
 section "Environment"
 # ---------------------------------------------------------------------------
 

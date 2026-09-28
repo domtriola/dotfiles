@@ -2,7 +2,8 @@
 # SSH
 ##################################
 
-export SSH_AUTH_SOCK=/Users/dominicktriola/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh
+# Secure Enclave keys, made by setups/dev-mac/40_ssh_key.
+export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
 
 ##################################
 # CLI Defaults

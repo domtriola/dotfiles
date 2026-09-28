@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#
+# ssh-keygen for Git commit signing with a Secure Enclave key.
+#
+# Apple's ssh-keygen is used by path, because Homebrew's OpenSSH cannot load
+# the Secure Enclave provider. The provider is set here, so that Git clients
+# that do not read the shell rc files can also sign.
+
+set -euo pipefail
+
+export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
+exec /usr/bin/ssh-keygen "$@"

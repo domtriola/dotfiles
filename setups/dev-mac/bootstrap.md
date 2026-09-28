@@ -10,11 +10,16 @@ xcode-select --install
 
 ## Set up SSH key
 
-NOTE: run this step after `setup` to create ssh key in [secretive](https://github.com/maxgoedjen/secretive).
+NOTE: run this step after `setup`, because `40_ssh_key` creates the key.
 
-1. [ ] Create a new key in secretive
-1. [ ] Go through the secretive configuration steps
-1. [ ] Add the key to GitHub
+1. [ ] Add the key to GitHub for authentication and for signing:
+
+   ```sh
+   gh ssh-key add ~/.ssh/id_ecdsa_sk.pub --type authentication --title "$(hostname -s)"
+   gh ssh-key add ~/.ssh/id_ecdsa_sk.pub --type signing --title "$(hostname -s)"
+   ```
+
+1. [ ] Test it: `ssh -T git@github.com`, and make a signed commit.
 
 ## Caps Lock remap (MacOS)
 
