@@ -1,0 +1,133 @@
+schemaVersion: "2"
+kind: sandbox
+name: pi-copilot
+displayName: Pi Copilot
+description: >-
+  Pi, pointed at the GitHub Copilot inference endpoint.
+
+# PROOF OF CONCEPT. Read README.md before this file. The credential is a
+# documented, first-party GitHub token; the endpoint it is sent to is not
+# documented. The kit exists to find out whether an honestly identified client
+# is served, and the README records what each outcome means.
+
+# The Copilot endpoint differs per plan. Only the base URL follows this
+# argument: the credential injects into every Copilot host (see `credentials`),
+# because argument interpolation is proven in `permissions` and `environment`
+# and is not yet proven inside a credential block.
+args:
+  copilotHost:
+    default: "api.individual.githubcopilot.com"
+    description: >-
+      Copilot inference host. `individual` for Pro and Pro+, `business` for
+      Copilot Business, `enterprise` for Copilot Enterprise.
+  copilotIntegrationId:
+    default: "pi"
+    description: >-
+      Value of the Copilot-Integration-Id header. The default names this client
+      truthfully. A value copied from an editor would misidentify it.
+  modelIds:
+    default: ""
+    description: >-
+      Comma-separated model ids, first one the startup default. Empty asks the
+      endpoint for its own list, which is the usual case.
+
+sandbox:
+  # Not `extends: pi`. The default resolver reads a bare name from the built-in
+  # agent set, and `pi` is a contrib kit, so the name does not resolve. A
+  # pinned remote parent would have to be bumped by hand, and no kit in
+  # sbx-kits-contrib uses `extends` at all.
+  image: docker.io/sbx/pi-image:latest
+  entrypoint:
+    - pi
+
+agentInstructions:
+  filename: AGENTS.md
+  content: |
+    # Global Instructions
+
+    ## Language
+    Be concise, but use grammatically correct full sentences.
+    Use ASD-STE100 Simplified Technical English.
+    Prefer parentheses over em dashes.
+
+    ## Models
+    Every model call goes to GitHub Copilot, declared as the `copilot`
+    provider in `~/.pi/agent/models.json`. The kit rewrites that file on each
+    start, so edits to it do not survive a restart. Use `/model` to switch
+    models for the session.
+
+    Each request is billed against the Copilot premium request allowance of
+    the account whose token this sandbox holds. Long sessions spend it.
+
+    The last start, and whether the endpoint answered, is in
+    `~/.pi-copilot-kit.log`.
+
+credentials:
+  # A user-owned fine-grained personal access token with the `Copilot Requests`
+  # permission. That permission is documented, and GitHub's own Copilot CLI
+  # instructions tell you to create exactly this token and read it from
+  # COPILOT_GITHUB_TOKEN. It is not an editor token lifted out of a signed-in
+  # client, and nothing here performs a token exchange.
+  #
+  # `required: true` because the alternative is the failure the upstream `pi`
+  # README warns about: an unbound sandbox still receives the sentinel, pi
+  # cannot tell it from a real token, and the first model call returns a bare
+  # 401 that reads like a wrong key rather than a missing one.
+  - service: copilot
+    required: true
+    description: >-
+      A user-owned fine-grained PAT with the Copilot Requests permission.
+    apiKey:
+      name: COPILOT_GITHUB_TOKEN
+      # The in-container value is the sentinel. pi sends it as a Bearer, and
+      # the proxy replaces it on egress, so the real token never enters the
+      # sandbox and is never readable by the agent or by anything it runs.
+      proxyManaged: true
+      inject:
+        - domain: api.individual.githubcopilot.com # Copilot Pro and Pro+
+          header: Authorization
+          format: Bearer %s
+        - domain: api.business.githubcopilot.com # Copilot Business
+          header: Authorization
+          format: Bearer %s
+        - domain: api.enterprise.githubcopilot.com # Copilot Enterprise
+          header: Authorization
+          format: Bearer %s
+        - domain: api.githubcopilot.com
+          header: Authorization
+          format: Bearer %s
+
+environment:
+  variables:
+    # Copilot serves /chat/completions and /models at the root, with no /v1
+    # segment, unlike most OpenAI-compatible servers.
+    COPILOT_BASE_URL: "https://${{ kit.args.copilotHost }}"
+    COPILOT_INTEGRATION_ID: "${{ kit.args.copilotIntegrationId }}"
+    MODEL_IDS: "${{ kit.args.modelIds }}"
+
+permissions:
+  network:
+    allow:
+      # Every domain the credential injects into has to appear here as well. A
+      # domain absent from this list is unreachable whatever the credential
+      # block declares. Narrowing this to the one host in `copilotHost` is the
+      # obvious cleanup once interpolation inside `credentials` is confirmed.
+      - api.individual.githubcopilot.com
+      - api.business.githubcopilot.com
+      - api.enterprise.githubcopilot.com
+      - api.githubcopilot.com
+      # pi fetches extensions, skills, prompt templates and themes on startup.
+      - registry.npmjs.org
+
+setup:
+  # Named by installed path rather than $HOME: a startup command is exec-style
+  # argv, with no shell to expand a variable.
+  install:
+    - command: "sh /home/agent/.pi-copilot-kit/install.sh"
+      user: "1000"
+      description: Point npm at the sandbox proxy in ~/.npmrc, so pi's run-time npm use works in exec contexts that do not inherit the proxy environment
+
+  startup:
+    - command: ["sh", "/home/agent/.pi-copilot-kit/startup.sh"]
+      user: "1000"
+      description: "Write ~/.pi/agent/models.json for the Copilot endpoint, with each model's context window, and record whether the endpoint served this client"

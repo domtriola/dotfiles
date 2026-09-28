@@ -6,6 +6,7 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md) | Claude Code with custom settings. The default agent.                                        |
 | [`kits/sandboxes/pi-ailo`](kits/sandboxes/pi-ailo/README.md)     | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential. |
+| [`kits/sandboxes/pi-copilot`](kits/sandboxes/pi-copilot/README.md) | The pi agent, pointed at GitHub Copilot. A proof of concept, not a daily driver.           |
 | [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md) | Ships the personal agent skills into the sandbox.                                           |
 | [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)         | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.              |
 
@@ -81,7 +82,9 @@ passing it to every sandbox would break the ones that take none.
 zip is left alone, because the check reads the kit's spec from disk; supply its
 arguments with `--kit-arg` by hand.
 
-Only `pi-ailo` takes arguments today. Its README says what they mean.
+`pi-ailo` and `pi-copilot` are the kits that take arguments today. Each
+README says what they mean. `pi-copilot` defaults every one of its arguments,
+so the file is only needed to change a default.
 
 ## Pulling changes from a `--clone` sandbox
 
