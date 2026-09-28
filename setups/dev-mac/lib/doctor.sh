@@ -70,10 +70,15 @@ fi
 section "SSH key"
 # ---------------------------------------------------------------------------
 
-if sc_auth list-ctk-identities -t ssh 2>/dev/null | grep -q "ssh"; then
-  ok "secure enclave key" "present"
-else
+# Columns: Key Type, Public Key Hash, Prot, Label. A key with any protection
+# other than bio can be used without Touch ID.
+key_prot="$(sc_auth list-ctk-identities 2>/dev/null | awk '$4 == "ssh" { print $3 }')"
+if [[ -z "$key_prot" ]]; then
   fail "secure enclave key" "missing, run setup 40_ssh_key"
+elif [[ "$key_prot" == "bio" ]]; then
+  ok "secure enclave key" "present, needs Touch ID"
+else
+  fail "secure enclave key" "not a single key with bio protection, see sc_auth list-ctk-identities"
 fi
 
 if [[ -f "$HOME/.ssh/id_ecdsa_sk" && -f "$HOME/.ssh/id_ecdsa_sk.pub" ]]; then

@@ -32,10 +32,20 @@ chmod 700 "$HOME/.ssh"
 # Key
 # #######################################################
 
+# The protection of each identity with this label, one per line. Columns:
+# Key Type, Public Key Hash, Prot, Label. A key with any protection other than
+# bio can be used without Touch ID, so it is refused, not reused.
+key_prot="$(sc_auth list-ctk-identities | awk -v label="$key_label" '$4 == label { print $3 }')"
+
 # OpenSSH supports p-256-ne only. It does not support p-384-ne.
-if ! sc_auth list-ctk-identities -t ssh | grep -q "$key_label"; then
+if [[ -z "$key_prot" ]]; then
   echo "NOTE: Use Touch ID if asked. This creates the key in the Secure Enclave."
   sc_auth create-ctk-identity -l "$key_label" -k p-256-ne -t bio
+elif [[ "$key_prot" != "bio" ]]; then
+  echo "The \"$key_label\" Secure Enclave identity is not a single key with bio protection:" >&2
+  sc_auth list-ctk-identities >&2
+  echo "Delete it with sc_auth delete-ctk-identity -h <hash>, then run this script again." >&2
+  exit 1
 fi
 
 # ssh-keygen -K writes every resident key to the current directory. Newer
