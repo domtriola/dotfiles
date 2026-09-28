@@ -12,7 +12,7 @@ xcode-select --install
 
 Do this before you run `setup`. The SSH key from `40_ssh_key` needs Touch ID for each use, and it has no password fallback.
 
-1. [ ] Open System Settings > Touch ID & Password, and enroll fingers from both hands. Then one injured finger does not lock you out of the key.
+1. [ ] Open System Settings > Touch ID & Password, and enroll multiple fingers.
 
 ## Set up SSH key
 
