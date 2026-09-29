@@ -1,0 +1,9 @@
+# Global pnpm settings (pnpm v11). Auth and registry settings go in the rc file,
+# not here. A project's pnpm-workspace.yaml overrides these values.
+#
+# Linux reads this from ~/.config/pnpm/config.yaml. macOS reads it from
+# ~/Library/Preferences/pnpm/config.yaml (see setups/dev-mac/env.manifest).
+
+# Do not install a version until it has been published for 7 days (in minutes).
+# This also applies to `pnpm add --global`.
+minimumReleaseAge: 10080
