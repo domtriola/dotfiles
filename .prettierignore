@@ -1,11 +1,6 @@
-# Generated or vendored files. Formatting these creates noisy diffs and, for
+# Generated files. Formatting these creates noisy diffs and, for
 # the lockfile, can corrupt it. node_modules is ignored by Prettier already.
 
 # lockfiles
 lazy-lock.json
 pnpm-lock.yaml
-
-# Agent skills. Most of these are vendored verbatim by pull-skills, and
-# reformatting them (Prettier rewrites _italic_ as *italic*) would read as a
-# local edit on every refresh and stop the run.
-env/.agents/

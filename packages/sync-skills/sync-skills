@@ -13,7 +13,7 @@
 # Two sources, in order, so that a local copy shadows a tracked skill of the
 # same name:
 #
-#   env/.agents/skills/        tracked: written here, or vendored by pull-skills
+#   env/.agents/skills/        tracked
 #   env/.agents/skills-local/  untracked scratch
 #
 # A directory is a skill only if it holds a SKILL.md.

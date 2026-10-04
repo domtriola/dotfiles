@@ -10,7 +10,7 @@ sbx run claude --kit ./sbx/kits/mixins/agent-skills
 ## How skills get in
 
 `env/.agents/skills/` is the one source of truth for every machine. Skills are
-authored there, on the host, or vendored there by `pull-skills`. See
+authored there, on the host. See
 [Agent skills](../../../../README.md#agent-skills) in the root README.
 
 `sync-skills` copies them into this kit's `files/` tree, and `sbx-up` runs it
