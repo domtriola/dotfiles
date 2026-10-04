@@ -209,11 +209,40 @@ This step is manual because it runs on the client and not on the server.
 `05_hardening` stops when `~/.ssh/authorized_keys` is empty, so a missed step
 here fails loudly rather than locking the machine.
 
-**To replace the client key later**, add the new public key to
-`~/.ssh/authorized_keys` before the old key is deleted. After `05_hardening`,
-password authentication is off, so `ssh-copy-id` cannot use a password. Add the
-key from a session that still works, or at the console. A key that is not in
-the file fails with `Permission denied (publickey)`.
+### Replacing the client key
+
+After `05_hardening`, password authentication is off, so `ssh-copy-id` cannot
+add a new key. A key that is not in `~/.ssh/authorized_keys` fails with
+`Permission denied (publickey)`. Add the new key before the old one is deleted:
+
+1. On the client, add the new public key to GitHub as an **authentication**
+   key. (Note: if you don't intend to use this key with GitHub, then an alternate option is to copy it over via USB)
+2. On the server, from a session that still works or at the console, append
+   the new key. Use a part of the key that no other key has, such as its last
+   characters:
+
+   ```console
+   curl -fsS https://github.com/<github-user>.keys | grep -F '<part of the new key>' >> ~/.ssh/authorized_keys
+   ```
+
+3. Compare the fingerprints. One line on the server must match the client:
+
+   ```console
+   ssh-keygen -lf ~/.ssh/authorized_keys     # server
+   ssh-keygen -lf ~/.ssh/id_ecdsa_sk.pub     # client
+   ```
+
+4. From the client, log in with the new key, and keep that session open.
+5. In that session, delete the old key. The key contains `/` and `+`, so
+   `grep -F` is safer than a `sed` pattern:
+
+   ```console
+   grep -vF '<part of the old key>' ~/.ssh/authorized_keys > /tmp/authorized_keys
+   install -m 600 /tmp/authorized_keys ~/.ssh/authorized_keys && rm /tmp/authorized_keys
+   ```
+
+6. Log in again from a second terminal to prove that the new key still works,
+   then remove the old key from GitHub.
 
 ## 8. Clone the repository and run the profile
 
