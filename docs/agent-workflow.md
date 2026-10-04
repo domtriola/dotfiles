@@ -20,3 +20,10 @@ The agent can push branches and open PRs, but branch protection keeps merges
 with a human.
 
 To create, copy, or edit a skill, use the `author-skill` skill.
+
+## Vocabulary
+
+Two skills own the terms that the other skills use:
+
+- `codebase-design` owns the design terms: module, interface, depth, seam, and adapter. Other skills link to it and do not define these terms again.
+- `domain-modeling` owns each project's `GLOSSARY.md`, which holds that project's domain terms.

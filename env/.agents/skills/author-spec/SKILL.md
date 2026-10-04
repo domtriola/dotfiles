@@ -12,7 +12,7 @@ Read `docs/agents/issue-tracker.md` first. If it is missing, stop and tell the u
 
 1. Explore the repo until you understand the current state of the area the spec touches. Use the vocabulary in `GLOSSARY.md` throughout the spec, and respect any ADRs in that area.
 
-2. Sketch the seams at which the feature will be tested. Prefer existing seams to new ones, and the highest seam possible. The fewer seams across the codebase, the better: the ideal number is one. Confirm the seams with the user.
+2. Sketch the seams at which the feature will be tested. Use "seam", "module", and "interface" as the `codebase-design` skill (`../codebase-design/SKILL.md`) defines them. Prefer existing seams to new ones, and the highest seam possible. The fewer seams across the codebase, the better: the ideal number is one. Confirm the seams with the user.
 
 3. Write the spec with the template below, then publish it the way `docs/agents/issue-tracker.md` describes.
 
