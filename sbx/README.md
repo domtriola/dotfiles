@@ -19,7 +19,7 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 | `sbx-up`   | Starts a sandbox for the current project and branch. | `sbx-up --help`    |
 | `sbx-pull` | Fetches commits made inside a `--clone` sandbox.     | its header comment |
 
-`sbx-up` is a package in `packages/sbx-up`: an entry point, a `lib/` of one
+`sbx-up` is a command directory in `commands/sbx-up`: an entry point, a `lib/` of one
 file per step, and a `libexec/` holding `sbx-wait`, which the shell window runs
 rather than sources. `sbx-pull` is a single file in `env/.local/bin`.
 
@@ -33,7 +33,7 @@ Inside tmux it opens an `sbx` window, which runs the agent.
 
 A `--clone` sandbox gets a second window, `shell`, which holds a plain shell
 into the same sandbox (`sbx exec -it <name> -- bash -l`), for editing files or
-running git commands without going through the agent. It runs the package's
+running git commands without going through the agent. It runs the command's
 `sbx-wait` helper first, which draws the wait and names the step it is on,
 because the `dotfiles` kit configures the sandbox after it starts.
 

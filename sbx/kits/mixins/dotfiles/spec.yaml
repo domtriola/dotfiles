@@ -24,7 +24,7 @@ permissions:
     allow:
       # git clone over HTTPS
       - github.com
-      # apt, for the packages setups/sbx-linux/20_packages installs. The
+      # apt, for the packages profiles/sbx-linux/20_packages installs. The
       # mirror differs by architecture: ports for arm64, the other two for
       # amd64.
       - ports.ubuntu.com
@@ -128,10 +128,10 @@ setup:
           profile="${DOTFILES_PROFILE:-sbx-linux}"
 
           step "copying the config files"
-          ./packages/sync-env/sync-env --profile "$profile"
+          ./commands/sync-env/sync-env --profile "$profile"
 
           step "installing the packages"
-          ./packages/setup/setup --profile "$profile"
+          ./commands/setup/setup --profile "$profile"
 
           # LazyVim clones about forty plugins on the first nvim start, which
           # takes minutes. Doing it here instead means nvim is usually warm by
@@ -164,8 +164,8 @@ agentInstructions:
     sandbox start, with the `sbx-linux` profile ($DOTFILES_PROFILE).
 
     - `sync-env` copies the files listed in
-      `setups/sbx-linux/env.manifest` into $HOME.
-    - `setup` runs the scripts in `setups/sbx-linux/`, which install a small
+      `profiles/sbx-linux/env.manifest` into $HOME.
+    - `setup` runs the scripts in `profiles/sbx-linux/`, which install a small
       CLI set with apt.
     - The nvim plugins are then installed in the background. Until
       `~/.dotfiles-kit.nvim-status` reads `ready`, nvim is still warming up.

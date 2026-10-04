@@ -2,7 +2,7 @@
 # SSH
 ##################################
 
-# Secure Enclave keys, made by setups/dev-mac/40_ssh_key.
+# Secure Enclave keys, made by profiles/dev-mac/40_ssh_key.
 export SSH_SK_PROVIDER=/usr/lib/ssh-keychain.dylib
 
 ##################################
