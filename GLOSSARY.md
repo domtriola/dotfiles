@@ -23,11 +23,3 @@ _Avoid_: Package
 **Package**:
 Software that a system package manager installs (for example, Homebrew or apt). Never a command from this repo.
 _Avoid_: Dependency, tool
-
-## Flagged ambiguities
-
-**Setup**: Was used for the command, the per-profile directory and each step. Now it means only the `setup` command. The directory is the **Profile**, and each unit is a **Setup step**.
-
-**Bootstrap**: Was used for the manual steps and for the first setup step. Now it means only the manual steps. The first setup step is a **Setup step** like any other.
-
-**Package**: Was used for the commands and for system packages. Now it means only system packages.
