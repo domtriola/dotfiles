@@ -25,6 +25,11 @@ model_api_key() {
 model_curl() {
   local key
   key="$(model_api_key)"
+  # Said out loud, because the request that follows fails with a 401, and the
+  # caller would otherwise report that as the server having nothing to say.
+  if [[ -z "$key" && -e "$api_key_file" ]]; then
+    echo "model API key: $api_key_file exists and could not be read. Is sudo available?" >&2
+  fi
   if [[ -n "$key" ]]; then
     curl -H @<(printf 'Authorization: Bearer %s\n' "$key") "$@"
   else

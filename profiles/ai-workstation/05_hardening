@@ -3,7 +3,6 @@
 # Key-only SSH, the firewall, and a machine that stays up.
 #
 # This runs first because it closes the door the machine is reached through.
-# It also keeps the machine running: no unattended reboot, and no sleep.
 
 set -eo pipefail
 

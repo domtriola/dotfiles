@@ -93,15 +93,17 @@ fi
 # ---------------------------------------------------------------------------
 # sbx
 # ---------------------------------------------------------------------------
+just_installed=0
 if command -v sbx >/dev/null 2>&1; then
   echo "sbx is already installed: $(sbx version 2>/dev/null | head -1 || echo 'version unknown')"
 else
   echo "--- installing sbx ---"
   sudo apt-get update -qq
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-sbx
+  just_installed=1
 fi
 
-if [[ "$repo_changed" -eq 1 ]] && command -v sbx >/dev/null 2>&1; then
+if [[ "$repo_changed" -eq 1 && "$just_installed" -eq 0 ]] && command -v sbx >/dev/null 2>&1; then
   # A new suite can carry a newer sbx. Updated on purpose here and not left to
   # unattended-upgrades, which only takes security updates.
   sudo apt-get update -qq

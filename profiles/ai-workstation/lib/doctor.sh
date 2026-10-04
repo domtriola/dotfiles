@@ -167,6 +167,17 @@ for d in /sys/class/drm/card*/device; do
     fail "GTT pool" "${gtt_gib} GiB"
   fi
 
+  # What the model holds now, against its budget. The sandboxes need about
+  # 48 GB of the 128 for themselves and the system, so a model and cache that
+  # grow past 70 GB take memory the agents are counting on. GTT is used by
+  # nothing else on this machine.
+  gtt_used_gib=$(($(cat "$d/mem_info_gtt_used") / 1024 ** 3))
+  if [[ $gtt_used_gib -le 70 ]]; then
+    ok "model memory" "${gtt_used_gib} GiB in use, budget 70"
+  else
+    warn "model memory" "${gtt_used_gib} GiB in use, over the 70 GiB budget, lower the context: ai-model ctx"
+  fi
+
   # A small carve-out is correct. AMD recommends 512 MiB or less, because these
   # frameworks work better against GTT-backed allocations.
   if [[ $vram_mib -le 1024 ]]; then
@@ -592,7 +603,10 @@ else
     fail "model server bind" "nothing is listening on port $swap_port"
   else
     if grep -qxF "$swap_intent" <<<"$port_listeners"; then
-      ok "model server bind" "$swap_intent, loopback"
+      case "${swap_intent%:*}" in
+      127.* | localhost | "[::1]") ok "model server bind" "$swap_intent, loopback" ;;
+      *) warn "model server bind" "$swap_intent, not loopback, sandboxes reach the host on loopback" ;;
+      esac
     else
       fail "model server bind" "the unit says $swap_intent, and nothing listens there"
     fi
@@ -629,6 +643,16 @@ else
         else
           fail "API on the overlay" "no reply on $overlay_ip:$swap_port"
         fi
+
+        # And without it, as a peer with no key would ask. The proxy forwards
+        # bytes, so this proves the key is enforced on this path as well.
+        overlay_no_key="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 \
+          "http://$overlay_ip:$swap_port/v1/models" 2>/dev/null)"
+        case "$overlay_no_key" in
+        401) ok "overlay refuses no key" "401 on $overlay_ip:$swap_port" ;;
+        200) fail "overlay refuses no key" "answered 200 without a key" ;;
+        *) warn "overlay refuses no key" "unexpected reply ${overlay_no_key:-none}" ;;
+        esac
       fi
     fi
     ;;

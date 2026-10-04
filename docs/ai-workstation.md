@@ -33,14 +33,16 @@ the ai-server install as a cold fallback. Only one of them runs at a time.
 The machine has 128 GB of unified memory, and the GPU and the sandboxes take
 from the same pool.
 
-| Consumer                   | Budget  | Set by                                       |
-| -------------------------- | ------- | -------------------------------------------- |
-| Model weights and KV cache | ≤ 70 GB | The model chosen, its context, and the slots |
-| Sandboxes, about 5 at once | ~40 GB  | `memory` in each project's `.sbx.json`       |
-| The OS, and a margin       | ~8 GB   |                                              |
+| Consumer                          | Budget  | Set by                                       |
+| --------------------------------- | ------- | -------------------------------------------- |
+| Model weights and KV cache        | ≤ 70 GB | The model chosen, its context, and the slots |
+| Sandboxes, 3 Claude and 1 or 2 pi | ~40 GB  | `memory` in each project's `.sbx.json`       |
+| The OS, and a margin              | ~8 GB   |                                              |
 
-`sbx-up` gives a sandbox 4 GB unless the project's `.sbx.json` says otherwise.
-A project that runs heavy builds or a browser needs `"memory": "8g"`.
+The budget allows up to 8 GB for each sandbox. `sbx-up` gives a sandbox 4 GB
+unless the project's `.sbx.json` says otherwise, so the default leaves a
+margin. A project that runs heavy builds, servers or a browser should set
+`"memory": "8g"`.
 
 **Qwen3.8-Flash-Next does not fit.** It needs 111 GB. The default model is
 Qwen3.8 27B, at 17.6 GB, which leaves room to raise the context or to try a
@@ -49,7 +51,11 @@ larger model.
 The server has two slots (`ai-workstation set parallel <n>`), so a second pi
 agent does not wait for the first one's prefill. Each slot holds a whole
 context, so the KV cache costs the context times the slots. `ai-model ctx`
-reports the context per request, and the memory for all of the slots.
+reports the context per request, and the memory for all of the slots. The
+default is 131072 tokens per request, clamped to what the model was trained
+for. Measure the real cost once the model is loaded, with
+`ai-model ctx <model> --measure`, and `doctor` warns when the model holds more
+than 70 GiB.
 
 **When memory runs out, a sandbox is killed first.** The llama-swap unit sets
 `OOMScoreAdjust=-500`. Without it, the kernel would always pick the model

@@ -86,6 +86,21 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+# Checked here, before anything changes, so that a mistyped value stops the
+# run rather than opening a firewall port first.
+case "${AI_WORKSTATION_SERVE_OVERLAY:-yes}" in
+yes | true | 1)
+  serve_overlay=1
+  ;;
+no | false | 0)
+  serve_overlay=0
+  ;;
+*)
+  echo "25_network: \$AI_WORKSTATION_SERVE_OVERLAY is '${AI_WORKSTATION_SERVE_OVERLAY}'. Use yes or no." >&2
+  exit 1
+  ;;
+esac
+
 # ---------------------------------------------------------------------------
 # The client
 # ---------------------------------------------------------------------------
@@ -325,10 +340,9 @@ echo "--- firewall ---"
 # interface would open the port to the local network and to the internet, which
 # is what this whole step exists to avoid. ufw does not duplicate a rule that
 # already exists, so a rerun prints "Skipping" and changes nothing.
-case "${AI_WORKSTATION_SERVE_OVERLAY:-yes}" in
-no | false | 0) ;;
-*) sudo ufw allow in on "$iface" to any port "$model_port" proto tcp ;;
-esac
+if [[ "$serve_overlay" -eq 1 ]]; then
+  sudo ufw allow in on "$iface" to any port "$model_port" proto tcp
+fi
 
 # ---------------------------------------------------------------------------
 # Serve the model on the overlay
@@ -345,18 +359,6 @@ esac
 #
 # The address is written into the unit. If the overlay ever gives this peer a
 # different address, run this step again.
-case "${AI_WORKSTATION_SERVE_OVERLAY:-yes}" in
-yes | true | 1)
-  serve_overlay=1
-  ;;
-no | false | 0)
-  serve_overlay=0
-  ;;
-*)
-  echo "25_network: \$AI_WORKSTATION_SERVE_OVERLAY is '${AI_WORKSTATION_SERVE_OVERLAY}'. Use yes or no." >&2
-  exit 1
-  ;;
-esac
 
 if [[ "$serve_overlay" -eq 0 ]]; then
   echo "Not serving the model on the overlay: AI_WORKSTATION_SERVE_OVERLAY is no."
