@@ -20,7 +20,7 @@ The way to stay accurate is to write statements that cannot go stale. Do not har
 ```
 Bad:  The profile runs these 5 scripts: 05_hardening, 10_packages, 12_storage,
       15_gpu, 20_llama.
-Good: The profile runs the scripts in setups/<profile>/.
+Good: The profile runs the scripts in profiles/<profile>/.
 ```
 
 ### 2. No duplication

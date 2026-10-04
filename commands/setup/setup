@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+#
+# Usage: setup [<pattern>] [--profile <name>] [--dry]
+#
+# Discovers and executes the scripts for this machine's profile under ./profiles/.
+#
+# Every profile owns its scripts, in profiles/<profile>/. There is no shared
+# directory, because each machine installs what its use-case needs and
+# duplication is accepted.
+#
+# Scripts run in filename order. Use numeric prefixes (00_, 10_, 20_) to
+# control ordering.
+#
+# Arguments:
+#   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
+#              If omitted, all scripts are run.
+#   --profile  The use-case of this machine, named by a directory under
+#              ./profiles/. Only needed the first time: the name is saved and
+#              reused. $DOTFILES_PROFILE overrides both, without saving.
+#   --dry      Print what would be executed without running anything. A dry run
+#              never writes the profile file and never prompts.
+#
+# Examples:
+#   setup                          # run all platform-appropriate scripts
+#   setup packages                 # run only scripts matching "packages"
+#   setup packages --dry           # preview which scripts would run
+#   setup --profile dev-mac --dry  # preview a profile, saving nothing
+
+set -eo pipefail
+
+# Lookup order: commands/README.md, "Finding the checkout".
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+[[ -d "$dotfiles_dir/profiles" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ ! -d "$dotfiles_dir/profiles" ]]; then
+  echo "setup: no dotfiles checkout found. Run sync-env from one, or set \$DOTFILES_DIR." >&2
+  exit 1
+fi
+source "$dotfiles_dir/lib/platform.sh"
+source "$dotfiles_dir/lib/profile.sh"
+
+filter=""
+dry="0"
+profile_arg=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  --dry)
+    dry="1"
+    ;;
+  --profile)
+    shift
+    profile_arg="${1:-}"
+    if [[ -z "$profile_arg" ]]; then
+      echo "setup: --profile needs a name (one of: $(profile_list))" >&2
+      exit 1
+    fi
+    ;;
+  --profile=*)
+    profile_arg="${1#--profile=}"
+    ;;
+  *)
+    filter="$1"
+    ;;
+  esac
+  shift
+done
+
+profile="$(resolve_profile "$profile_arg" "$dry")"
+
+log() {
+  if [[ $dry == "1" ]]; then
+    echo "[DRY RUN]: $@"
+  else
+    echo "$@"
+  fi
+}
+
+execute() {
+  log "Execute $@"
+  if [[ $dry == "1" ]]; then
+    return
+  fi
+
+  "$@"
+}
+
+run_script() {
+  local script="$1"
+  if [[ -n "$filter" ]] && ! echo "$script" | grep -q "$filter"; then
+    log "Skipping $script"
+    return
+  fi
+  execute "$script"
+}
+
+run_dir() {
+  local dir="$1"
+  local -a scripts
+  local script line
+  [[ -d "$dir" ]] || return 0
+  log "--- $dir ---"
+
+  scripts=()
+  while IFS= read -r line; do scripts+=("$line"); done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+
+  for script in "${scripts[@]}"; do
+    [[ -f "$script" && -x "$script" ]] || continue
+    run_script "$script"
+  done
+}
+
+log "$dotfiles_dir -- $filter"
+log "profile: $profile"
+
+cd "$dotfiles_dir"
+
+run_dir "$dotfiles_dir/profiles/$profile"
+
+echo "----------------------------------------"
+echo "All scripts executed"

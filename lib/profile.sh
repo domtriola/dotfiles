@@ -3,7 +3,7 @@
 # Profile resolution.
 #
 # A profile names the use-case of a machine, not just its operating system. It
-# decides which scripts under ./setups/ run and which environment files
+# decides which scripts under ./profiles/ run and which environment files
 # sync-env copies.
 #
 # Resolution order, first match wins:

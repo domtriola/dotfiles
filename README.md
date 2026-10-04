@@ -7,33 +7,33 @@ Environment configurations for quick set-up of a new machine.
 1. Install git
 1. Clone these dotfiles:
    `cd ~/src/personal && git clone git@github.com:domtriola/dotfiles.git && cd dotfiles`
-1. Perform steps if any in `setups/<profile>/bootstrap.md`
+1. Perform steps if any in `profiles/<profile>/bootstrap.md`
 1. Run the setup tools from the checkout, naming the profile the first time:
-   1. `./packages/sync-env/sync-env --profile <name>`
-   2. `./packages/setup/setup`
+   1. `./commands/sync-env/sync-env --profile <name>`
+   2. `./commands/setup/setup`
 1. Open a new shell. The commands are now on PATH, so later runs need no path.
 1. Run `doctor` to verify final system state
 
 ## Updates
 
-Run `sync-env` after a change to anything in `env/` or `packages/`. A new file, directory or package also needs a line in the `env.manifest` of every profile that wants it.
+Run `sync-env` after a change to anything in `env/` or `commands/`. A new file, directory or command also needs a line in the `env.manifest` of every profile that wants it.
 
-Run `setup` after a change to anything in `setups/<profile>/`.
+Run `setup` after a change to anything in `profiles/<profile>/`.
 
 ## Layout
 
 | Path        | Contents                                                      |
 | ----------- | ------------------------------------------------------------- |
 | `env/`      | The files that are copied into `$HOME`.                       |
-| `packages/` | The commands. See [packages/README.md](packages/README.md).   |
-| `setups/`   | One directory per profile, holding its scripts and manifest.  |
+| `commands/` | The commands. See [commands/README.md](commands/README.md).   |
+| `profiles/` | One directory per profile: its setup steps and manifest.      |
 | `lib/`      | Shell functions the commands share.                           |
 | `sbx/`      | Docker Sandbox kits. See [sbx/README.md](sbx/README.md).      |
 | `docs/`     | Notes and reminders. See [Further reading](#further-reading). |
 
 ## Commands
 
-[packages/README.md](packages/README.md) describes every command.
+[commands/README.md](commands/README.md) describes every command.
 
 ## Profiles
 
@@ -49,13 +49,13 @@ and which files `sync-env` copies.
 | `sbx-linux`     | Docker Sandbox, set up by the `dotfiles` kit |
 | `ai-server`     | Headless model server, Ubuntu                |
 
-Each profile owns a directory under `setups/`:
+Each profile owns a directory under `profiles/`:
 
 ```text
-setups/<profile>/
+profiles/<profile>/
   env.manifest    # what sync-env copies
   bootstrap.md    # steps done by hand, if the profile has any
-  00_bootstrap    # what setup runs, in filename order
+  00_preflight    # what setup runs, in filename order
   10_settings
   ...
   lib/            # code that is not a setup step
@@ -77,7 +77,7 @@ needs, and nothing else.
   somewhere disposable:
 
   ```console
-  mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./packages/sync-env/sync-env
+  mkdir -p /tmp/fakehome && HOME=/tmp/fakehome ./commands/sync-env/sync-env
   ```
 
 ## Agent skills
