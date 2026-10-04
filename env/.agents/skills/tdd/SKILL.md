@@ -17,7 +17,7 @@ See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking g
 
 ## Seams: where tests go
 
-A **seam** is where a module's interface lives. Tests cross the same seam as callers, so they observe behavior through the interface and never reach into internals. The `codebase-design` skill (`../codebase-design/SKILL.md`) defines seam, module, interface, and depth. Read it when the shape of the interface is in question: how deep the module is, where the seam belongs, or what the interface exposes.
+A **seam** is where a module's interface lives. Tests cross the same seam as callers, so they observe behavior through the interface and never reach into internals. The `codebase-design` skill defines seam, module, interface, and depth. Read it when the shape of the interface is in question: how deep the module is, where the seam belongs, or what the interface exposes.
 
 **Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything, so agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case.
 
@@ -33,4 +33,4 @@ Ask: "What's the public interface, and which seams should we test?"
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Refactoring is not part of the loop.** It belongs to the review stage (the `code-review` skill, `../code-review/SKILL.md`), not the red → green implementation cycle.
+- **Refactoring is not part of the loop.** It belongs to the review stage (the `code-review` skill), not the red → green implementation cycle.

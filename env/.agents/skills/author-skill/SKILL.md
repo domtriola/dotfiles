@@ -3,14 +3,14 @@ name: author-skill
 description: Author an agent skill. Use when creating, copying, or editing a skill in this repo.
 ---
 
-Skills live in `env/.agents/skills/<name>/`. The `writing-for-agents` skill (`../writing-for-agents/SKILL.md`) is the reference for how to write one. Read it before you write, and apply it to every line.
+Skills live in `env/.agents/skills/<name>/`. The `writing-for-agents` skill is the reference for how to write one. Read it before you write, and apply it to every line.
 
 ## Rules
 
 1. **Naming.** A skill that creates a resource is named `author-<resource>`.
 2. **Invocation.** A skill is model-invoked only when the agent or another skill must find it without the user. Every other skill sets `disable-model-invocation: true`.
 3. **Length.** A `SKILL.md` stays under about 100 lines. Material that only some branches need goes into a linked file in the skill's directory.
-4. **Portability.** Skills must work in Claude Code and in `pi`, which has no Skill tool and no built-in sub-agents. Refer to another skill by name and relative path, for example "the `tdd` skill (`../tdd/SKILL.md`)". Give every sub-agent step a fallback for an agent that cannot dispatch one. Use only tools that every agent has.
+4. **Portability.** Skills must work in Claude Code and in `pi`, which has no Skill tool and no built-in sub-agents. Refer to another skill by name only, for example "the `tdd` skill", so that references still work when skills move. A skill that another skill refers to must be model-invoked, because neither agent can find a disabled skill by name. Send the user to a disabled skill by telling them to run it. Link to a file in the same skill by relative path. Give every sub-agent step a fallback for an agent that cannot dispatch one. Use only tools that every agent has.
 
 ## Copying a skill from another repo
 

@@ -10,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Each axis is reviewed in its own context, so that neither pollutes the other, then this skill aggregates their findings.
 
-Read `docs/agents/issue-tracker.md` first. If it is missing, stop and tell the user to run `/skills-init`.
+Read `docs/agents/issue-tracker.md` first. If it is missing, stop and tell the user to run the `skills-init` skill.
 
 ## Process
 
