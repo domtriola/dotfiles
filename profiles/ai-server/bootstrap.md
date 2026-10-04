@@ -209,6 +209,12 @@ This step is manual because it runs on the client and not on the server.
 `05_hardening` stops when `~/.ssh/authorized_keys` is empty, so a missed step
 here fails loudly rather than locking the machine.
 
+**To replace the client key later**, add the new public key to
+`~/.ssh/authorized_keys` before the old key is deleted. After `05_hardening`,
+password authentication is off, so `ssh-copy-id` cannot use a password. Add the
+key from a session that still works, or at the console. A key that is not in
+the file fails with `Permission denied (publickey)`.
+
 ## 8. Clone the repository and run the profile
 
 ```console
@@ -253,6 +259,11 @@ NETBIRD_SETUP_KEY='<key>' ./commands/setup/setup 25_network
 This is also what moves the model server off `0.0.0.0` and onto the overlay
 address, so it stops answering on `127.0.0.1` afterwards. Test it at the
 address the script prints.
+
+The dashboard policy that lets a client reach the `ai-server` group must allow
+TCP port 22 as well as the model port. NetBird drops traffic to a port that the
+policy does not allow, so without port 22 the model server answers but `ssh` to
+the overlay address hangs at `Connecting to … port 22` with no error.
 
 Run `./commands/sync-env/sync-env` to pull environment configs. It also puts
 the commands that `env.manifest` lists on PATH, so later runs need no path.
