@@ -12,6 +12,13 @@
 # ssh from also offering keys from an agent.
 #
 # Needs Touch ID, so this script cannot run unattended the first time.
+#
+# SSH_KEY_PROT=none makes a new key without Touch ID, for when Touch ID is not
+# reliable. Any process that runs as you can then use the key without a
+# prompt, so doctor reports it as a failure. It only applies when the key is
+# made. An existing key with bio or none protection is kept.
+#
+# Usage: SSH_KEY_PROT=none setup 40_ssh_key
 
 set -eox pipefail
 
@@ -25,6 +32,12 @@ key_file="$HOME/.ssh/id_ecdsa_sk"
 ssh_config="$HOME/.ssh/config"
 allowed_signers="$HOME/.ssh/allowed_signers"
 provider="/usr/lib/ssh-keychain.dylib"
+new_prot="${SSH_KEY_PROT:-bio}"
+
+if [[ "$new_prot" != "bio" && "$new_prot" != "none" ]]; then
+  echo "SSH_KEY_PROT must be bio or none, not \"$new_prot\"." >&2
+  exit 1
+fi
 
 mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
@@ -33,16 +46,19 @@ chmod 700 "$HOME/.ssh"
 # #######################################################
 
 # The protection of each identity with this label, one per line. Columns:
-# Key Type, Public Key Hash, Prot, Label. A key with any protection other than
-# bio can be used without Touch ID, so it is refused, not reused.
+# Key Type, Public Key Hash, Prot, Label.
 key_prot="$(sc_auth list-ctk-identities | awk -v label="$key_label" '$4 == label { print $3 }')"
 
 # OpenSSH supports p-256-ne only. It does not support p-384-ne.
 if [[ -z "$key_prot" ]]; then
-  echo "NOTE: Use Touch ID if asked. This creates the key in the Secure Enclave."
-  sc_auth create-ctk-identity -l "$key_label" -k p-256-ne -t bio
+  if [[ "$new_prot" == "bio" ]]; then
+    echo "NOTE: Use Touch ID if asked. This creates the key in the Secure Enclave."
+  fi
+  sc_auth create-ctk-identity -l "$key_label" -k p-256-ne -t "$new_prot"
+elif [[ "$key_prot" == "none" ]]; then
+  echo "WARNING: The \"$key_label\" Secure Enclave key has no Touch ID protection." >&2
 elif [[ "$key_prot" != "bio" ]]; then
-  echo "The \"$key_label\" Secure Enclave identity is not a single key with bio protection:" >&2
+  echo "The \"$key_label\" Secure Enclave identity is not a single key with bio or none protection:" >&2
   sc_auth list-ctk-identities >&2
   echo "Delete it with sc_auth delete-ctk-identity -h <hash>, then run this script again." >&2
   exit 1
@@ -54,7 +70,7 @@ fi
 # one. A temporary directory keeps that output out of ~/.ssh until the result
 # is known.
 if [[ ! -f "$key_file" ]]; then
-  echo "NOTE: Use Touch ID. Then, at \"Enter PIN for authenticator\", press Enter."
+  echo "NOTE: Use Touch ID if asked. Then, at \"Enter PIN for authenticator\", press Enter."
   echo "      The key has no PIN. ssh-keygen asks for one because it treats the"
   echo "      Secure Enclave as a FIDO security key."
   tmp_dir="$(mktemp -d)"

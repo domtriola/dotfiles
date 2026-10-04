@@ -10,7 +10,7 @@ xcode-select --install
 
 ## Enroll Touch ID fingers
 
-Do this before you run `setup`. The SSH key from `40_ssh_key` needs Touch ID for each use, and it has no password fallback.
+Do this before you run `setup`. The SSH key from `40_ssh_key` needs Touch ID for each use, and it has no password fallback. If Touch ID is not reliable for you, see [Use a key without Touch ID](#use-a-key-without-touch-id).
 
 1. [ ] Open System Settings > Touch ID & Password, and enroll multiple fingers.
 
@@ -46,6 +46,21 @@ The key cannot be exported, so it has no backup. If Touch ID stops working for t
 
 1. Run `40_ssh_key` again to make a new key.
 1. At https://github.com/settings/keys, delete the old key from both the authentication and the signing lists. Then add the new key with the steps above.
+
+### Use a key without Touch ID
+
+`sc_auth` can protect the key with Touch ID only (`bio`) or with nothing (`none`). It cannot fall back to a password. If Touch ID is not reliable for you, you can make a key with `none` protection. Then any process that runs as you can use the key without a prompt, so `doctor` reports it as a failure. Use it only until a YubiKey replaces it.
+
+1. If a key exists, remove it as in step 1 of [Recover the SSH key](#recover-the-ssh-key).
+1. Make the new key:
+
+   ```sh
+   SSH_KEY_PROT=none setup 40_ssh_key
+   ```
+
+1. Replace the key on GitHub as in step 3 of [Recover the SSH key](#recover-the-ssh-key).
+
+Later runs of `setup` keep the key, and show a warning.
 
 ## Set up the GitHub CLI
 
