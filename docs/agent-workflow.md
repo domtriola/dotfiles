@@ -8,7 +8,7 @@ How the agent skills in `env/.agents/skills/` fit together. Each skill's own `SK
 | --------- | ---------------------------------- | ----------------------------------------- |
 | Grill     | `grill-me`, with `domain-modeling` | Decisions, `GLOSSARY.md` terms, ADRs      |
 | Spec      | `author-spec`                      | A spec in the repo's tracker              |
-| Implement | `implement`, which uses `tdd`      | A PR that closes the spec                 |
+| Implement | `implement`, which uses `tdd` and `pr` | A PR that closes the spec             |
 | Review    | `code-review`                      | Findings on two axes: standards, and spec |
 
 Run `skills-init` once per repo before the spec stage. It writes
