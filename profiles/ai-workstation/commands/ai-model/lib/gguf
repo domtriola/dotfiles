@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# Reading a model's own metadata.
+#
+# A GGUF file carries the context length it was trained for in its header, and
+# that is the ceiling a configured context is checked against. The file is a
+# better source than the repository it came from: it works offline, it works
+# for a file copied in by hand, and it describes the model being served rather
+# than whatever the repository says today.
+#
+# The parse itself is Python, in libexec/, because it is binary format work
+# rather than shell work. llama.cpp ships no tool that prints this.
+
+gguf_pkg="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
+
+# gguf_context_length <file> prints the trained context length, or nothing.
+#
+# Invoked through python3 rather than executed, so a copy that lost its mode
+# still works.
+gguf_context_length() {
+  python3 "$gguf_pkg/libexec/gguf-context-length" "$1" 2>/dev/null
+}

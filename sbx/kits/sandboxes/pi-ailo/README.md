@@ -1,8 +1,9 @@
 # pi-ailo
 
 A sandbox kit for the [pi](https://pi.dev) coding agent, pointed at a
-self-hosted model server. There are no hosted models configured, and no API
-credential.
+self-hosted model server. There are no hosted models configured. The one
+credential is optional: the server's own API key, for a server that requires
+one.
 
 Any server that speaks the OpenAI-compatible HTTP interface works. The kit
 names no engine and no model: it is told where the server is, and asks the
@@ -40,6 +41,35 @@ sandbox is a policy problem:
 curl -fsS http://<host>:8080/v1/models
 ```
 
+### A server that requires a key
+
+Bind the key on the host, once. The proxy adds it to every request to
+`modelHost`, so the sandbox holds only a placeholder:
+
+```console
+sbx secret set model-server -t '<key>'
+```
+
+Leave it unbound for a server with no authentication. The kit sends a
+placeholder header, which such a server ignores.
+
+To check the server from the host, send the key yourself:
+
+```console
+curl -fsS -H "Authorization: Bearer <key>" http://<host>:8080/v1/models
+```
+
+### A server on the same machine
+
+Use `modelHost=host.docker.internal`. The sandbox proxy is on the host, so it
+reaches the server on loopback. If `sbx policy log` shows the request refused
+for `localhost`, the proxy has rewritten the name before checking the policy,
+and the host needs a rule of its own:
+
+```console
+sbx policy allow network localhost:8080
+```
+
 ## Quick start
 
 ```console
@@ -56,6 +86,7 @@ forgotten value is a message rather than a sandbox that talks to nothing.
 | `modelHost`      | kit arg  | The server, as addressed from inside the sandbox. Required.      |
 | `modelPort`      | kit arg  | The server's port. Defaults to `8080`.                           |
 | `modelIds`       | kit arg  | Pins the model list. Empty asks the server, which is the usual.  |
+| `model-server`   | secret   | The server's API key. Optional. Sent as a Bearer token.          |
 | `MODEL_BASE_URL` | variable | Built from the host and port. Override to point elsewhere.       |
 | `MODEL_IDS`      | variable | Built from `modelIds`.                                           |
 

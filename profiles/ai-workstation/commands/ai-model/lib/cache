@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# The KV cache quantisation, per model.
+#
+# It multiplies with the context length: halving the cache type doubles the
+# context that fits in the same memory. The two belong together for that reason,
+# and are the only engine settings kept per model.
+
+# The types llama.cpp accepts for a quantised cache. A free-form string is
+# deliberately not allowed: a value that reaches the engine unchecked fails at
+# load time with a message about a tensor type, far from where it was typed.
+cache_types=(f16 q8_0 q5_1 q5_0 q4_1 q4_0)
+
+cmd_cache() {
+  local name="$1" want="$2" current
+
+  require_model "$name"
+  current="$(registry_get "$name" cache_type q8_0)"
+
+  if [[ -z "$want" ]]; then
+    cat <<EOF
+  $name
+
+  cache type  $current
+  accepted    ${cache_types[*]}
+
+  Smaller is less memory per token of context and less precision. f16 is the
+  engine's own default and costs twice q8_0.
+
+  Change it with: ai-model cache $name <type>
+EOF
+    return 0
+  fi
+
+  printf '%s\n' "${cache_types[@]}" | grep -qxF "$want" ||
+    die "'$want' is not a cache type. Use one of: ${cache_types[*]}"
+
+  if [[ "$want" == "$current" ]]; then
+    echo "$name already uses $want."
+    return 0
+  fi
+
+  registry_set "$name" cache_type "$want"
+  echo "$name: cache type $current -> $want"
+
+  # The memory a token of context costs changes with the type, so readings
+  # taken at the old one no longer describe this model.
+  registry_clear_samples "$name"
+
+  apply
+}

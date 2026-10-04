@@ -41,13 +41,14 @@ Every machine has a profile. A profile names what the machine is **for**, not
 only which operating system it runs on. It decides which scripts `setup` runs
 and which files `sync-env` copies.
 
-| Profile         | Machine                                      |
-| --------------- | -------------------------------------------- |
-| `dev-mac`       | macOS workstation                            |
-| `dev-linux`     | Fedora dev box                               |
-| `infosec-qubes` | Qubes appVM, minimal setup                   |
-| `sbx-linux`     | Docker Sandbox, set up by the `dotfiles` kit |
-| `ai-server`     | Headless model server, Ubuntu                |
+| Profile          | Machine                                             |
+| ---------------- | --------------------------------------------------- |
+| `dev-mac`        | macOS workstation                                   |
+| `dev-linux`      | Fedora dev box                                      |
+| `infosec-qubes`  | Qubes appVM, minimal setup                          |
+| `sbx-linux`      | Docker Sandbox, set up by the `dotfiles` kit        |
+| `ai-server`      | Headless model server, Ubuntu                       |
+| `ai-workstation` | Headless agent workstation and model server, Ubuntu |
 
 Each profile owns a directory under `profiles/`:
 

@@ -2,17 +2,17 @@
 
 This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 
-| Kit                                                              | What it is                                                                                  |
-| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md) | Claude Code with custom settings. The default agent.                                        |
-| [`kits/sandboxes/pi-ailo`](kits/sandboxes/pi-ailo/README.md)     | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential. |
-| [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md) | Ships the personal agent skills into the sandbox.                                           |
-| [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)         | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.              |
+| Kit                                                              | What it is                                                                                                 |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md) | Claude Code with custom settings. The default agent.                                                       |
+| [`kits/sandboxes/pi-ailo`](kits/sandboxes/pi-ailo/README.md)     | The pi agent, pointed at a self-hosted model server. The only credential is the server's optional API key. |
+| [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md) | Ships the personal agent skills into the sandbox.                                                          |
+| [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)         | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.                             |
 
 ## Commands
 
-`sync-env` installs two commands into `~/.local/bin` for the `dev-mac` and
-`dev-linux` profiles.
+`sync-env` installs two commands into `~/.local/bin` for the `dev-mac`,
+`dev-linux` and `ai-workstation` profiles.
 
 | Command    | What it does                                         | Reference          |
 | ---------- | ---------------------------------------------------- | ------------------ |
