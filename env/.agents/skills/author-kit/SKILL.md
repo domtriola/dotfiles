@@ -1,9 +1,9 @@
 ---
-name: kit-author
+name: author-kit
 description: Write Docker Sandboxes kits (agents and mixins). Points at the live spec documentation, and records the local conventions and engine behaviors that the documentation does not cover.
 ---
 
-# Kit Author
+# Author Kit
 
 A kit is a `spec.yaml` plus an optional `files/` tree, which the
 `sbx` engine turns into container customizations when a sandbox is created or when

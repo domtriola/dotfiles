@@ -1,5 +1,5 @@
 ---
-name: to-spec
+name: author-spec
 description: Turn the current conversation into a spec and publish it to the project's tracker. Synthesis only, no interview.
 disable-model-invocation: true
 ---
