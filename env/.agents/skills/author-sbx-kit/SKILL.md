@@ -1,5 +1,5 @@
 ---
-name: author-kit
+name: author-sbx-kit
 description: Write Docker Sandboxes kits (agents and mixins). Points at the live spec documentation, and records the local conventions and engine behaviors that the documentation does not cover.
 ---
 
