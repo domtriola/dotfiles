@@ -82,10 +82,7 @@ needs, and nothing else.
 
 ## Agent skills
 
-`env/.agents/skills/` is the one source of truth for agent skills. Skills are
-authored there, on the host. Some started as copies of
-[mattpocock/skills](https://github.com/mattpocock/skills) and are now maintained
-here. Each of those holds a `LICENSE` that keeps the original copyright. For how
+`env/.agents/skills/` is the one source of truth for agent skills. Each imported skill holds a `LICENSE` that keeps the original copyright. For how
 the skills fit together, see [Agent workflow](docs/agent-workflow.md).
 
 These scripts move the skills:
