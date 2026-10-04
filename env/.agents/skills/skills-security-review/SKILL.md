@@ -28,29 +28,7 @@ Read every file. Don't sample — gaps in coverage miss real issues.
 
 ### Step 2: Tirith Scan
 
-Run tirith to catch hidden/obfuscated content before manual review:
-
-```bash
-tirith scan --format json <skills-dir> 2>/dev/null
-```
-
-For each finding, resolve the byte offset to a line number to show the user exactly where the issue is:
-
-```bash
-python3 -c "
-import json, sys
-data = json.load(open('/dev/stdin'))
-for f in data.get('files', []):
-    content = open(f['path'], 'rb').read()
-    for finding in f.get('findings', []):
-        for ev in finding.get('evidence', []):
-            offset = ev.get('offset', 0)
-            line = content[:offset].count(b'\n') + 1
-            print(f\"{f['path']}:{line} [{finding['severity']}] {finding['rule_id']} — {ev['description']}\")
-" <<< '\''<json output>'\''
-```
-
-Or pipe directly:
+Run tirith to catch hidden/obfuscated content before manual review. The script resolves each finding's byte offset to a line number, to show the user exactly where the issue is:
 
 ```bash
 tirith scan --format json <skills-dir> 2>/dev/null | python3 -c "

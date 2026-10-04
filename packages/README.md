@@ -8,7 +8,6 @@ package when it works on this checkout, or when it outgrows one file.
 | `setup`       | Runs the scripts in `setups/<profile>/`, in filename order.               |
 | `sync-env`    | Copies the files that `setups/<profile>/env.manifest` lists into `$HOME`. |
 | `doctor`      | Reports whether this machine matches what its profile intends.            |
-| `pull-skills` | Vendors third-party agent skills into `env/.agents/skills/`.              |
 | `sync-skills` | Copies the agent skills into the `agent-skills` kit.                      |
 | `pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                     |
 | `sbx-up`      | Starts a Docker sandbox for the current project. See `sbx-up --help`.     |

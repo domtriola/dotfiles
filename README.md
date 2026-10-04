@@ -83,17 +83,17 @@ needs, and nothing else.
 ## Agent skills
 
 `env/.agents/skills/` is the one source of truth for agent skills. Skills are
-authored there, on the host. These scripts move them:
+authored there, on the host. Some started as copies of
+[mattpocock/skills](https://github.com/mattpocock/skills) and are now maintained
+here. Each of those holds a `LICENSE` that keeps the original copyright. For how
+the skills fit together, see [Agent workflow](docs/agent-workflow.md).
 
-| Command       | Where the skills go                                                          |
-| ------------- | ---------------------------------------------------------------------------- |
-| `pull-skills` | Into `env/.agents/skills/`, from the upstreams in `env/.agents/skills.json`. |
-| `sync-env`    | Into `~/.claude/skills` and `~/.agents/skills`.                              |
-| `sync-skills` | Into the `agent-skills` kit, for sandboxes.                                  |
+These scripts move the skills:
 
-Vendored skills are pinned in `env/.agents/skills.lock`, which `pull-skills`
-generates. A vendored skill that was edited locally stops the next pull, rather
-than being discarded.
+| Command       | Where the skills go                             |
+| ------------- | ----------------------------------------------- |
+| `sync-env`    | Into `~/.claude/skills` and `~/.agents/skills`. |
+| `sync-skills` | Into the `agent-skills` kit, for sandboxes.     |
 
 Only the `dev-mac` and `dev-linux` manifests copy skills into `$HOME`. In a
 sandbox the `agent-skills` kit delivers them instead, so the `sbx-linux`
