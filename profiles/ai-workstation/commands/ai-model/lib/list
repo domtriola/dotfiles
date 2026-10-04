@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# What is installed, and how each model is configured.
+
+cmd_list() {
+  local name files size ctx trained cache count=0
+
+  printf '  %-44s %7s  %9s  %9s  %s\n' MODEL SIZE CONTEXT TRAINED CACHE
+
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    count=$((count + 1))
+
+    mapfile -t files < <(model_files "$name")
+    size="$(du -ch "${files[@]}" 2>/dev/null | awk '/total/ { print $1 }')"
+
+    ctx="$(registry_get "$name" ctx "-")"
+    trained="$(registry_get "$name" trained_ctx 0)"
+    cache="$(registry_get "$name" cache_type "-")"
+
+    # A model copied in by hand has no repository to ask, so its ceiling is
+    # unknown rather than absent. Shown as such, because a context cannot be
+    # checked against a number nobody has.
+    [[ "$trained" == "0" ]] && trained="unknown"
+
+    printf '  %-44s %7s  %9s  %9s  %s\n' "$name" "$size" "$ctx" "$trained" "$cache"
+  done < <(model_names)
+
+  if [[ $count -eq 0 ]]; then
+    echo
+    echo "  no models in $models_dir"
+    echo "  add one with: ai-model add <repo> '<pattern>'"
+  fi
+}
+
+cmd_space() {
+  df -h "$models_dir" | awk 'NR==1 || NR==2'
+}

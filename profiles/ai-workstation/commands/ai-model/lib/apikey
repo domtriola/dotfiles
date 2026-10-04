@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# The model API key: where it is, and how a request on this machine sends it.
+#
+# llama-swap refuses every endpoint without the key once one is configured,
+# including /v1/models and /running. So every tool here that talks to the
+# server sends it, and reads it the same way.
+#
+# The key is in a file only root can read, because the agents on this machine
+# run code nobody has reviewed. systemd reads the file as root and hands the
+# value to llama-swap in its environment. Nothing else holds a copy.
+
+api_key_file="/etc/llama-swap/api-key.env"
+
+# model_api_key prints the key, or nothing when there is none or it cannot be
+# read. A missing key is not an error here: the caller's request fails with a
+# 401, and that is the clearer message.
+model_api_key() {
+  sudo sed -n 's/^LLAMA_SWAP_API_KEY=//p' "$api_key_file" 2>/dev/null | head -1
+}
+
+# model_curl runs curl against the model server with the key attached. The
+# header goes through a file descriptor rather than an argument, because every
+# local user can read the arguments of a process through /proc.
+model_curl() {
+  local key
+  key="$(model_api_key)"
+  # Said out loud, because the request that follows fails with a 401, and the
+  # caller would otherwise report that as the server having nothing to say.
+  if [[ -z "$key" && -e "$api_key_file" ]]; then
+    echo "model API key: $api_key_file exists and could not be read. Is sudo available?" >&2
+  fi
+  if [[ -n "$key" ]]; then
+    curl -H @<(printf 'Authorization: Bearer %s\n' "$key") "$@"
+  else
+    curl "$@"
+  fi
+}

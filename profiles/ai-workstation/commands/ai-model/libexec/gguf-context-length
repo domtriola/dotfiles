@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Print the context length a GGUF model was trained for.
+
+Usage: gguf-context-length <file>
+
+Exits 1 and prints nothing when the file is not a GGUF, when it carries no
+context length, or when the header does not parse.
+
+Only the header is read. Values are skipped by seeking past them rather than
+decoded, so a header that claims a two hundred thousand entry array costs a
+seek and not two hundred thousand objects. Every length the file supplies is
+bounded before it is acted on, because those lengths are attacker-controlled
+in exactly the same sense the weights are.
+"""
+
+import struct
+import sys
+
+# Value types, and the struct format for the fixed-width ones.
+FIXED = {0: "B", 1: "b", 2: "H", 3: "h", 4: "I", 5: "i",
+         6: "f", 7: "?", 10: "Q", 11: "q", 12: "d"}
+STRING, ARRAY = 8, 9
+
+# Bounds. Generous against real models, and finite against a hostile file.
+# A large model header holds a few hundred keys, a chat template of tens of
+# kilobytes, and a vocabulary of a few hundred thousand tokens.
+MAX_KV = 1 << 16
+MAX_STRING = 1 << 22
+MAX_ARRAY = 1 << 24
+MAX_DEPTH = 4
+
+WANTED_SUFFIX = ".context_length"
+
+
+class Bad(Exception):
+    """The header is not something this is willing to read."""
+
+
+def take(f, fmt):
+    size = struct.calcsize(fmt)
+    data = f.read(size)
+    if len(data) != size:
+        raise Bad("short read")
+    return struct.unpack("<" + fmt, data)[0]
+
+
+def take_length(f, limit):
+    n = take(f, "Q")
+    if n > limit:
+        raise Bad("length %d over the limit of %d" % (n, limit))
+    return n
+
+
+def read_string(f):
+    return f.read(take_length(f, MAX_STRING)).decode("utf-8", "replace")
+
+
+def skip_value(f, vtype, depth=0):
+    """Advance past one value without building it."""
+    if depth > MAX_DEPTH:
+        raise Bad("nested too deeply")
+
+    if vtype in FIXED:
+        f.seek(struct.calcsize(FIXED[vtype]), 1)
+        return
+
+    if vtype == STRING:
+        f.seek(take_length(f, MAX_STRING), 1)
+        return
+
+    if vtype == ARRAY:
+        elem = take(f, "I")
+        count = take_length(f, MAX_ARRAY)
+        if elem in FIXED:
+            # One seek for the whole array, whatever it claims to hold.
+            f.seek(struct.calcsize(FIXED[elem]) * count, 1)
+            return
+        for _ in range(count):
+            skip_value(f, elem, depth + 1)
+        return
+
+    # An unknown type cannot be skipped, because its width is unknown. Stopping
+    # is the only safe move: guessing would desynchronise every later read.
+    raise Bad("unknown value type %d" % vtype)
+
+
+def context_length(path):
+    with open(path, "rb") as f:
+        if f.read(4) != b"GGUF":
+            raise Bad("not a GGUF file")
+
+        take(f, "I")  # format version
+        take(f, "Q")  # tensor count
+        n_kv = take_length(f, MAX_KV)
+
+        for _ in range(n_kv):
+            key = read_string(f)
+            vtype = take(f, "I")
+
+            # The key is prefixed with the architecture, which is not known
+            # until it has been read, so the suffix is what is matched.
+            if key.endswith(WANTED_SUFFIX) and vtype in FIXED and vtype != 6:
+                value = take(f, FIXED[vtype])
+                if isinstance(value, int) and value > 0:
+                    return value
+                raise Bad("context length is not a positive integer")
+
+            skip_value(f, vtype)
+
+    raise Bad("no context length in the header")
+
+
+def main():
+    if len(sys.argv) != 2:
+        return 1
+    try:
+        print(context_length(sys.argv[1]))
+    except (Bad, OSError, struct.error, ValueError, RecursionError):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

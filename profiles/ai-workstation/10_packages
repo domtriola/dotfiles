@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+#
+# The packages this machine needs, and access to the GPU and to KVM.
+#
+# Everything comes from apt. No language runtime is installed. Toolchains live
+# in the sandboxes, behind the VM boundary, and the host needs none of them.
+#
+# The probe pattern is taken from profiles/sbx-linux/20_packages: each package
+# names a command or path that proves it is present, so a rerun does nothing
+# and only touches the package lists when there is work to do.
+
+set -eo pipefail
+
+# <package>:<command that proves the package is present>
+#
+# A probe starting with "/" is checked with `test -e` instead of `command -v`,
+# for packages that install a library or a driver manifest rather than a
+# binary.
+packages=(
+  # Shell and editor, for the configuration that sync-env copies.
+  git:git
+  curl:curl
+  jq:jq
+  fzf:fzf
+  ripgrep:rg
+  tree:tree
+  neovim:nvim
+  tmux:tmux
+
+  # The Vulkan runtime. llama.cpp uses the Vulkan build on this hardware, so
+  # these are not optional extras: without a working ICD, Mesa answers with
+  # llvmpipe and inference runs on the processor.
+  libvulkan1:/usr/lib/x86_64-linux-gnu/libvulkan.so.1
+  # libggml-base.so links against OpenMP. Nothing in the llama.cpp archive
+  # provides it, and the failure appears only when a binary is first run, as
+  # "libgomp.so.1: cannot open shared object file".
+  libgomp1:/usr/lib/x86_64-linux-gnu/libgomp.so.1
+  mesa-vulkan-drivers:/usr/share/vulkan/icd.d/radeon_icd.x86_64.json
+  vulkan-tools:vulkaninfo
+
+  # Processor profile, applied by 15_gpu.
+  tuned:tuned-adm
+
+  # Used to read JSON from Hugging Face, and to parse a GGUF header. Named
+  # here because the profile depends on it, whether or not the base install
+  # happens to carry it.
+  python3:python3
+)
+
+missing=()
+for entry in "${packages[@]}"; do
+  probe="${entry#*:}"
+  if [[ $probe == /* ]]; then
+    [[ -e $probe ]] && continue
+  else
+    command -v "$probe" >/dev/null 2>&1 && continue
+  fi
+  missing+=("${entry%%:*}")
+done
+
+if [[ ${#missing[@]} -eq 0 ]]; then
+  echo "All packages are already installed."
+else
+  echo "Installing: ${missing[*]}"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi
+
+# ---------------------------------------------------------------------------
+# KVM, for the sandboxes
+# ---------------------------------------------------------------------------
+#
+# Each sandbox is a microVM, and on Linux sbx runs it through KVM. The device
+# belongs to the kvm group, and an account outside the group cannot open it.
+# The kernel module is part of every Ubuntu kernel, so nothing is installed.
+#
+# Checked before the GPU, because the GPU section ends the script early when
+# the driver is missing, and KVM does not depend on it.
+kvm_node="/dev/kvm"
+
+if [[ ! -e $kvm_node ]]; then
+  echo "WARNING: $kvm_node does not exist. Turn on SVM (virtualisation) in the firmware setup." >&2
+else
+  kvm_group="$(stat -c '%G' "$kvm_node")"
+  if id -nG "$USER" | tr ' ' '\n' | grep -qx "$kvm_group"; then
+    echo "$USER is already in the '$kvm_group' group."
+  else
+    echo "Adding $USER to the '$kvm_group' group, for $kvm_node."
+    sudo usermod -aG "$kvm_group" "$USER"
+    echo "NOTE: log out and back in before starting a sandbox."
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# GPU access
+# ---------------------------------------------------------------------------
+#
+# The render node is owned by a group, and an account outside it cannot open
+# the device. Mesa does not fail when that happens. It drops the real GPU and
+# offers llvmpipe, a software renderer, so the only symptom is that everything
+# is slow. The group is read from the device rather than assumed, because the
+# name differs between distributions.
+render_node="/dev/dri/renderD128"
+
+if [[ ! -e $render_node ]]; then
+  echo "WARNING: $render_node does not exist. The amdgpu driver may not be loaded." >&2
+  exit 0
+fi
+
+render_group="$(stat -c '%G' "$render_node")"
+
+if id -nG "$USER" | tr ' ' '\n' | grep -qx "$render_group"; then
+  echo "$USER is already in the '$render_group' group."
+else
+  echo "Adding $USER to the '$render_group' group, for $render_node."
+  sudo usermod -aG "$render_group" "$USER"
+  echo
+  echo "NOTE: group membership is applied at login. Log out and back in, then"
+  echo "      check with: vulkaninfo --summary | grep -E 'deviceName|driverName'"
+fi

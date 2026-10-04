@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+#
+# Give the root volume the disk the installer left unallocated.
+#
+# The Ubuntu Server installer builds an LVM volume group across the whole drive
+# and then allocates about 100 GB to the root volume. The rest stays unused in
+# the volume group, so a 1 TB disk presents as a 98 GB filesystem. One model is
+# 20 to 120 GB, and every sandbox holds its own disk image, so the default
+# fills up within days.
+#
+# Models, sandboxes and the system share this one volume on purpose. ai-model
+# refuses a download that would not fit, and doctor warns at 85 percent use.
+# A separate volume for models would mostly protect the model server, which is
+# the service this machine can most easily do without.
+#
+# Growing is online: no unmount, no reboot. It is also the only easy direction,
+# because shrinking an ext4 filesystem needs it unmounted, which on a root
+# volume means a rescue boot.
+#
+# All of the free extents are taken. A margin held back in the volume group
+# would protect nothing that is not already protected: ext4 reserves a share of
+# its blocks for root, which is what keeps a full disk from stopping the system
+# working, and that reserve grows with the filesystem. Holding space back in
+# two places reserves the same thing twice, and the copy in the volume group is
+# the one nothing can use.
+#
+set -eo pipefail
+
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+# shellcheck source=lib/config.sh
+source "$profile_dir/lib/config.sh"
+ai_workstation_config_load
+
+# Percent of the free extents to take. Lower it to keep room for an LVM
+# snapshot or a second volume.
+free_pct="${AI_WORKSTATION_LV_FREE_PCT:-100}"
+
+# Below this, the leftover is not worth a disk operation.
+min_free_gib=10
+
+if [[ ! "$free_pct" =~ ^[0-9]+$ ]] || [[ "$free_pct" -lt 1 ]] || [[ "$free_pct" -gt 100 ]]; then
+  echo "12_storage: \$AI_WORKSTATION_LV_FREE_PCT is '$free_pct'. Use 1 to 100." >&2
+  exit 1
+fi
+
+if ! command -v vgs >/dev/null 2>&1; then
+  echo "No LVM tools, so nothing to extend."
+  exit 0
+fi
+
+vg_free_gib="$(sudo vgs --noheadings --units g -o vg_free 2>/dev/null |
+  tr -dc '0-9.' | cut -d. -f1)"
+
+if [[ -z "$vg_free_gib" ]]; then
+  echo "Could not read the volume group. Skipping."
+  exit 0
+fi
+
+if [[ "$vg_free_gib" -lt "$min_free_gib" ]]; then
+  echo "Volume group has ${vg_free_gib} GiB free, nothing worth claiming."
+  exit 0
+fi
+
+# The volume behind the root filesystem, which is the one the installer
+# under-allocated. df resolves the filesystem containing a path; `findmnt
+# SOURCE` answers only for an exact mountpoint, which is a different question.
+lv_path="$(df --output=source / 2>/dev/null | tail -1)"
+
+if [[ "$lv_path" != /dev/* ]] || ! sudo lvs "$lv_path" >/dev/null 2>&1; then
+  echo "12_storage: / is on '$lv_path', which is not a logical volume. Skipping." >&2
+  exit 0
+fi
+
+current="$(df -h --output=size / | tail -1 | tr -d ' ')"
+
+echo "Root volume:      $lv_path ($current)"
+echo "Unallocated:      ${vg_free_gib} GiB in the volume group"
+echo "Would claim:      ${free_pct}% of it"
+
+# ---------------------------------------------------------------------------
+# Decide
+# ---------------------------------------------------------------------------
+#
+# Required rather than defaulted: a run must not resize a disk unasked.
+ai_workstation_require AI_WORKSTATION_EXTEND_LV || exit 1
+
+case "$AI_WORKSTATION_EXTEND_LV" in
+yes | true | 1) ;;
+no | false | 0)
+  echo "Not extending: AI_WORKSTATION_EXTEND_LV is '$AI_WORKSTATION_EXTEND_LV'."
+  exit 0
+  ;;
+*)
+  echo "12_storage: \$AI_WORKSTATION_EXTEND_LV is '$AI_WORKSTATION_EXTEND_LV'. Use yes or no." >&2
+  echo "  Change it with: setup 00_preflight" >&2
+  exit 1
+  ;;
+esac
+
+# -r grows the filesystem in the same step, and knows how to do it for both
+# ext4 and XFS.
+sudo lvextend -l "+${free_pct}%FREE" -r "$lv_path"
+
+echo
+df -h /

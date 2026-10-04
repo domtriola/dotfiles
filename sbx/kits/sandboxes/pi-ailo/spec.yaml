@@ -48,6 +48,32 @@ agentInstructions:
     The last start, and whether the server answered, is in
     `~/.pi-ailo-kit.log`.
 
+credentials:
+  # The server's API key, for a server that requires one. Optional, because a
+  # server with no authentication ignores the header, and a required credential
+  # would stop the sandbox from starting against it.
+  #
+  # The sandbox holds only the sentinel. The proxy puts the real key in the
+  # header on its way to modelHost, so the agent and the code it runs never see
+  # it. Bind it on the host with:
+  #
+  #   sbx secret set model-server -t '<key>'
+  #
+  # The domain comes from the same argument as the allow rule below, so the key
+  # goes to the server this sandbox was told to use and to nothing else.
+  - service: model-server
+    required: false
+    description: >-
+      The model server's API key, sent as a Bearer token. Leave unbound for a
+      server that has no authentication.
+    apiKey:
+      name: MODEL_API_KEY
+      proxyManaged: true
+      inject:
+        - domain: "${{ kit.args.modelHost }}"
+          header: Authorization
+          format: "Bearer %s"
+
 environment:
   variables:
     # Not OPENAI_BASE_URL: pi may read that for its own hosted provider.

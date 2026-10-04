@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+# Removing a model and everything recorded about it.
+
+cmd_rm() {
+  local name="$1" files answer
+  require_model "$name"
+
+  mapfile -t files < <(model_files "$name")
+
+  printf 'Removing %d file(s):\n' "${#files[@]}"
+  printf '  %s\n' "${files[@]}"
+  read -r -p "Delete them? [y/N] " answer
+  [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || die "cancelled"
+
+  sudo rm -f -- "${files[@]}"
+
+  # The settings go with the files. Keeping them would silently re-apply an old
+  # context to a model of the same name fetched later, which is a surprise the
+  # second download has no way to explain.
+  registry_forget "$name"
+
+  apply
+}

@@ -14,6 +14,10 @@ set -eu
 base_url="${MODEL_BASE_URL:-http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1}"
 models="${MODEL_IDS:-${{ kit.args.modelIds }}}"
 
+# The sentinel when the model-server credential is declared, which the proxy
+# replaces with the real key. A server with no authentication ignores it.
+api_key="${MODEL_API_KEY:-unused}"
+
 conf="$HOME/.pi/agent"
 mkdir -p "$conf"
 
@@ -31,7 +35,7 @@ command -v node >/dev/null 2>&1 && have_node=1
 # is configured to serve whether or not any of it can load.
 served=""
 curl_out=""
-if curl_out="$(curl -fsS --max-time 10 "$base_url/models" 2>/dev/null)"; then
+if curl_out="$(curl -fsS --max-time 10 -H "Authorization: Bearer $api_key" "$base_url/models" 2>/dev/null)"; then
   if [ "$have_node" -eq 1 ]; then
     served="$(printf '%s' "$curl_out" | node -e '
       let raw = "";
@@ -60,6 +64,8 @@ else
   echo "    the kit lists it, and this kit lists the modelHost it was"
   echo "    given, so a mismatch reads exactly like a routing fault"
   echo "  - is the server running and listening on that address?"
+  echo "  - does the server need a key? bind it on the host with"
+  echo "    sbx secret set model-server, then restart the sandbox"
 fi
 
 if [ -n "$models" ]; then
@@ -124,8 +130,9 @@ elif [ "$have_node" -eq 1 ]; then
   ' 2>/dev/null || true
 fi
 
-# apiKey is sent and ignored by a server that has no authentication. pi wants
-# the field set for an openai-completions provider.
+# apiKey is the sentinel, which the proxy replaces with the real key on its way
+# to the server. A server that has no authentication ignores it. pi wants the
+# field set for an openai-completions provider either way.
 #
 # compat turns off two OpenAI-isms that not every server implements.
 # reasoning_effort is the one to turn on first where it is supported.
@@ -135,7 +142,7 @@ cat >"$conf/models.json" <<EOF
     "local": {
       "baseUrl": "$base_url",
       "api": "openai-completions",
-      "apiKey": "unused",
+      "apiKey": "$api_key",
       "compat": {
         "supportsDeveloperRole": false,
         "supportsReasoningEffort": false

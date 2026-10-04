@@ -16,7 +16,7 @@
 
 PROFILE_FILE="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
 
-PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux ai-server)
+PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux ai-server ai-workstation)
 
 # profile_list prints the known profiles on one line, for error messages.
 profile_list() { echo "${PROFILES[*]}"; }
@@ -33,7 +33,7 @@ is_profile() {
 profile_os() {
   case "$1" in
   dev-mac) echo "mac" ;;
-  dev-linux | infosec-qubes | sbx-linux | ai-server) echo "linux" ;;
+  dev-linux | infosec-qubes | sbx-linux | ai-server | ai-workstation) echo "linux" ;;
   esac
 }
 
@@ -45,6 +45,10 @@ profile_os() {
 # too, so is_sandbox has to be asked before is_ubuntu, or every sandbox would
 # detect as ai-server. The final is_linux puts a distribution that matches none
 # of the tests on the dev-linux profile.
+#
+# ai-workstation is never detected. It is Ubuntu on the same hardware as
+# ai-server, so nothing tells the two apart, and its bootstrap names it with
+# --profile instead.
 detect_profile() {
   if is_mac; then
     echo "dev-mac"

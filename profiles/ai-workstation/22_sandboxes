@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+#
+# Docker Sandboxes, where the agents run.
+#
+# Every agent runs in a sandbox, which is a microVM with its own kernel, disk
+# and network policy. That boundary is why the host carries no toolchains: the
+# code the agents write and run stays on the far side of it.
+#
+# sbx comes from Docker's apt repository. It needs KVM, which 10_packages gives
+# this account, and it does not need Docker Engine on the host.
+#
+# This step also turns on linger for this account. Without it, systemd can stop
+# a user's processes when their last session ends. With it, a tmux session that
+# was started over SSH, and every sandbox in it, keeps running after the SSH
+# connection closes.
+#
+# Settings that are one-offs rather than answers, so not in config.env:
+#
+#   $DOCKER_REPO_KEY_SHA256   the expected digest of the repository signing
+#                             key. Defaults to the key this was written against.
+
+set -eo pipefail
+
+keyring="/etc/apt/keyrings/docker.asc"
+sources="/etc/apt/sources.list.d/docker.list"
+key_url="https://download.docker.com/linux/ubuntu/gpg"
+repo_url="https://download.docker.com/linux/ubuntu"
+
+# The digest of the armoured key file, for the key with fingerprint
+# 9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88. A changed file is not
+# always a changed key, so compare the fingerprint before moving this pin:
+#
+#   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --show-keys
+key_sha256="${DOCKER_REPO_KEY_SHA256:-1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570}"
+
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "22_sandboxes: no apt-get. This profile targets Ubuntu Server." >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# The repository
+# ---------------------------------------------------------------------------
+#
+# Set up by hand rather than with Docker's get.docker.com script, so that the
+# key is checked against a pin and nothing is piped into a root shell.
+#
+# The codename is read from the system. Docker publishes a suite for each
+# Ubuntu release, so a release with no suite fails at apt-get update, loudly.
+codename="$(. /etc/os-release && printf '%s' "${VERSION_CODENAME:-}")"
+if [[ -z "$codename" ]]; then
+  echo "22_sandboxes: /etc/os-release has no VERSION_CODENAME." >&2
+  exit 1
+fi
+
+arch="$(dpkg --print-architecture)"
+desired_list="# Managed by dotfiles: profiles/ai-workstation/22_sandboxes
+deb [arch=$arch signed-by=$keyring] $repo_url $codename stable"
+
+if [[ -f "$keyring" ]] && [[ "$(sha256sum "$keyring" | cut -d' ' -f1)" == "$key_sha256" ]]; then
+  echo "$keyring is already correct."
+else
+  echo "--- the docker repository key ---"
+  tmp_key="$(mktemp)"
+  curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp_key" "$key_url"
+
+  got="$(sha256sum "$tmp_key" | cut -d' ' -f1)"
+  if [[ "$got" != "$key_sha256" ]]; then
+    rm -f "$tmp_key"
+    echo "22_sandboxes: the repository key does not match its pinned digest." >&2
+    echo "  expected $key_sha256" >&2
+    echo "  got      $got" >&2
+    echo "Nothing was installed. Find out why it changed before moving the pin." >&2
+    exit 1
+  fi
+  echo "  digest ok"
+
+  sudo install -d -m 755 "$(dirname "$keyring")"
+  sudo install -m 644 "$tmp_key" "$keyring"
+  rm -f "$tmp_key"
+fi
+
+repo_changed=0
+if [[ -f "$sources" ]] && [[ "$(cat "$sources")" == "$desired_list" ]]; then
+  echo "$sources is already correct."
+else
+  echo "Writing $sources ($codename)"
+  printf '%s\n' "$desired_list" | sudo tee "$sources" >/dev/null
+  sudo chmod 644 "$sources"
+  repo_changed=1
+fi
+
+# ---------------------------------------------------------------------------
+# sbx
+# ---------------------------------------------------------------------------
+just_installed=0
+if command -v sbx >/dev/null 2>&1; then
+  echo "sbx is already installed: $(sbx version 2>/dev/null | head -1 || echo 'version unknown')"
+else
+  echo "--- installing sbx ---"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-sbx
+  just_installed=1
+fi
+
+if [[ "$repo_changed" -eq 1 && "$just_installed" -eq 0 ]] && command -v sbx >/dev/null 2>&1; then
+  # A new suite can carry a newer sbx. Updated on purpose here and not left to
+  # unattended-upgrades, which only takes security updates.
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade docker-sbx
+fi
+
+# ---------------------------------------------------------------------------
+# Linger
+# ---------------------------------------------------------------------------
+if [[ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" == "yes" ]]; then
+  echo "Linger is already on for $USER."
+else
+  echo "Turning on linger for $USER."
+  sudo loginctl enable-linger "$USER"
+fi
+
+# ---------------------------------------------------------------------------
+# What is left to do by hand
+# ---------------------------------------------------------------------------
+#
+# Each of these is a secret, a login, or a choice about a specific repository,
+# so none of them belongs in a script.
+cat <<EOF
+
+sbx is installed. Sign in and give it its secrets by hand, as described in
+profiles/ai-workstation/bootstrap.md:
+
+  sbx login
+  sbx secret set github -t '<fine-grained PAT>'
+  sbx secret set model-server -t "\$(sudo sed -n 's/^LLAMA_SWAP_API_KEY=//p' /etc/llama-swap/api-key.env)"
+
+Then start agents inside tmux, so that they keep running after you disconnect:
+
+  tmux new -s agents
+  sbx-up
+EOF
