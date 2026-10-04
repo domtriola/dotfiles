@@ -1,23 +1,30 @@
 {
   "skills": {
     "domain-modeling": {
-      "checksum": "a84b088dce732c0dbc2d3a930ac5312cfa5341370a37cbc405d19830ca1fc400",
-      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
+      "checksum": "9ead6a6c1916d48f88f4f1f1ba19e323ae8037e8b70998d9fa01229f5fb84212",
+      "commit": "24fe0ef7737efae15c87225755e9f6f5965e4888",
       "path": "skills/engineering/domain-modeling",
       "ref": "main",
       "repo": "https://github.com/mattpocock/skills"
     },
     "grill-me": {
       "checksum": "711e23322fe6a33d3b81bd6005f1325b52c45306d5658151d4ccb7649ff7bc0a",
-      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
+      "commit": "24fe0ef7737efae15c87225755e9f6f5965e4888",
       "path": "skills/productivity/grill-me",
       "ref": "main",
       "repo": "https://github.com/mattpocock/skills"
     },
     "grilling": {
       "checksum": "fcc02a6a7a434590ef45ea4a58272ea46ea03046da3ad7c3fe100d25d6cc0c5d",
-      "commit": "c55ee46073ed923f86ce59a5eb3b6d895095d1b7",
+      "commit": "24fe0ef7737efae15c87225755e9f6f5965e4888",
       "path": "skills/productivity/grilling",
+      "ref": "main",
+      "repo": "https://github.com/mattpocock/skills"
+    },
+    "writing-for-agents": {
+      "checksum": "c547369028f139f3c2380d32d07e5d8b29861bb8f665d07c3be9b029cbac33a9",
+      "commit": "24fe0ef7737efae15c87225755e9f6f5965e4888",
+      "path": "skills/productivity/writing-for-agents",
       "ref": "main",
       "repo": "https://github.com/mattpocock/skills"
     }

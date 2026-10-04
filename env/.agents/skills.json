@@ -6,7 +6,8 @@
     "paths": [
       "engineering/domain-modeling",
       "productivity/grill-me",
-      "productivity/grilling"
+      "productivity/grilling",
+      "productivity/writing-for-agents"
     ],
     "exclude": ["engineering/setup-matt-pocock-skills"],
     "rename": {}
