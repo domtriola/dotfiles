@@ -70,15 +70,18 @@ fi
 section "SSH key"
 # ---------------------------------------------------------------------------
 
-# Columns: Key Type, Public Key Hash, Prot, Label. A key with any protection
-# other than bio can be used without Touch ID.
+# Columns: Key Type, Public Key Hash, Prot, Label. A key with none protection
+# (SSH_KEY_PROT=none) can be used by any process without Touch ID. It is a
+# known failure until a YubiKey replaces it.
 key_prot="$(sc_auth list-ctk-identities 2>/dev/null | awk '$4 == "ssh" { print $3 }')"
 if [[ -z "$key_prot" ]]; then
   fail "secure enclave key" "missing, run setup 40_ssh_key"
 elif [[ "$key_prot" == "bio" ]]; then
   ok "secure enclave key" "present, needs Touch ID"
+elif [[ "$key_prot" == "none" ]]; then
+  fail "secure enclave key" "present, but has no Touch ID, so any process can use it"
 else
-  fail "secure enclave key" "not a single key with bio protection, see sc_auth list-ctk-identities"
+  fail "secure enclave key" "not a single key with bio or none protection, see sc_auth list-ctk-identities"
 fi
 
 if [[ -f "$HOME/.ssh/id_ecdsa_sk" && -f "$HOME/.ssh/id_ecdsa_sk.pub" ]]; then
