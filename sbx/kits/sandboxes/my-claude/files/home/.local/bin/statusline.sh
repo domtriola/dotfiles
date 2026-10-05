@@ -5,6 +5,7 @@ MODEL=$(echo "$input" | jq -r '.model.display_name')
 DIR=$(echo "$input" | jq -r '.workspace.current_dir')
 COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
 CTX_PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)
+CTX_TOKENS=$(echo "$input" | jq -r '.context_window.current_usage | if . then .input_tokens + .cache_creation_input_tokens + .cache_read_input_tokens else 0 end')
 DURATION_MS=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
 FIVE_H_PCT=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty')
 FIVE_H_RESETS=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty')
@@ -34,6 +35,17 @@ make_bar() {
   printf '%b%s%s%b' "$color" "${fill// /█}${pad// /░}" "" "$RESET"
 }
 
+fmt_tokens() {
+  local n=$1
+  if [ "$n" -ge 1000000 ]; then
+    printf '%d.%dM' $((n / 1000000)) $(((n % 1000000) / 100000))
+  elif [ "$n" -ge 1000 ]; then
+    printf '%dk' $((n / 1000))
+  else
+    printf '%d' "$n"
+  fi
+}
+
 reset_str() {
   local secs=$1
   if [ "$secs" -le 0 ]; then
@@ -57,7 +69,7 @@ echo "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
 
 COST_FMT=$(printf '$%.2f' "$COST")
 CTX_BAR=$(make_bar "$CTX_PCT")
-echo "🧠 ${CTX_BAR} ${CTX_PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s"
+echo "🧠 ${CTX_BAR} $(fmt_tokens "$CTX_TOKENS") | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s"
 
 if [ -n "$FIVE_H_PCT" ] && [ -n "$WEEK_PCT" ]; then
   NOW=$(date +%s)
