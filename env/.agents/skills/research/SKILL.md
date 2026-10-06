@@ -1,7 +1,6 @@
 ---
 name: research
-description: Research a question in primary sources and write the findings to a Markdown file in the repo.
-disable-model-invocation: true
+description: Research a question in primary sources and write cited findings to a Markdown file. Use when a decision waits on facts from outside the repo, such as docs, third-party APIs, or upstream source.
 ---
 
 Dispatch a background sub-agent to do the research, so you can keep working while it reads. If you cannot dispatch one, do the research yourself.

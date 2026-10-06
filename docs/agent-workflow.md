@@ -4,20 +4,28 @@ How the agent skills in `env/.agents/skills/` fit together. Each skill's own `SK
 
 ## Stages
 
-| Stage     | Skill                              | Output                                    |
-| --------- | ---------------------------------- | ----------------------------------------- |
-| Grill     | `grill-me`, with `domain-modeling` | Decisions, `GLOSSARY.md` terms, ADRs      |
-| Spec      | `author-spec`                      | A spec in the repo's tracker              |
-| Implement | `implement`, which uses `tdd` and `pr` | A PR that closes the spec             |
-| Review    | `code-review`                      | Findings on two axes: standards, and spec |
+| Stage     | Skill                                                          | Output                                    |
+| --------- | -------------------------------------------------------------- | ----------------------------------------- |
+| Triage    | `triage`                                                       | Labeled issues, agent briefs              |
+| Wayfind   | `wayfinder`, for an effort too big for one session             | A map of resolved decision tickets        |
+| Grill     | `grill-me`, with `domain-modeling`                             | Decisions, `GLOSSARY.md` terms, ADRs      |
+| Spec      | `author-spec`                                                  | A spec in the repo's tracker              |
+| Tickets   | `author-tickets`, for a spec too big for one session           | Tickets with blocking edges               |
+| Implement | `implement` or `implement-tickets`, with `tdd` and `author-pr` | A PR that closes the spec                 |
+| Review    | `code-review`                                                  | Findings on two axes: standards, and spec |
 
-Run `skills-init` once per repo before the spec stage. It writes
-`docs/agents/issue-tracker.md`, which tells the other skills whether specs are
-local Markdown files or GitHub issues. A spec is temporary in both cases: the
-PR that implements it deletes or closes it.
+Run `skills-init` once per repo before the first stage. It writes
+`docs/agents/issue-tracker.md`, which tells the other skills whether specs,
+tickets, and maps are local Markdown files or GitHub issues. `triage` needs
+GitHub issues. A spec is temporary in both cases: the PR that implements it
+deletes or closes it.
 
 The agent can push branches and open PRs, but branch protection keeps merges
 with a human.
+
+Two skills work at any stage: `diagnosing-bugs` for a hard bug, and
+`author-prototype` for a design question. Run `retro` after a session to find
+improvements to the agent's environment.
 
 To create, copy, or edit a skill, use the `author-skill` skill.
 

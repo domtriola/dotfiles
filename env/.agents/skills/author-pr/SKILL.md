@@ -1,5 +1,5 @@
 ---
-name: pr
+name: author-pr
 description: Write a pull request body. Use when opening a PR or writing its description.
 ---
 
@@ -14,6 +14,10 @@ Write the PR body from this template. Use the domain language from `GLOSSARY.md`
 
 - **Before:** <screenshot, output, or failing test run>
   **After:** <screenshot, output, or passing test run>
+
+## QA
+
+- [ ] <action a reviewer performs, and the result they should see>
 
 ## Merge Danger
 
@@ -55,6 +59,10 @@ A `diff` view keeps the shape of the view it changes. For a call tree:
 ## Evidence
 
 Show concrete proof, before and after, that the change works. Screenshots are best when the change is visual and the environment can capture them. Execution evidence (test results, console output) is next. For tests, show the exact test that failed before and passes after, in pseudocode.
+
+## QA
+
+Write the checklist a human follows to walk through the change by hand and verify it. Each item is one action and its expected result, for example "Open `/settings` on a narrow screen. The form fits without a horizontal scroll." Start with the setup (branch, commands, data), then cover the main path, then the edge cases and the areas in the blast radius. Write every item so that a reviewer can check it without reading the code.
 
 ## Merge Danger
 
