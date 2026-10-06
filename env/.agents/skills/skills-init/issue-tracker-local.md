@@ -1,7 +1,31 @@
 # Issue tracker: local Markdown
 
-Specs for this repo are Markdown files in `docs/specs/`, committed with the code.
+Specs, tickets, and maps for this repo are Markdown files in `docs/`, committed with the code.
+
+## Specs
 
 - **Publish**: write `docs/specs/<slug>.md`, where `<slug>` is a short kebab-case name for the feature, and commit it.
 - **Fetch**: read the file at the path the user gives, or the spec whose slug matches the feature or the branch name.
-- **Close**: delete the spec file in the PR that implements it. Git history keeps it. Before you delete it, move anything that must outlive the spec into `GLOSSARY.md` or an ADR.
+- **Close**: delete the spec file and its ticket directory in the PR that implements it. Git history keeps them. Before you delete them, move anything that must outlive the spec into `GLOSSARY.md` or an ADR.
+
+## Tickets
+
+- **Publish**: write one file per ticket at `docs/specs/<slug>/<NN>-<ticket-slug>.md`, numbered from `01` with blockers first, and commit them. Put a `Status: ready-for-agent` line at the top of each file.
+- **Blocking**: a `Blocked by: <NN>, <NN>` line at the top of the file, or `Blocked by: none`.
+- **Frontier**: the ticket files with `Status: ready-for-agent` whose blockers all have `Status: done`. The lowest number wins.
+- **Claim**: set `Status: claimed` before any other work.
+- **Close**: set `Status: done`.
+
+## Maps
+
+The `wayfinder` skill uses these operations.
+
+- **Map**: `docs/maps/<effort>/map.md`.
+- **Map ticket**: `docs/maps/<effort>/<NN>-<slug>.md`, numbered from `01`, with a `Type: <type>` line, a `Status: open` line, and a `Blocked by:` line as for tickets.
+- **Frontier**: the map tickets with `Status: open` whose blockers all have `Status: resolved`. The lowest number wins.
+- **Claim**: set `Status: claimed` before any other work.
+- **Resolve**: add the answer under an `## Answer` heading, set `Status: resolved`, then add a line to "Decisions so far" in `map.md`.
+
+## Triage
+
+The `triage` skill needs the GitHub tracker. This repo does not support it.
