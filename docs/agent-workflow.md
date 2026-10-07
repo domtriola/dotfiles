@@ -10,9 +10,10 @@ How the agent skills in `env/.agents/skills/` fit together. Each skill's own `SK
 | Wayfind   | `wayfinder`, for an effort too big for one session             | A map of resolved decision tickets        |
 | Grill     | `grill-me`, with `domain-modeling`                             | Decisions, `GLOSSARY.md` terms, ADRs      |
 | Spec      | `author-spec`                                                  | A spec in the repo's tracker              |
+| Threat    | `author-threat-model`, for a feature that adds attack surface  | A model in `docs/threat-model/`           |
 | Tickets   | `author-tickets`, for a spec too big for one session           | Tickets with blocking edges               |
 | Implement | `implement` or `implement-tickets`, with `tdd` and `author-pr` | A PR that closes the spec                 |
-| Review    | `code-review`                                                  | Findings on two axes: standards, and spec |
+| Review    | `code-review`                                                  | Findings on standards, spec, and security |
 
 Run `skills-init` once per repo before the first stage. It writes
 `docs/agents/issue-tracker.md`, which tells the other skills whether specs,
@@ -26,6 +27,9 @@ with a human.
 Two skills work at any stage: `diagnosing-bugs` for a hard bug, and
 `author-prototype` for a design question. Run `retro` after a session to find
 improvements to the agent's environment.
+
+Run `author-threat-model` once per repo for the product model. The
+Security axis of `code-review` checks every change against it.
 
 To create, copy, or edit a skill, use the `author-skill` skill.
 
