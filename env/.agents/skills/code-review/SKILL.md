@@ -1,14 +1,15 @@
 ---
 name: code-review
-description: Review the changes since a fixed point (commit, branch, tag, or merge-base) on two axes, Standards and Spec. Use when reviewing a branch, a PR, or work in progress, or on "review since X".
+description: Review the changes since a fixed point (commit, branch, tag, or merge-base) on three axes, Standards, Spec, and Security. Use when reviewing a branch, a PR, or work in progress, or on "review since X".
 ---
 
-Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+Three-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 - **Standards**: does the code conform to this repo's documented coding standards?
 - **Spec**: does the code faithfully implement the originating issue / spec?
+- **Security**: does the code hold the repo's threat model and security posture?
 
-Each axis is reviewed in its own context, so that neither pollutes the other, then this skill aggregates their findings.
+Each axis is reviewed in its own context, so that no axis pollutes another, then this skill aggregates their findings.
 
 Read `docs/agents/issue-tracker.md` first. If it is missing, stop and tell the user to run the `skills-init` skill.
 
@@ -20,7 +21,7 @@ Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main
 
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside the two reviews.
+Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside the reviews.
 
 ### 2. Identify the spec source
 
@@ -32,36 +33,22 @@ Look for the originating spec, in this order:
 
 ### 3. Identify the standards sources
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`. On top of these, the Standards axis always carries the smell baseline in [SMELLS.md](SMELLS.md), which applies even when a repo documents nothing.
 
-On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
+### 4. Identify the threat model
 
-- **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
-- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation. Like any standard here, skip anything tooling already enforces.
+Read `docs/threat-model/product.md`, and every feature model in `docs/threat-model/` whose **Scope** covers a module, entry point, or data flow that the diff touches. Also read the repo's security docs, such as `SECURITY.md`.
 
-Each smell reads *what it is* → *how to fix*; match it against the diff:
+If `docs/threat-model/` is missing, the **Security** review still runs against the baseline alone, and the final report tells the user to run the `author-threat-model` skill.
 
-- **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
-- **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
-- **Feature Envy**: a method that reaches into another object's data more than its own. → move the method onto the data it envies.
-- **Data Clumps**: the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
-- **Primitive Obsession**: a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
-- **Repeated Switches**: the same `switch`/`if`-cascade on the same type recurs across the change. → replace with polymorphism, or one map both sites share.
-- **Shotgun Surgery**: one logical change forces scattered edits across many files in the diff. → gather what changes together into one module.
-- **Divergent Change**: one file or module is edited for several unrelated reasons. → split so each module changes for one reason.
-- **Speculative Generality**: abstraction, parameters, or hooks added for needs the spec doesn't have. → delete it; inline back until a real need shows.
-- **Message Chains**: long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
-- **Middle Man**: a class or function that mostly just delegates onward. → cut it, call the real target direct.
-- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
+### 5. Run the three reviews
 
-### 4. Run both reviews
-
-If you can dispatch sub-agents, run the two reviews as parallel sub-agents, each given the input below. If you cannot, run the Standards review, write its report, then run the Spec review. Leave the Standards report unchanged after you read the spec.
+If you can dispatch sub-agents, run the three reviews as parallel sub-agents, each given the input below. If you cannot, run them in order (Standards, Security, Spec), and write each report before you start the next. Leave a finished report unchanged after you read the next axis's sources.
 
 **Standards review** input:
 
 - The full diff command and commit list.
-- The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (a sub-agent has no other access to it).
+- The list of standards-source files you found in step 3, **plus [SMELLS.md](SMELLS.md)** pasted in full (a sub-agent has no other access to it).
 - The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
 **Spec review** input:
@@ -72,17 +59,24 @@ If you can dispatch sub-agents, run the two reviews as parallel sub-agents, each
 
 If the spec is missing, skip the Spec review and note this in the final report.
 
-### 5. Aggregate
+**Security review** input:
 
-Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
+- The diff command and commit list.
+- The paths of the threat models and security docs you found in step 4, or "no threat model".
+- [SECURITY.md](SECURITY.md) pasted in full (a sub-agent has no other access to it). It holds the brief.
 
-End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
+### 6. Aggregate
 
-## Why two axes
+Present the three reports under `## Standards`, `## Spec`, and `## Security` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the axes are deliberately separate (see _Why separate axes_).
 
-A change can pass one axis and fail the other:
+End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent. If the Security review reported threat-model drift, or found no threat model, add one line that tells the user to run the `author-threat-model` skill.
+
+## Why separate axes
+
+A change can pass one axis and fail another:
 
 - Code that follows every standard but implements the wrong thing → **Standards pass, Spec fail.**
 - Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
+- Clean code that does exactly what the issue asked, and also opens a path across a trust boundary → **Standards and Spec pass, Security fail.**
 
-Reporting them separately stops one axis from masking the other.
+Reporting them separately stops one axis from masking another. The Security reviewer does not read the spec, so that a spec which asks for something unsafe does not make it look safe.
