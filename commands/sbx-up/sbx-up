@@ -26,7 +26,7 @@ done
 usage() {
   cat <<'EOF'
 Usage:
-  sbx-up [agent]
+  sbx-up [--no-gh] [agent]
 
 Starts a Docker sandbox for the current project in a new tmux window, named
 after the project directory and the checked-out branch. An existing sandbox of
@@ -38,9 +38,17 @@ that shares the host worktree gets no such window.
 
 Outside tmux the sandbox runs in the current terminal, and no window opens.
 
+The sandbox gets a GitHub token from sbx-token that reaches only the project's
+repositories, and that sbx renews while the sandbox runs. If no token can be
+minted, nothing is started or removed. See `sbx-token --help`.
+
 Arguments:
   agent       A kit under sbx/kits/sandboxes, or a path to any kit. Overrides
               the "agent" setting for this run.
+
+Options:
+  --no-gh     Start the sandbox without a GitHub token of its own. A global
+              github secret, if one is stored, still applies.
 
 Examples:
   sbx-up
@@ -59,6 +67,13 @@ optional:
   clone     give the sandbox its own clone instead of the host worktree,
             and a shell window to reach it with.
             Default: false
+  repos     the repositories the GitHub token reaches, as owner/name. They
+            must have one owner.
+            Default: the repository of the origin remote
+  permissions
+            token permissions over the defaults of sbx-token, for example
+            {"workflows": "write", "issues": "none"}.
+            Default: {}
 
 A kit value that holds a / is a path. Every other value names a kit in this
 repository: an agent under sbx/kits/sandboxes, a mixin under sbx/kits/mixins.
@@ -72,12 +87,16 @@ EOF
 }
 
 agent=""
+use_gh="true"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
   -h | --help)
     usage
     exit 0
+    ;;
+  --no-gh)
+    use_gh="false"
     ;;
   -*)
     printf 'sbx-up: unknown argument %s. Run sbx-up --help.\n' "$1" >&2
@@ -110,8 +129,19 @@ if [[ -n "${TMUX:-}" && "$is_clone" == "true" ]]; then
   find_wait_bin
 fi
 
+# The token is minted before the old sandbox is removed, so a machine that
+# cannot mint one keeps the sandbox it had. The secret is stored after,
+# because `sbx rm` deletes the secrets of the sandbox it removes.
+if [[ "$use_gh" == "true" ]]; then
+  github_check
+fi
+
 rebuild_skills
 remove_sandbox "$name"
+
+if [[ "$use_gh" == "true" ]]; then
+  github_register "$name"
+fi
 
 if [[ -z "${TMUX:-}" ]]; then
   exec "${run[@]}"

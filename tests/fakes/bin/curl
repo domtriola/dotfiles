@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#
+# A fake curl that answers like the GitHub API. It logs one JSON line per
+# request to $FAKE_STATE/curl.log, with the method, path, bearer token and
+# body, and reads its answers from FAKE_GH_* variables.
+
+method=GET url="" auth="" body=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -X) method="$2"; shift ;;
+  -H)
+    header="$2"
+    [[ "$header" == @* ]] && header="$(cat "${header#@}")"
+    [[ "$header" == "Authorization: Bearer "* ]] && auth="${header#Authorization: Bearer }"
+    shift
+    ;;
+  --data-binary) [[ "$2" == "@-" ]] && body="$(cat)"; shift ;;
+  --max-time) shift ;;
+  http*) url="$1" ;;
+  esac
+  shift
+done
+
+path="${url#https://api.github.com}"
+jq -nc --arg m "$method" --arg p "$path" --arg a "$auth" --arg b "$body" \
+  '{method: $m, path: $p, auth: $a, body: $b}' >>"$FAKE_STATE/curl.log"
+
+if [[ -n "${FAKE_GH_DOWN:-}" ]]; then
+  echo "curl: (6) Could not resolve host: api.github.com" >&2
+  exit 6
+fi
+
+fail() {
+  printf '{"message": "%s"}' "$1"
+  exit 22
+}
+
+case "$method $path" in
+"GET /repos/"*/installation)
+  owner="${path#/repos/}"
+  owner="${owner%%/*}"
+  [[ " ${FAKE_GH_OWNERS:-me} " == *" $owner "* ]] || fail "Not Found"
+  echo '{"id": 42}'
+  ;;
+"POST /app/installations/42/access_tokens")
+  [[ -z "${FAKE_GH_TOKEN_ERROR:-}" ]] || fail "$FAKE_GH_TOKEN_ERROR"
+  echo '{"token": "ghs_fake", "expires_at": "2026-10-08T13:00:00Z"}'
+  ;;
+"GET /app/installations")
+  default='[{"account": {"login": "me"}}]'
+  echo "${FAKE_GH_INSTALLATIONS:-$default}"
+  ;;
+"GET /app")
+  [[ -z "${FAKE_GH_BAD_KEY:-}" ]] || fail "A JSON web token could not be decoded"
+  echo '{"id": 99, "slug": "me-sbx"}'
+  ;;
+"POST /app-manifests/"*/conversions)
+  jq -n --rawfile pem "$FAKE_PEM" '{id: 99, slug: "me-sbx", pem: $pem}'
+  ;;
+*)
+  fail "fake curl has no answer for $method $path"
+  ;;
+esac

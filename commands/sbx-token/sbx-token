@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+#
+# Gives a Docker sandbox a GitHub token that reaches only the repositories it
+# works on, through a GitHub App that this machine holds the key of.
+#
+# The verbs live in lib/ beside this file, and `sbx-token --help` is the
+# reference.
+
+set -euo pipefail
+
+# The command directory, resolved through any symlink, so that the same file
+# works from a checkout and from ~/.local/bin.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  target="$(readlink "$self")"
+  [[ "$target" == /* ]] || target="$(dirname "$self")/$target"
+  self="$target"
+done
+pkg="$(cd "$(dirname "$self")" >/dev/null 2>&1 && pwd)"
+
+for f in "$pkg"/lib/*; do
+  [[ -f "$f" ]] || continue
+  # shellcheck source=/dev/null
+  source "$f"
+done
+
+usage() {
+  cat <<'EOF'
+Usage:
+  sbx-token register <sandbox> [--repo owner/name]... [--perm name=level]...
+  sbx-token mint [--repo owner/name]... [--perm name=level]...
+  sbx-token check [--offline]
+  sbx-token setup [--account <login>] [--name <app name>]
+  sbx-token import-key --app-id <id> <pem file>
+
+Every token comes from one GitHub App, which holds the most that any token can
+get. A token is limited to the repositories and permissions it is minted for,
+and expires after one hour.
+
+Verbs:
+  register    Mint one token to check that it works, then store the command
+              that mints the next ones as the sandbox's GitHub secret. The sbx
+              daemon runs it again before each token expires. `sbx rm` deletes
+              the secret with the sandbox.
+  mint        Print a new token. This is the command that register stores.
+  check       Report whether this machine can mint tokens. Exits 3 when no
+              App is set up yet. --offline only checks that the config and
+              the key are on this machine.
+  setup       Register a new App from a pre-filled GitHub page, store its key
+              in the OS secret store, and open the page that installs it.
+              --account defaults to the login of `gh`, and --name to
+              <account>-sbx.
+  import-key  Give this machine its own key for an App that another machine
+              set up. Generate the key on the App's settings page.
+
+Options:
+  --repo      A repository the token reaches. Repeat for more. They must all
+              have one owner.
+  --perm      A permission over the defaults, as name=read, name=write or
+              name=none. Repeat for more.
+
+Defaults:
+  contents=write pull_requests=write issues=write actions=read
+  metadata=read is always added. The App also holds workflows=write, which a
+  token gets only when it asks for it.
+
+Environment:
+  SBX_TOKEN_BIN    the sbx-token that the secret runs. It must be outside
+                   every sandbox workspace. Default: ~/.local/bin/sbx-token
+  SBX_TOKEN_STORE  security or secret-tool. Default: by platform
+EOF
+}
+
+verb="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+repos=()
+perms=()
+sandbox=""
+account=""
+name=""
+id=""
+file=""
+offline="false"
+
+need_value() {
+  [[ $# -ge 2 && -n "$2" ]] || die "$1 needs a value. Run sbx-token --help."
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  --repo)
+    need_value "$@"
+    repos+=("$2")
+    shift
+    ;;
+  --perm)
+    need_value "$@"
+    perms+=("$2")
+    shift
+    ;;
+  --account)
+    need_value "$@"
+    account="$2"
+    shift
+    ;;
+  --name)
+    need_value "$@"
+    name="$2"
+    shift
+    ;;
+  --offline)
+    offline="true"
+    ;;
+  --app-id)
+    need_value "$@"
+    id="$2"
+    shift
+    ;;
+  -*)
+    die "unknown argument $1. Run sbx-token --help."
+    ;;
+  *)
+    case "$verb" in
+    register)
+      [[ -z "$sandbox" ]] || die "only one sandbox can be named"
+      sandbox="$1"
+      ;;
+    import-key)
+      [[ -z "$file" ]] || die "only one key file can be named"
+      file="$1"
+      ;;
+    *) die "unexpected argument $1. Run sbx-token --help." ;;
+    esac
+    ;;
+  esac
+  shift
+done
+
+case "$verb" in
+-h | --help)
+  usage
+  ;;
+mint)
+  require_deps
+  mint_token
+  ;;
+register)
+  [[ -n "$sandbox" ]] || die "name the sandbox. Run sbx-token --help."
+  require_deps
+  register "$sandbox"
+  ;;
+check)
+  require_deps
+  check "$offline"
+  ;;
+setup)
+  require_deps
+  if [[ -z "$account" ]]; then
+    account="$(gh api user --jq .login 2>/dev/null)" ||
+      die "could not read your login from gh. Pass --account <login>."
+  fi
+  [[ "$account" =~ ^[A-Za-z0-9-]+$ ]] || die "not a GitHub login: $account"
+  setup "$account" "${name:-$account-sbx}"
+  ;;
+import-key)
+  [[ -n "$id" && -n "$file" ]] || die "import-key needs --app-id and a key file. Run sbx-token --help."
+  require_deps
+  import_key "$id" "$file"
+  ;;
+"")
+  usage >&2
+  exit 1
+  ;;
+*)
+  die "unknown verb $verb. Run sbx-token --help."
+  ;;
+esac

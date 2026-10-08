@@ -80,6 +80,23 @@ Later runs of `setup` keep the key, and show a warning.
 
 When the token expires, make a new one and log in again.
 
+## Set up sandbox GitHub tokens
+
+`sbx-up` gives each sandbox a token from a GitHub App, limited to the project's repositories, and `sbx` renews it every hour. The App's private key stays in the Keychain. Do this after `sync-env`, which installs `sbx-token`, and after [Set up the GitHub CLI](#set-up-the-github-cli), because `setup` reads your login from `gh`.
+
+On the first machine:
+
+1. [ ] Run `sbx-token setup`, and do the steps that it prints. Create the App, paste the address back, and install the App on **All repositories**.
+1. [ ] Test it: `sbx-token check`.
+
+On each other machine, give the machine a key of its own, so that a lost machine can lose its key alone:
+
+1. [ ] Open the App's settings page (https://github.com/settings/apps), click **Generate a private key**, and note the **App ID**.
+1. [ ] Run `sbx-token import-key --app-id <id> ~/Downloads/<file>.pem`, then delete the file.
+1. [ ] Test it: `sbx-token check`.
+
+To revoke a machine, delete its key on the App's settings page.
+
 ## Caps Lock remap (MacOS)
 
 Open System Settings, go to Keyboard > Keyboard Shortcuts > Modifier Keys, and set the Caps Lock key to Control. Repeat it for every attached keyboard, since the setting is per keyboard.

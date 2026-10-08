@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# The sandbox's GitHub token, which sbx-token mints and sbx renews.
+
+# github_args sets gh_args to the --repo and --perm arguments of sbx-token:
+# the "repos" setting, or else the repository of the origin remote.
+github_args() {
+  local url repo perm
+
+  command -v sbx-token >/dev/null 2>&1 ||
+    die "sbx-token is not installed; run sync-env, or pass --no-gh"
+
+  gh_args=()
+  if [[ -z "$gh_repos" ]]; then
+    url="$(git -C "$root" remote get-url origin 2>/dev/null || true)"
+    if [[ "$url" =~ ^(git@github\.com:|ssh://git@github\.com/|https://github\.com/)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$ ]]; then
+      repo="${BASH_REMATCH[2]%.git}"
+    else
+      die "the origin remote is not a GitHub repository (${url:-none}). Set \"repos\" in .sbx.json, or pass --no-gh."
+    fi
+    gh_args+=(--repo "$repo")
+  else
+    while IFS= read -r repo; do
+      gh_args+=(--repo "$repo")
+    done <<<"$gh_repos"
+  fi
+
+  if [[ -n "$gh_perms" ]]; then
+    while IFS= read -r perm; do
+      gh_args+=(--perm "$perm")
+    done <<<"$gh_perms"
+  fi
+}
+
+# github_check mints one token and throws it away. sbx-token says why when it
+# cannot, and nothing falls back to a broader token.
+github_check() {
+  github_args
+  sbx-token mint "${gh_args[@]}" >/dev/null ||
+    die "no GitHub token could be minted for this sandbox. Fix the error above, or pass --no-gh."
+}
+
+github_register() {
+  sbx-token register "$1" "${gh_args[@]}" ||
+    die "could not give $1 its GitHub token. The old sandbox is already removed."
+}

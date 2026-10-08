@@ -5,11 +5,13 @@
 
 sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g", "clone": false}'
 
-# config_load resolves the settings for one sandbox and sets three globals:
+# config_load resolves the settings for one sandbox and sets five globals:
 #
 #   run             the `sbx` command line, as an array
 #   is_clone        "true" when the sandbox holds its own clone of the project
 #   uses_dotfiles   "true" when the dotfiles kit configures this sandbox
+#   gh_repos        the "repos" setting, one per line, or nothing for origin
+#   gh_perms        the "permissions" setting, as name=level, one per line
 config_load() {
   local root="$1" name="$2" agent="$3"
   local config="$root/.sbx.json" given override plan arg spec
@@ -40,6 +42,9 @@ config_load() {
           + (.kits | map("--kit", kit("mixins")))
         ),
         clone: (.clone == true),
+        repos: (.repos // [] | if type == "array" and all(type == "string") then . else error("repos") end),
+        perms: (.permissions // {} | if type == "object" and all(type == "string")
+          then to_entries | map("\(.key)=\(.value)") else error("permissions") end),
         dotfiles: (.kits | any(test("(^|/)dotfiles$"))),
         spec: ((.agent | kit("sandboxes")) + "/spec.yaml")
       }
@@ -54,6 +59,8 @@ config_load() {
 
   is_clone="$(jq -r '.clone' <<<"$plan")"
   uses_dotfiles="$(jq -r '.dotfiles' <<<"$plan")"
+  gh_repos="$(jq -r '.repos[]' <<<"$plan")"
+  gh_perms="$(jq -r '.perms[]' <<<"$plan")"
 
   # `sbx` rejects an argument that no resolved kit declares, so the file is
   # passed only to an agent kit that asks for one. The check reads the kit's

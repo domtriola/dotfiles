@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# The GitHub API, as the App: the JWT that proves it, and the requests made
+# with it.
+
+b64url() {
+  openssl base64 -A | tr '+/' '-_' | tr -d '='
+}
+
+# app_jwt prints a JWT for the App, valid for ten minutes. The issued-at time
+# is set back a minute, as GitHub recommends, for clock drift.
+#
+# It reads the key from the store itself, so the key exists only in this
+# function and in the openssl that signs with it.
+app_jwt() {
+  local pem now header payload signature
+  pem="$(store_get)" || exit 1
+  now="$(date +%s)"
+  header="$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)"
+  payload="$(printf '{"iat":%s,"exp":%s,"iss":"%s"}' "$((now - 60))" "$((now + 540))" "$app_id" | b64url)"
+  signature="$(printf '%s.%s' "$header" "$payload" |
+    openssl dgst -sha256 -binary -sign <(printf '%s\n' "$pem") | b64url)" ||
+    die "could not sign with the App private key"
+  [[ -n "$signature" ]] || die "could not sign with the App private key"
+  printf '%s.%s.%s' "$header" "$payload" "$signature"
+}
+
+# api <method> <path> <bearer token or ""> [body] prints the response body.
+#
+# It exits 22 when GitHub answers with an error status, and with curl's own
+# status when GitHub cannot be reached. The token goes to curl through a file
+# descriptor rather than argv, where any process could read it.
+api() {
+  local method="$1" path="$2" bearer="$3" body="${4:-}"
+  local args=(-sS --fail-with-body --max-time 20 -X "$method"
+    -H "Accept: application/vnd.github+json"
+    -H "X-GitHub-Api-Version: 2022-11-28")
+
+  if [[ -n "$body" ]]; then
+    args+=(-H "Content-Type: application/json" --data-binary @-)
+  fi
+
+  if [[ -n "$bearer" ]]; then
+    printf '%s' "$body" | curl "${args[@]}" -H @<(printf 'Authorization: Bearer %s\n' "$bearer") "$sbx_token_api$path"
+  else
+    printf '%s' "$body" | curl "${args[@]}" "$sbx_token_api$path"
+  fi
+}
+
+# api_message prints the message of an error body, or nothing when it has none.
+api_message() {
+  jq -r '.message // empty' 2>/dev/null <<<"$1" || true
+}

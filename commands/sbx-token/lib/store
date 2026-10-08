@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+#
+# The App's private key in the OS secret store: the Keychain on macOS, and
+# Secret Service on Linux. These are the stores that sbx keeps its own secrets
+# in.
+#
+# The key is stored base64-encoded, as one line, so that neither store has to
+# keep newlines. It never goes on a command line, where `ps` could read it.
+
+store_service="sbx-token"
+store_account="private-key"
+
+store_backend() {
+  if [[ -n "${SBX_TOKEN_STORE:-}" ]]; then
+    printf '%s' "$SBX_TOKEN_STORE"
+  elif [[ "$(uname -s)" == "Darwin" ]]; then
+    printf 'security'
+  else
+    printf 'secret-tool'
+  fi
+}
+
+# store_put reads a PEM on stdin.
+store_put() {
+  local encoded backend
+  encoded="$(openssl base64 -A)"
+  backend="$(store_backend)"
+  command -v "$backend" >/dev/null 2>&1 || die "$backend is not installed"
+
+  case "$backend" in
+  security)
+    # `security -i` reads its commands on stdin, which keeps the key off argv.
+    printf 'add-generic-password -U -s %s -a %s -l %s -w %s\n' \
+      "$store_service" "$store_account" "$store_service" "$encoded" |
+      security -i >/dev/null || die "could not write the key to the Keychain"
+    ;;
+  secret-tool)
+    printf '%s' "$encoded" |
+      secret-tool store --label="$store_service GitHub App key" \
+        service "$store_service" account "$store_account" ||
+      die "could not write the key to Secret Service"
+    ;;
+  *) die "unknown secret store $backend" ;;
+  esac
+
+  [[ "$(store_get_encoded)" == "$encoded" ]] ||
+    die "the key read back from $backend does not match the key written"
+}
+
+store_get_encoded() {
+  case "$(store_backend)" in
+  security)
+    security find-generic-password -s "$store_service" -a "$store_account" -w 2>/dev/null
+    ;;
+  secret-tool)
+    secret-tool lookup service "$store_service" account "$store_account" 2>/dev/null
+    ;;
+  esac
+}
+
+# store_get prints the PEM, or fails when this machine has no key.
+store_get() {
+  local encoded
+  encoded="$(store_get_encoded)" && [[ -n "$encoded" ]] ||
+    die "no App private key in the $(store_backend) store on this machine. Run sbx-token setup, or sbx-token import-key."
+  printf '%s' "$encoded" | openssl base64 -d -A
+}

@@ -151,6 +151,37 @@ if have gh; then
 fi
 
 # ---------------------------------------------------------------------------
+section "Sandbox GitHub tokens"
+# ---------------------------------------------------------------------------
+
+if have sbx-token; then
+  token_args=()
+  [[ "$doctor_offline" == "1" ]] && token_args=(--offline)
+  token_status=0
+  token_out="$(sbx-token check ${token_args[@]+"${token_args[@]}"} 2>&1)" || token_status=$?
+  token_out="${token_out#sbx-token: }"
+  case "$token_status" in
+  0) ok "sandbox token App" "$token_out" ;;
+  3) pending "sandbox token App" "not set up, see bootstrap.md" ;;
+  *) fail "sandbox token App" "$token_out" ;;
+  esac
+  unset token_args token_status token_out
+else
+  fail "sbx-token" "not installed, run sync-env"
+fi
+
+# A sandbox-scoped secret overrides a global one, so a global github secret
+# reaches every sandbox that has no token of its own: those started with
+# sbx-up --no-gh, and those started with sbx run.
+if have sbx; then
+  if [[ -n "$(sbx secret ls --global --service github --quiet 2>/dev/null)" ]]; then
+    warn "global github secret" "reaches every sandbox without its own token, run sbx secret rm github"
+  else
+    ok "global github secret" "none"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 section "Environment"
 # ---------------------------------------------------------------------------
 

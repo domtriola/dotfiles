@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# A fake sbx. It logs each call to $FAKE_STATE/sbx.log, keeps the secrets
+# that `secret set` stores under $FAKE_STATE/secrets, and runs a --command
+# once, as sbx does when it stores one.
+
+printf '%s\n' "$*" >>"$FAKE_STATE/sbx.log"
+
+case "$1 ${2:-}" in
+"secret set")
+  shift 2
+  sandbox="" command=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    --sandbox) sandbox="$2"; shift ;;
+    --command) command="$2"; shift ;;
+    esac
+    shift
+  done
+  if [[ -n "$command" ]] && ! (cd "$(mktemp -d)" && sh -c "$command" >/dev/null); then
+    echo "sbx: the command failed" >&2
+    exit 1
+  fi
+  mkdir -p "$FAKE_STATE/secrets"
+  printf '%s' "$command" >"$FAKE_STATE/secrets/${sandbox:-global}"
+  ;;
+"secret ls")
+  echo "${FAKE_SBX_SECRETS:-[]}"
+  ;;
+"rm "*)
+  [[ -z "${FAKE_SBX_RM_ERROR:-}" ]] || { echo "$FAKE_SBX_RM_ERROR" >&2; exit 1; }
+  ;;
+esac

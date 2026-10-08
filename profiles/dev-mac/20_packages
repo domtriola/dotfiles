@@ -67,6 +67,9 @@ brew_install --cask claude-code
 brew_trust docker/tap
 brew_install docker/tap/sbx
 
+# Runs the tests in tests/
+brew_install bats-core
+
 # Desktop Management
 # #######################################################
 

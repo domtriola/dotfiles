@@ -15,8 +15,9 @@
 # Arguments:
 #   --profile  The use-case of this machine. Only needed when the profile has
 #              not been saved yet. $DOTFILES_PROFILE overrides it.
-#   --offline  Skip the checks that ask an upstream service what the newest
-#              release is. Everything else reads local state only.
+#   --offline  Skip the checks that ask an upstream service: what the newest
+#              release is, and whether the sandbox token App authenticates
+#              with GitHub. Everything else reads local state only.
 #
 # Exit status:
 #   0  nothing failed

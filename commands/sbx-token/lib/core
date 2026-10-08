@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# Shared helpers: failure, the paths every other verb reads, and the config.
+#
+# The sbx daemon runs `sbx-token mint` with its own environment, which on
+# macOS can be launchd's PATH and /bin/bash 3.2. So nothing in this command
+# needs bash 4, and the usual install directories are added to PATH.
+
+PATH="$PATH:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
+die() {
+  printf 'sbx-token: %s\n' "$1" >&2
+  exit 1
+}
+
+sbx_token_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/sbx-token"
+sbx_token_config="$sbx_token_config_dir/config.json"
+
+# The command that `register` stores in the sandbox's secret. sbx runs it on
+# the host, so it must be the installed copy: a path inside a checkout can be
+# a workspace that a sandbox can write to.
+sbx_token_bin="${SBX_TOKEN_BIN:-$HOME/.local/bin/sbx-token}"
+
+sbx_token_api="https://api.github.com"
+
+require_deps() {
+  local dep
+  for dep in jq openssl curl; do
+    command -v "$dep" >/dev/null 2>&1 || die "$dep is not installed"
+  done
+}
+
+# config_load sets app_id and app_slug, or fails with the step that sets them.
+config_load() {
+  [[ -f "$sbx_token_config" ]] ||
+    die "no GitHub App is set up on this machine. Run sbx-token setup, or sbx-token import-key."
+  app_id="$(jq -r '.app_id // empty' "$sbx_token_config")"
+  app_slug="$(jq -r '.slug // empty' "$sbx_token_config")"
+  [[ "$app_id" =~ ^[0-9]+$ ]] || die "$sbx_token_config has no app_id"
+  [[ -n "$app_slug" ]] || die "$sbx_token_config has no slug"
+}
+
+config_save() {
+  local id="$1" slug="$2"
+  mkdir -p "$sbx_token_config_dir"
+  jq -n --argjson id "$id" --arg slug "$slug" '{app_id: $id, slug: $slug}' >"$sbx_token_config"
+}
+
+# The page where the App is installed on an account.
+install_url() {
+  printf 'https://github.com/apps/%s/installations/new' "$1"
+}
