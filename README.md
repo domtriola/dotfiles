@@ -99,6 +99,10 @@ manifest leaves them out.
 `env/.agents/skills-local/` is an untracked scratch area. A skill there shadows
 a tracked one of the same name, in `$HOME` and in a sandbox.
 
+`.claude/skills/` holds skills that apply only to this repo, such as
+`author-sbx-kit`. The scripts do not copy them. Claude Code loads them when it
+runs in this repo.
+
 ## Further reading
 
 - [docs/dev_workflow.md](docs/dev_workflow.md): the tmux project workflow.
