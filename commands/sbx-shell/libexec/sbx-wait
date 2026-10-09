@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# sbx-wait [--dotfiles] [--timeout <seconds>] <name>
+# sbx-wait [--timeout <seconds>] <name>
 #
 # Waits for a Docker Sandbox to become usable, and says what it is waiting for
 # while it does. It is in libexec/ because the shell window is a process tmux
@@ -13,9 +13,12 @@
 #
 #   1. `sbx run` is still creating and starting the container, so `sbx exec`
 #      does not answer yet. This stage always runs.
-#   2. With --dotfiles, the dotfiles kit is still cloning the repo and
-#      installing packages. This stage reads the status file the kit writes and
-#      names the step, so a slow start is never a blank screen.
+#   2. The dotfiles kit is still cloning the repo and installing packages.
+#      This stage reads the status file the kit writes and names the step, so
+#      a slow start is never a blank screen. It runs only when that file
+#      exists, because sbx-shell cannot tell which kits a sandbox has. The kit
+#      writes the file as its first step, so the stage can be missed only in
+#      the first seconds after a start.
 #
 # Exit status:
 #   0   the sandbox is ready
@@ -26,17 +29,15 @@
 
 set -uo pipefail
 
-dotfiles=0
 timeout=300
 name=""
 
 usage() {
-  printf 'usage: sbx-wait [--dotfiles] [--timeout <seconds>] <name>\n' >&2
+  printf 'usage: sbx-wait [--timeout <seconds>] <name>\n' >&2
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-  --dotfiles) dotfiles=1 ;;
   --timeout)
     shift
     timeout="${1:-}"
@@ -126,7 +127,7 @@ kit_log() {
   in_sandbox 'tail -n 30 "$HOME/.dotfiles-kit.log"' || true
 }
 
-printf '\n  sbx-up: preparing the %s sandbox\n\n' "$name"
+printf '\n  sbx-shell: preparing the %s sandbox\n\n' "$name"
 
 # ---------------------------------------------------------------------------
 # Stage 1: the container is starting.
@@ -141,7 +142,7 @@ until sbx exec "$name" -- true >/dev/null 2>&1; do
   spin 'starting the sandbox'
 done
 
-if ((dotfiles == 0)); then
+if ! in_sandbox 'test -f "$HOME/.dotfiles-kit.status"' >/dev/null; then
   note '✓' "ready in $(clock)"
   exit 0
 fi

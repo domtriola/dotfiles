@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
-# A fake gh. It must never be asked for a token.
+# A fake gh. Nothing should call it: sbx-token never falls back to its token.
 printf '%s\n' "$*" >>"$FAKE_STATE/gh.log"
-[[ "$*" == "api user --jq .login" ]] && echo me

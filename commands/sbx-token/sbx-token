@@ -30,12 +30,14 @@ Usage:
   sbx-token register <sandbox> [--repo owner/name]... [--perm name=level]...
   sbx-token mint [--repo owner/name]... [--perm name=level]...
   sbx-token check [--offline]
-  sbx-token setup [--account <login>] [--name <app name>]
   sbx-token import-key --app-id <id> <pem file>
 
 Every token comes from one GitHub App, which holds the most that any token can
 get. A token is limited to the repositories and permissions it is minted for,
 and expires after one hour.
+
+The App is created by hand, once. The steps are in the profile's bootstrap.md,
+under "Set up sandbox GitHub tokens".
 
 Verbs:
   register    Mint one token to check that it works, then store the command
@@ -46,12 +48,9 @@ Verbs:
   check       Report whether this machine can mint tokens. Exits 3 when no
               App is set up yet. --offline only checks that the config and
               the key are on this machine.
-  setup       Register a new App from a pre-filled GitHub page, store its key
-              in the OS secret store, and open the page that installs it.
-              --account defaults to the login of `gh`, and --name to
-              <account>-sbx.
-  import-key  Give this machine its own key for an App that another machine
-              set up. Generate the key on the App's settings page.
+  import-key  Store a private key of the App in the OS secret store, check
+              it with GitHub, and save the App's ID and slug. Generate one
+              key for each machine on the App's settings page.
 
 Options:
   --repo      A repository the token reaches. Repeat for more. They must all
@@ -77,8 +76,6 @@ verb="${1:-}"
 repos=()
 perms=()
 sandbox=""
-account=""
-name=""
 id=""
 file=""
 offline="false"
@@ -101,16 +98,6 @@ while [[ $# -gt 0 ]]; do
   --perm)
     need_value "$@"
     perms+=("$2")
-    shift
-    ;;
-  --account)
-    need_value "$@"
-    account="$2"
-    shift
-    ;;
-  --name)
-    need_value "$@"
-    name="$2"
     shift
     ;;
   --offline)
@@ -157,15 +144,6 @@ register)
 check)
   require_deps
   check "$offline"
-  ;;
-setup)
-  require_deps
-  if [[ -z "$account" ]]; then
-    account="$(gh api user --jq .login 2>/dev/null)" ||
-      die "could not read your login from gh. Pass --account <login>."
-  fi
-  [[ "$account" =~ ^[A-Za-z0-9-]+$ ]] || die "not a GitHub login: $account"
-  setup "$account" "${name:-$account-sbx}"
   ;;
 import-key)
   [[ -n "$id" && -n "$file" ]] || die "import-key needs --app-id and a key file. Run sbx-token --help."

@@ -5,8 +5,9 @@
 # The permissions a token gets when nothing asks for others.
 scope_defaults='{"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read"}'
 
-# What the App itself holds, and so the most that any token can ask for. setup
-# registers the App with exactly these. A push that changes
+# What the App itself holds, and so the most that any token can ask for. The
+# bootstrap steps give the App exactly these, and check reports any that an
+# installation lacks. A push that changes
 # .github/workflows needs "workflows", which "contents" does not include, so
 # it is here for the projects that ask for it.
 scope_ceiling='{"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "workflows": "write", "metadata": "read"}'

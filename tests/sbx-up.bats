@@ -64,7 +64,7 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
 @test "a machine without an App stops, and never falls back to the gh token" {
   run sbx_up
   [ "$status" -eq 1 ]
-  [[ "$output" == *"sbx-token setup"* ]]
+  [[ "$output" == *"sbx-token import-key"* ]]
   [ ! -s "$FAKE_STATE/sbx.log" ]
   [ ! -e "$FAKE_STATE/gh.log" ]
 }
@@ -91,4 +91,15 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   [ ! -e "$FAKE_STATE/secrets/app-main" ]
   [ ! -s "$FAKE_STATE/curl.log" ]
   grep -q '^run ' "$FAKE_STATE/sbx.log"
+}
+
+@test "in tmux, a clone sandbox gets only the agent window" {
+  given_app
+  echo '{"clone": true}' >.sbx.json
+  : >"$FAKE_STATE/tmux.log"
+  TMUX=fake run sbx_up
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^new-window$' "$FAKE_STATE/tmux.log")" -eq 1 ]
+  grep -qx 'sbx-main' "$FAKE_STATE/tmux.log"
+  ! grep -q 'shell' "$FAKE_STATE/tmux.log"
 }

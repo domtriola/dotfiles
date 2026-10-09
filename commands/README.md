@@ -11,6 +11,7 @@ here when it works on this checkout, or when it outgrows one file.
 | `sync-skills` | Copies the agent skills into the `agent-skills` kit.                        |
 | `pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                       |
 | `sbx-up`      | Starts a Docker sandbox for the current project. See `sbx-up --help`.       |
+| `sbx-shell`   | Opens a shell into a sandbox. See `sbx-shell --help`.                       |
 | `sbx-token`   | Gives a sandbox a GitHub token for its repositories only. See `--help`.     |
 
 ## Layout
@@ -20,8 +21,8 @@ that outgrows one file adds a `lib/` of one file per step that the entry point
 sources, and a `libexec/` for a helper that another process runs instead.
 
 ```text
-commands/sbx-up/
-  sbx-up     # the entry point, and the whole of what a reader has to know
+commands/<name>/
+  <name>     # the entry point, and the whole of what a reader has to know
   lib/       # one file per step, sourced
   libexec/   # helpers that are run rather than sourced
 ```
@@ -41,8 +42,8 @@ checkout, for example `commands/setup/setup --dry`.
 
 ## Finding the checkout
 
-The commands that work on the checkout (all except `sbx-up` and `sbx-token`)
-look for it in this order:
+The commands that work on the checkout (all except the `sbx-` ones) look for
+it in this order:
 
 1. `$DOTFILES_DIR`.
 2. The checkout that holds the file, when it is run from `commands/`.
@@ -54,6 +55,6 @@ look for it in this order:
 ## Tests
 
 The tests in `tests/` run each command through its command line, with fakes
-for `sbx`, the GitHub API, the OS secret stores and the browser first on
+for `sbx`, `tmux`, the GitHub API, the OS secret stores and `gh` first on
 PATH. Run them with `./test` from the checkout root. Arguments go to bats,
 for example `./test tests/sbx-token.bats` or `./test --filter mint`.

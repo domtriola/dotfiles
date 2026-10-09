@@ -11,16 +11,18 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 
 ## Commands
 
-`sync-env` installs two commands into `~/.local/bin` for the `dev-mac` and
+`sync-env` installs these commands into `~/.local/bin` for the `dev-mac` and
 `dev-linux` profiles.
 
-| Command    | What it does                                         | Reference          |
-| ---------- | ---------------------------------------------------- | ------------------ |
-| `sbx-up`   | Starts a sandbox for the current project and branch. | `sbx-up --help`    |
-| `sbx-pull` | Fetches commits made inside a `--clone` sandbox.     | its header comment |
+| Command     | What it does                                                  | Reference           |
+| ----------- | ------------------------------------------------------------- | ------------------- |
+| `sbx-up`    | Starts a sandbox for the current project and branch.          | `sbx-up --help`     |
+| `sbx-shell` | Opens a shell into a sandbox, in a new tmux window.           | `sbx-shell --help`  |
+| `sbx-token` | Gives a sandbox a GitHub token for its repositories only.     | `sbx-token --help`  |
+| `sbx-pull`  | Fetches commits made inside a `--clone` sandbox.              | its header comment  |
 
-`sbx-up` is a command directory in `commands/sbx-up`: an entry point, a `lib/` of one
-file per step, and a `libexec/` holding `sbx-wait`, which the shell window runs
+`sbx-up`, `sbx-shell` and `sbx-token` are command directories in `commands/`.
+`sbx-shell` has a `libexec/` holding `sbx-wait`, which the shell window runs
 rather than sources. `sbx-pull` is a single file in `env/.local/bin`.
 
 ## Starting a sandbox
@@ -29,25 +31,29 @@ Run `sbx-up` anywhere inside a project. The sandbox is named after the project
 directory and the checked-out branch, and any existing sandbox of that name is
 removed first, so every start begins from fresh state.
 
-Inside tmux it opens an `sbx` window, which runs the agent.
+Inside tmux it opens an `sbx` window, which runs the agent. The window name
+carries the branch as a suffix, unless the branch is the default one.
 
-A `--clone` sandbox gets a second window, `shell`, which holds a plain shell
-into the same sandbox (`sbx exec -it <name> -- bash -l`), for editing files or
-running git commands without going through the agent. It runs the command's
-`sbx-wait` helper first, which draws the wait and names the step it is on,
-because the `dotfiles` kit configures the sandbox after it starts.
+No shell window opens, in either workspace mode. The sandbox has its own
+GitHub token (see `sbx-token --help`), so the agent commits and pushes its
+work itself.
 
-A sandbox that shares the host worktree gets no `shell` window: its files are
-already on the host, where an ordinary window reaches them.
+## Opening a shell
 
-Both window names carry the branch as a suffix, unless the branch is the
-default one.
+`sbx-shell <name>` opens a window, `shell-<name>`, which holds a plain shell
+into the sandbox (`sbx exec -it <name> -- bash -l`), for editing files or
+running git commands without going through the agent. `sbx ls` lists the
+names.
+
+The window runs the command's `sbx-wait` helper first, which draws the wait
+and names the step it is on. When the `dotfiles` kit is still configuring the
+sandbox, it waits for the kit too. Outside tmux, the shell runs in the current
+terminal.
 
 `sbx-up` also runs `sync-skills` before it starts the sandbox, so the
 `agent-skills` kit ships the skills that are on disk at that moment.
 
-Outside tmux, `sbx-up` runs the sandbox in the current terminal and opens no
-shell window.
+Outside tmux, `sbx-up` runs the sandbox in the current terminal.
 
 ## Per-project settings
 

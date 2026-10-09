@@ -27,6 +27,20 @@ case "$1 ${2:-}" in
 "secret ls")
   echo "${FAKE_SBX_SECRETS:-[]}"
   ;;
+"ls --quiet")
+  printf '%s\n' ${FAKE_SBX_SANDBOXES:-}
+  ;;
+"exec "*)
+  # sbx-wait's probes, answered from FAKE_SBX_* variables. Anything else, such
+  # as the login shell, succeeds at once.
+  script="${*: -1}"
+  [[ -z "${FAKE_SBX_DOWN:-}" ]] || exit 1
+  case "$script" in
+  *"test -f"*".dotfiles-kit.status"*) [[ -n "${FAKE_SBX_KIT_STATUS:-}" ]] ;;
+  *"cat"*".dotfiles-kit.status"*) echo "$FAKE_SBX_KIT_STATUS" ;;
+  *"tail"*".dotfiles-kit.log"*) echo "the kit log" ;;
+  esac
+  ;;
 "rm "*)
   [[ -z "${FAKE_SBX_RM_ERROR:-}" ]] || { echo "$FAKE_SBX_RM_ERROR" >&2; exit 1; }
   ;;

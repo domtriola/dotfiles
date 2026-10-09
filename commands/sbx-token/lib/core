@@ -33,7 +33,7 @@ require_deps() {
 # config_load sets app_id and app_slug, or fails with the step that sets them.
 config_load() {
   [[ -f "$sbx_token_config" ]] ||
-    die "no GitHub App is set up on this machine. Run sbx-token setup, or sbx-token import-key."
+    die "no GitHub App is set up on this machine. Create one by hand (see \"Set up sandbox GitHub tokens\" in bootstrap.md), then run sbx-token import-key."
   app_id="$(jq -r '.app_id // empty' "$sbx_token_config")"
   app_slug="$(jq -r '.slug // empty' "$sbx_token_config")"
   [[ "$app_id" =~ ^[0-9]+$ ]] || die "$sbx_token_config has no app_id"

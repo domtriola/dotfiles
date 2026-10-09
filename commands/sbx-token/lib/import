@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#
+# Giving this machine a key of the App. The App itself is created by hand: see
+# "Set up sandbox GitHub tokens" in the profile's bootstrap.md.
+
+# import_key <app id> <pem file> stores the key, and checks it with GitHub
+# before the config is written.
+import_key() {
+  local id="$1" file="$2" jwt out status=0 slug
+
+  [[ "$id" =~ ^[0-9]+$ ]] || die "not an App ID: $id"
+  [[ -f "$file" ]] || die "no such file: $file"
+  openssl pkey -in "$file" -noout 2>/dev/null || die "$file is not a private key"
+
+  store_put <"$file"
+
+  # The slug is read from GitHub rather than asked for, which also proves
+  # that the key belongs to the App.
+  app_id="$id"
+  jwt="$(app_jwt)" || exit 1
+  out="$(api GET "/app" "$jwt")" || status=$?
+  [[ "$status" -eq 0 ]] || api_die "the key does not authenticate as App $id" "$status" "$out"
+  slug="$(jq -r '.slug' <<<"$out")"
+  config_save "$id" "$slug"
+
+  printf 'sbx-token: this machine now uses the %s App. Delete %s, then run sbx-token check.\n' "$slug" "$file" >&2
+}

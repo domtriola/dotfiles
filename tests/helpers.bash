@@ -1,6 +1,6 @@
 # Shared setup for the bats suites. Each test gets its own HOME and a fake
 # directory first on PATH, holding the external systems a command talks to:
-# sbx, the GitHub API (as curl), the OS secret stores, gh, and the browser.
+# sbx, tmux, the GitHub API (as curl), the OS secret stores, and gh.
 
 repo_root="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
 sbx_token="$repo_root/commands/sbx-token/sbx-token"
@@ -23,7 +23,7 @@ make_key() {
   [[ -f "$FAKE_PEM" ]] || openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$FAKE_PEM" 2>/dev/null
 }
 
-# given_app sets this machine up as if sbx-token setup had run.
+# given_app sets this machine up as if sbx-token import-key had run.
 given_app() {
   mkdir -p "$XDG_CONFIG_HOME/sbx-token"
   echo '{"app_id": 99, "slug": "me-sbx"}' >"$XDG_CONFIG_HOME/sbx-token/config.json"

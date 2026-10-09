@@ -20,7 +20,7 @@ For old sandboxes, `sbx prune` already removes all stopped sandboxes after one c
 4. As the developer, I want to change the permissions in a project's `.sbx.json`, so that a project can get more access (for example, `workflows: write`) or less.
 5. As the developer, I want a permission request above the App's ceiling to fail with a clear error, so that I know why the token was not minted.
 6. As the developer, I want sandbox tokens to refresh on their own while the sandbox runs, so that a long session does not lose GitHub access after 1 hour.
-7. As the developer, I want to create the GitHub App with one click from a pre-filled page, so that the setup does not need me to copy settings or keys by hand.
+7. As the developer, I want to create the GitHub App by hand from written bootstrap steps, and have `sbx-token check` report a permission that I missed, so that no script hides what GitHub asks me to approve.
 8. As the developer, I want each machine to have its own App private key, so that I can revoke the key of a lost machine and keep the other machines working.
 9. As the developer, I want the private key in the OS secret store (the Keychain on macOS and Secret Service on Linux), so that the same design works on my Mac and on my future Linux workstation.
 10. As the developer, I want `sbx-up` to mint one token before it starts the sandbox, so that a missing key, an App that is not installed, or a network failure stops the start with a clear error.
@@ -53,11 +53,11 @@ For old sandboxes, `sbx prune` already removes all stopped sandboxes after one c
 
 ### `sbx-token` (new command)
 
-- `sbx-token setup` runs the App Manifest flow. It opens a local page that posts the manifest (with the ceiling permissions) to GitHub. GitHub redirects to `http://127.0.0.1:1/`, where nothing listens, so the one-hour code stays on this machine, and I paste the address back. The command exchanges the code for the App ID and private key, stores the key in the OS secret store, and writes the config. On a second machine, a separate step adds a new key to the same App.
+- The App is created by hand, from the steps in the dev-mac bootstrap. A first version automated this with the App Manifest flow, but GitHub asked for an authorization that the script hid, and the flow then failed. `sbx-token check` compares each installation's permissions with the ceiling, so a permission missed on the form is reported at once.
 - `sbx-token register <sandbox> [--repo owner/name]… [--perm name=level]…` checks the request against the ceiling, mints one token to fail fast, and then registers the helper as the sandbox's `github` secret. There is no `unregister`, because `sbx rm` deletes the secrets of each sandbox that it removes.
 - `sbx-token mint` is the helper that the `sbx` daemon runs. It prints only the token on stdout. It runs under macOS `/bin/bash` 3.2 with a minimal PATH, so the command needs no bash 4.
 - `sbx-token check` authenticates as the App and lists its installations. `doctor` uses it. `--offline` only checks that the config and the key are on this machine.
-- `sbx-token import-key --app-id <id> <pem>` stores a key for an App that already exists, and reads the slug from GitHub.
+- `sbx-token import-key --app-id <id> <pem>` stores a key that was downloaded from the App's settings page, and reads the slug from GitHub. Every machine, the first one too, gets its key this way.
 - Errors name the cause: no config, no key in the store, App not installed on the owner (with the install URL), a permission above the ceiling, or an API error.
 - The mint helper runs from the installed copy in `~/.local/lib`, so the registered `--command` uses an absolute path.
 
@@ -70,14 +70,14 @@ For old sandboxes, `sbx prune` already removes all stopped sandboxes after one c
 
 ### `doctor` changes
 
-- In the dev-mac profile (the only dev profile with doctor checks), `doctor` runs `sbx-token check`. It reports `pending` when `sbx-token setup` has not run yet, and passes `--offline` when `doctor` runs offline.
+- In the dev-mac profile (the only dev profile with doctor checks), `doctor` runs `sbx-token check`. It reports `pending` when no App is set up yet, and passes `--offline` when `doctor` runs offline.
 - It warns about a global `github` secret. A sandbox-scoped secret overrides a global one, so a global secret reaches every sandbox that has no token of its own (`sbx-up --no-gh`, and plain `sbx run`).
 
 ### Install and documentation
 
 - `sbx-token` goes in `commands/`, and the manifests of the profiles that install `sbx-up` install them too.
 - bats-core becomes a package in the dev profiles.
-- The bootstrap of `dev-mac` gets a step that runs `sbx-token setup` or adds a key for a new machine.
+- The bootstrap of `dev-mac` gets the steps that create the App by hand, and the steps that give each machine a key.
 - The commands README lists the new command and says how to run the tests.
 
 ## Testing Decisions
@@ -97,7 +97,7 @@ For old sandboxes, `sbx prune` already removes all stopped sandboxes after one c
   - the fail-fast errors and the install URL
   - mint, remove, and register in `sbx-up`, in the correct order
   - no fallback to `gh auth token`
-  - the setup manifest, the state check, and import-key
+  - import-key, and the permission check against the ceiling
 - The suite also passes under bash 3.2 (the `bash:3.2` image), because the `sbx` daemon may run the helper with macOS `/bin/bash`.
 
 ## Out of Scope
@@ -118,6 +118,5 @@ For old sandboxes, `sbx prune` already removes all stopped sandboxes after one c
   1. Does `git push` work through the `sbx` proxy with an installation token? The docs do not say which auth header the built-in `github` service writes for Git over HTTPS.
   2. Does `sbx secret set --sandbox <name>` accept a name before that sandbox exists? The answer sets the order in `sbx-up`.
   3. Does a sandbox stop by itself after its agent exits, so that `sbx prune` finds it?
-  4. Does GitHub accept the manifest from a local page, and redirect to the unreachable `127.0.0.1:1` address so that the code can be pasted back?
-  5. Can the `sbx` daemon run the helper and read the Keychain? `sbx secret set --command` runs the helper once, so `register` reports this.
+  4. Can the `sbx` daemon run the helper and read the Keychain? `sbx secret set --command` runs the helper once, so `register` reports this.
 - When the Linux AI workstation profile is set up, its profile gets the same `sbx-token` install and a key of its own.

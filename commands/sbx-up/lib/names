@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# What the sandbox and its tmux windows are called.
+# What the sandbox and its tmux window are called.
 
-# names_init sets four globals:
+# names_init sets three globals:
 #
-#   root           the project directory
-#   name           the sandbox name
-#   window         the tmux window that runs the agent
-#   shell_window   the tmux window that holds a plain shell
+#   root     the project directory
+#   name     the sandbox name
+#   window   the tmux window that runs the agent
 names_init() {
   local branch default suffix=""
 
@@ -22,7 +21,6 @@ names_init() {
 
   name="$(slug "$(basename "$root")$suffix")"
   window="$(slug "sbx$suffix")"
-  shell_window="$(slug "shell$suffix")"
 }
 
 slug() {

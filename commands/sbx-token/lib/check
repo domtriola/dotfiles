@@ -5,11 +5,15 @@
 # check [offline] prints one line and exits 0 when the App authenticates, 3
 # when this machine has no App set up yet, and 1 for anything else. Offline,
 # it only checks that the config and the key are on this machine.
+#
+# The App is created by hand, so check also compares what each installation
+# grants with the ceiling: a permission missed on the GitHub form would
+# otherwise surface only as a failed push inside a sandbox.
 check() {
-  local offline="${1:-false}" jwt out status=0 installs
+  local offline="${1:-false}" jwt out status=0 installs lacking selected
 
   if [[ ! -f "$sbx_token_config" ]]; then
-    printf 'not set up, run sbx-token setup or sbx-token import-key\n'
+    printf 'not set up, see "Set up sandbox GitHub tokens" in bootstrap.md\n'
     exit 3
   fi
   config_load
@@ -28,5 +32,25 @@ check() {
     printf '%s is not installed on any account, install it at %s\n' "$app_slug" "$(install_url "$app_slug")"
     exit 1
   fi
-  printf '%s, installed on %s\n' "$app_slug" "$installs"
+
+  lacking="$(jq -r --argjson ceiling "$scope_ceiling" '
+    def rank: {"read": 1, "write": 2, "admin": 3}[.] // 0;
+    map(
+      . as $install
+      | [$ceiling | to_entries[]
+          | select(($install.permissions[.key] // "" | rank) < (.value | rank))
+          | "\(.key)=\(.value)"]
+      | select(length > 0)
+      | "\($install.account.login) (\(join(" ")))"
+    ) | join(", ")
+  ' <<<"$out")"
+  if [[ -n "$lacking" ]]; then
+    printf '%s lacks permissions on %s. Set them on the App settings page, then accept them on the installation.\n' "$app_slug" "$lacking"
+    exit 1
+  fi
+
+  selected="$(jq -r 'map(select(.repository_selection == "selected") | .account.login) | join(", ")' <<<"$out")"
+  printf '%s, installed on %s' "$app_slug" "$installs"
+  [[ -z "$selected" ]] || printf ' (only selected repositories on %s)' "$selected"
+  printf '\n'
 }

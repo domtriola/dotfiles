@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# Opens a shell into a running Docker sandbox, in a new tmux window.
+#
+# `sbx-shell --help` is the reference. The wait before the shell lives in
+# libexec/sbx-wait, which tmux runs in the new window.
+
+set -euo pipefail
+
+# The command directory, resolved through any symlink, so that the same file
+# works from a checkout and from ~/.local/bin.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  target="$(readlink "$self")"
+  [[ "$target" == /* ]] || target="$(dirname "$self")/$target"
+  self="$target"
+done
+pkg="$(cd "$(dirname "$self")" >/dev/null 2>&1 && pwd)"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  sbx-shell <sandbox>
+
+Opens a login shell into the sandbox (`sbx exec -it <sandbox> -- bash -l`) in
+a new tmux window named shell-<sandbox>. Outside tmux the shell runs in the
+current terminal.
+
+The window waits for the sandbox first, and names the step it is on. When the
+dotfiles kit is still configuring the sandbox, it waits for the kit too, so
+the shell starts with the prompt and PATH of my other machines.
+
+`sbx ls` lists the sandboxes. sbx-up names them after the project directory
+and, unless it is the default branch, the checked-out branch.
+EOF
+}
+
+die() {
+  printf 'sbx-shell: %s\n' "$1" >&2
+  exit 1
+}
+
+name=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  -*)
+    die "unknown argument $1. Run sbx-shell --help."
+    ;;
+  *)
+    [[ -z "$name" ]] || die "only one sandbox can be named. Run sbx-shell --help."
+    name="$1"
+    ;;
+  esac
+  shift
+done
+
+[[ -n "$name" ]] || die "name the sandbox. Run sbx-shell --help."
+command -v sbx >/dev/null 2>&1 || die "sbx is not installed"
+
+# sbx-wait would wait out its whole timeout for a sandbox that does not exist,
+# so a wrong name is reported here instead.
+sandboxes="$(sbx ls --quiet 2>/dev/null)" || die "sbx could not list the sandboxes"
+grep -qxF -- "$name" <<<"$sandboxes" ||
+  die "no sandbox is named $name. Run sbx ls to list them."
+
+# An absolute path, because tmux starts the window without necessarily
+# inheriting this shell's PATH.
+wait_bin="$pkg/libexec/sbx-wait"
+[[ -x "$wait_bin" ]] || die "$wait_bin is missing; run sync-env"
+
+# Only exit 1 is fatal (the sandbox never answered). Exit 2 means the dotfiles
+# kit failed or timed out: sbx-wait has already printed the end of its log,
+# and a shell on an unconfigured sandbox is still more useful than no shell.
+# In tmux, the window waits for enter before it closes, so the error stays on
+# screen.
+pause=""
+if [[ -n "${TMUX:-}" ]]; then
+  pause='printf "Press enter to close this window... "; read -r _; '
+fi
+launch="$(printf '%q ' "$wait_bin" "$name")"
+launch+="
+if [ \"\$?\" = 1 ]; then
+  ${pause}exit 1
+fi
+"
+
+# -it gives the sandbox process a pseudo-terminal. Without it bash starts
+# non-interactive (no prompt, no starship) and a full-screen program such as
+# nvim has no terminal to draw on and exits at once.
+#
+# A login shell, so ~/.bash_profile runs and the prompt and PATH match my
+# other machines.
+launch+="exec $(printf '%q ' sbx exec -it "$name" -- bash -l)"
+
+if [[ -z "${TMUX:-}" ]]; then
+  exec bash -c "$launch"
+fi
+
+exec tmux new-window -n "shell-$name" "$launch"

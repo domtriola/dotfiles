@@ -62,6 +62,6 @@ store_get_encoded() {
 store_get() {
   local encoded
   encoded="$(store_get_encoded)" && [[ -n "$encoded" ]] ||
-    die "no App private key in the $(store_backend) store on this machine. Run sbx-token setup, or sbx-token import-key."
+    die "no App private key in the $(store_backend) store on this machine. Run sbx-token import-key."
   printf '%s' "$encoded" | openssl base64 -d -A
 }

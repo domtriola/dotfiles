@@ -100,10 +100,11 @@ setup() {
   [[ "$output" == *"GitHub could not be reached (curl exit 6)"* ]]
 }
 
-@test "mint without an App says how to set one up" {
+@test "mint without an App points to the bootstrap steps" {
   run "$sbx_token" mint --repo me/app
   [ "$status" -eq 1 ]
-  [[ "$output" == *"sbx-token setup"* ]]
+  [[ "$output" == *"bootstrap.md"* ]]
+  [[ "$output" == *"sbx-token import-key"* ]]
 }
 
 @test "mint without a key in the store says so" {
@@ -166,6 +167,22 @@ setup() {
   [ "$status" -eq 3 ]
 }
 
+@test "check names the permissions an installation lacks" {
+  given_app
+  FAKE_GH_INSTALLATIONS='[{"account": {"login": "me"}, "repository_selection": "all", "permissions": {"contents": "read", "pull_requests": "write", "issues": "write", "actions": "read", "metadata": "read"}}]' \
+    run "$sbx_token" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"lacks permissions on me (contents=write workflows=write)"* ]]
+}
+
+@test "check notes an installation on selected repositories only" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(jq -c '.[0].repository_selection = "selected"' <<<'[{"account": {"login": "me"}, "permissions": {"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "workflows": "write", "metadata": "read"}}]')" \
+    run "$sbx_token" check
+  [ "$status" -eq 0 ]
+  [ "$output" = "me-sbx, installed on me (only selected repositories on me)" ]
+}
+
 @test "check fails when the App is installed nowhere" {
   given_app
   FAKE_GH_INSTALLATIONS='[]' run "$sbx_token" check
@@ -173,65 +190,19 @@ setup() {
   [[ "$output" == *"not installed on any account"* ]]
 }
 
-@test "setup sends a manifest with the ceiling, and stores what GitHub returns" {
-  # The page is deleted once the address is read, so the fake browser keeps a
-  # copy of it.
-  mkdir -p "$BATS_TEST_TMPDIR/bin"
-  cat >"$BATS_TEST_TMPDIR/bin/xdg-open" <<HOOK
-#!/usr/bin/env bash
-printf '%s\n' "\$1" >>"$FAKE_STATE/opened"
-[[ -f "\$1" ]] && cp "\$1" "$FAKE_STATE/page.html"
-true
-HOOK
-  chmod +x "$BATS_TEST_TMPDIR/bin/xdg-open"
-  # setup opens pages with open on macOS, and with xdg-open elsewhere.
-  cp "$BATS_TEST_TMPDIR/bin/xdg-open" "$BATS_TEST_TMPDIR/bin/open"
-  export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
-
-  # Answer the prompt with the address GitHub redirects to, built from the
-  # page as it is written. A FIFO rather than coproc, which bash 3.2 lacks, on
-  # fd 7, because bats keeps fd 3 for itself.
-  mkfifo "$BATS_TEST_TMPDIR/answer"
-  "$sbx_token" setup <"$BATS_TEST_TMPDIR/answer" >"$BATS_TEST_TMPDIR/out" 2>&1 &
-  pid=$!
-  exec 7>"$BATS_TEST_TMPDIR/answer"
-  for _ in $(seq 50); do [[ -f "$FAKE_STATE/page.html" ]] && break; sleep 0.1; done
-  state="$(grep -o 'state=[a-f0-9]*' "$FAKE_STATE/page.html" | head -1 | cut -d= -f2)"
-  printf 'http://127.0.0.1:1/sbx-token?code=abc123&state=%s\n' "$state" >&7
-  exec 7>&-
-  wait "$pid"
-
-  grep -q 'POST /app-manifests/abc123/conversions' <(requests)
-  [ "$(jq -r '.slug' "$XDG_CONFIG_HOME/sbx-token/config.json")" = "me-sbx" ]
-  [ "$(openssl base64 -d -A <"$FAKE_STATE/store")" = "$(cat "$FAKE_PEM")" ]
-  grep -q 'https://github.com/apps/me-sbx/installations/new' "$FAKE_STATE/opened"
-
-  manifest="$(grep -o 'value="[^"]*"' "$FAKE_STATE/page.html" | sed 's/^value="//; s/"$//; s/&quot;/"/g; s/&amp;/\&/g')"
-  [ "$(jq -r .name <<<"$manifest")" = "me-sbx" ]
-  [ "$(jq -r .public <<<"$manifest")" = "false" ]
-  [ "$(jq -cS .default_permissions <<<"$manifest")" = '{"actions":"read","contents":"write","issues":"write","metadata":"read","pull_requests":"write","workflows":"write"}' ]
-  [ "$(jq -r .redirect_url <<<"$manifest")" = "http://127.0.0.1:1/sbx-token" ]
-}
-
-@test "setup refuses an address whose state does not match" {
-  run "$sbx_token" setup <<<"http://127.0.0.1:1/sbx-token?code=abc123&state=wrong"
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"state does not match"* ]]
-  [ ! -e "$XDG_CONFIG_HOME/sbx-token/config.json" ]
-}
-
-@test "setup refuses to replace an App that is already set up" {
-  given_app
-  run "$sbx_token" setup </dev/null
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"already uses the me-sbx App"* ]]
-}
-
 @test "import-key stores the key and reads the slug from GitHub" {
   run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
   [ "$status" -eq 0 ]
   [ "$(jq -c . "$XDG_CONFIG_HOME/sbx-token/config.json")" = '{"app_id":99,"slug":"me-sbx"}' ]
   [ "$(openssl base64 -d -A <"$FAKE_STATE/store")" = "$(cat "$FAKE_PEM")" ]
+}
+
+@test "import-key refuses a file that is not a private key" {
+  echo "not a key" >"$BATS_TEST_TMPDIR/app.pem"
+  run "$sbx_token" import-key --app-id 99 "$BATS_TEST_TMPDIR/app.pem"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not a private key"* ]]
+  [ ! -e "$FAKE_STATE/store" ]
 }
 
 @test "import-key does not save the config when the key does not authenticate" {
