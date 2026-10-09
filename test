@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+#
+# Usage: ./test [bats arguments]
+#
+# Runs the bats tests in tests/, with each result in colour and a summary at
+# the end. Arguments go to bats, for example a single file or --filter <regex>.
+# Without a file or directory, every file in tests/ runs.
+
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+if ! command -v bats >/dev/null 2>&1; then
+  echo "test: bats is not installed. Run setup 20_packages, or install bats-core." >&2
+  exit 1
+fi
+
+if [[ -t 1 ]]; then
+  C_OK=$'\033[32m'
+  C_FAIL=$'\033[31m'
+  C_SKIP=$'\033[33m'
+  C_DIM=$'\033[90m'
+  C_HEAD=$'\033[1m'
+  C_OFF=$'\033[0m'
+else
+  C_OK="" C_FAIL="" C_SKIP="" C_DIM="" C_HEAD="" C_OFF=""
+fi
+
+# Options such as --filter come without a path, so tests/ is added whenever
+# no argument names a file or directory.
+has_path="false"
+for arg in "$@"; do
+  [[ -e "$arg" ]] && has_path="true"
+done
+if [[ "$has_path" == "false" ]]; then
+  set -- "$@" "$root/tests"
+fi
+
+status=1
+passed=0
+failed=0
+skipped=0
+
+# bats writes TAP, and each line is coloured by what it reports. The detail
+# that bats prints under a failure is kept, but dimmed, so the failures stand
+# out first.
+while IFS= read -r line; do
+  case "$line" in
+  # bats' own exit status, appended below, because a process substitution
+  # does not report it.
+  "__status "*)
+    status="${line#__status }"
+    ;;
+  "not ok "*)
+    failed=$((failed + 1))
+    printf '%s✗ %s%s\n' "$C_FAIL" "${line#not ok }" "$C_OFF"
+    ;;
+  "ok "*"# skip"*)
+    skipped=$((skipped + 1))
+    printf '%s- %s%s\n' "$C_SKIP" "${line#ok }" "$C_OFF"
+    ;;
+  "ok "*)
+    passed=$((passed + 1))
+    printf '%s✓%s %s\n' "$C_OK" "$C_OFF" "${line#ok }"
+    ;;
+  "1.."*)
+    printf '%sRunning %s tests%s\n\n' "$C_HEAD" "${line#1..}" "$C_OFF"
+    ;;
+  "#"*)
+    printf '%s    %s%s\n' "$C_DIM" "${line#\# }" "$C_OFF"
+    ;;
+  *)
+    printf '%s\n' "$line"
+    ;;
+  esac
+done < <(bats --tap "$@" 2>&1; echo "__status $?")
+
+printf '\n'
+if [[ "$failed" -gt 0 ]]; then
+  printf '%s%s%d failed%s, %d passed' "$C_HEAD" "$C_FAIL" "$failed" "$C_OFF" "$passed"
+elif [[ "$status" -ne 0 ]]; then
+  printf '%s%sbats exited with status %s%s, %d passed' "$C_HEAD" "$C_FAIL" "$status" "$C_OFF" "$passed"
+else
+  printf '%s%sAll %d passed%s' "$C_HEAD" "$C_OK" "$passed" "$C_OFF"
+fi
+[[ "$skipped" -gt 0 ]] && printf ', %s%d skipped%s' "$C_SKIP" "$skipped" "$C_OFF"
+printf '\n'
+
+[[ "$failed" -eq 0 && "$status" -eq 0 ]]

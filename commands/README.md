@@ -55,4 +55,5 @@ look for it in this order:
 
 The tests in `tests/` run each command through its command line, with fakes
 for `sbx`, the GitHub API, the OS secret stores and the browser first on
-PATH. Run them with `bats tests/`.
+PATH. Run them with `./test` from the checkout root. Arguments go to bats,
+for example `./test tests/sbx-token.bats` or `./test --filter mint`.

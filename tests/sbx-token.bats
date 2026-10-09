@@ -184,6 +184,8 @@ printf '%s\n' "\$1" >>"$FAKE_STATE/opened"
 true
 HOOK
   chmod +x "$BATS_TEST_TMPDIR/bin/xdg-open"
+  # setup opens pages with open on macOS, and with xdg-open elsewhere.
+  cp "$BATS_TEST_TMPDIR/bin/xdg-open" "$BATS_TEST_TMPDIR/bin/open"
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 
   # Answer the prompt with the address GitHub redirects to, built from the
