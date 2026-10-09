@@ -74,6 +74,10 @@ while [[ $# -gt 0 ]]; do
   --profile=*)
     profile_arg="${1#--profile=}"
     ;;
+  -h | --help)
+    awk 'NR > 2 && !/^#/ { exit } NR > 2 { sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
+    exit 0
+    ;;
   *)
     echo "sync-env: unknown argument '$1'" >&2
     exit 1
@@ -291,4 +295,4 @@ for action in "${actions[@]}"; do
 done
 
 echo "----------------------------------------"
-echo "Environment setup complete"
+echo "Dotfiles synced"
