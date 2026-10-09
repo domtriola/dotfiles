@@ -18,6 +18,8 @@ Dotfiles, commands, and setup steps that make a new machine ready for its profil
 
 Run `sync-env` after a change to anything in `env/` or `commands/`. A new file, directory or command also needs a line in the `env.manifest` of every profile that wants it.
 
+Before `sync-env` overwrites drift (a change in `$HOME` since the last sync), it shows the diff and asks. `sync-env --dry` and `doctor` show the drift without a change.
+
 Run `setup` after a change to anything in `profiles/<profile>/`.
 
 ## Layout

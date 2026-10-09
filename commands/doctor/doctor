@@ -5,8 +5,9 @@
 # Reports whether this machine is configured the way its profile intends.
 # Changes nothing.
 #
-# The checks for a profile live in profiles/<profile>/lib/doctor.sh, which this
-# script sources. Anything under lib/ is invisible to setup, which only
+# Every profile gets the dotfiles check: a warning for each manifest target
+# with drift (see sync-env --help). The other checks for a profile live in
+# profiles/<profile>/lib/doctor.sh, which this script sources. Anything under lib/ is invisible to setup, which only
 # looks at files directly inside the profile directory.
 #
 # Some checks read configuration that only root can see, so sudo may prompt
@@ -40,6 +41,8 @@ if [[ ! -d "$dotfiles_dir/profiles" ]]; then
 fi
 source "$dotfiles_dir/lib/platform.sh"
 source "$dotfiles_dir/lib/profile.sh"
+source "$dotfiles_dir/lib/manifest.sh"
+source "$dotfiles_dir/lib/drift.sh"
 
 profile_arg=""
 doctor_offline="0"
@@ -194,13 +197,49 @@ check_release() {
 }
 
 # ---------------------------------------------------
-# Run the profile's checks
+# Check the dotfiles
 # ---------------------------------------------------
 
 profile_dir="$dotfiles_dir/profiles/$profile"
-checks="$profile_dir/lib/doctor.sh"
 
 printf '%sdoctor: %s%s\n' "$C_HEAD" "$profile" "$C_OFF"
+
+# check_drift warns once for each target with drift. It says nothing when
+# there is no drift, and before the first sync writes a record.
+check_drift() {
+  local action directive rest src dest drift header="0"
+
+  [[ -f "$SYNC_RECORD" ]] || return 0
+  if ! read_manifest "$profile_dir/env.manifest" 2>/dev/null; then
+    section "Dotfiles"
+    warn "manifest" "cannot be read, see sync-env --dry"
+    return
+  fi
+
+  for action in "${actions[@]}"; do
+    directive="${action%%|*}"
+    rest="${action#*|}"
+    src="${rest%%|*}"
+    dest="${rest#*|}"
+    [[ "$directive" == "group" ]] && continue
+
+    drift="$(target_drift "$directive" "$src" "$dest")"
+    [[ -n "$drift" ]] || continue
+
+    if [[ "$header" == "0" ]]; then
+      section "Dotfiles"
+      header="1"
+    fi
+    warn "$(tilde "$dest")" "$(grep -c . <<<"$drift") file(s) drifted, see sync-env --dry"
+  done
+}
+check_drift
+
+# ---------------------------------------------------
+# Run the profile's checks
+# ---------------------------------------------------
+
+checks="$profile_dir/lib/doctor.sh"
 
 if [[ ! -f "$checks" ]]; then
   printf '\nNo checks are written for the %s profile.\n' "$profile"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Prompts shared by the setup steps.
+# Prompts shared by the setup steps and the commands.
 
 # Ask a yes/no question before a step that is safe to skip.
 #
@@ -11,9 +11,15 @@
 # Usage: if confirm "Update starship?"; then ...
 confirm() {
   local answer
+  has_terminal || return 0
+  read -r -p "$1 [y/N] " answer <"${PROMPT_TTY:-/dev/tty}" || return 0
+  [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]
+}
+
+# has_terminal reports whether a question can be asked. $PROMPT_TTY replaces
+# the terminal, so that a test can answer from a file.
+has_terminal() {
   # A test open, because a detached process has a readable /dev/tty that it
   # cannot open, and the failure would otherwise reach the terminal.
-  (: </dev/tty) 2>/dev/null || return 0
-  read -r -p "$1 [y/N] " answer </dev/tty || return 0
-  [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]
+  (: <"${PROMPT_TTY:-/dev/tty}") 2>/dev/null
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: sync-env [--profile <name>] [--dry]
+# Usage: sync-env [--profile <name>] [--dry] [--yes]
 #
 # Copies the dotfiles that this machine's profile asks for from ./env/
 # into $HOME. The list lives in profiles/<profile>/env.manifest.
@@ -26,6 +26,12 @@
 # The whole manifest is checked before anything is copied, so a mistake in it
 # stops the run rather than leaving $HOME half synced.
 #
+# Drift is a file that this sync would overwrite or delete, and that changed in
+# $HOME since the last sync (see lib/drift.sh). Before anything is copied, each
+# target with drift shows the changed files and a diff, then asks whether to
+# overwrite it. A declined target is skipped, and asks again on the next run.
+# With no terminal, or with --yes, the drift is overwritten with a warning.
+#
 # To test against a fake home:
 # mkdir -p /tmp/fakehome && HOME=/tmp/fakehome commands/sync-env/sync-env
 #
@@ -33,7 +39,9 @@
 #   --profile  The use-case of this machine, named by a directory under
 #              ./profiles/. Only needed the first time: the name is saved and
 #              reused. $DOTFILES_PROFILE overrides both, without saving.
-#   --dry      Print what would be copied without making any changes.
+#   --dry      Print what would be copied, and any drift, without making any
+#              changes.
+#   --yes      Overwrite drift without asking.
 
 set -eo pipefail
 
@@ -48,20 +56,21 @@ if [[ ! -d "$dotfiles_dir/profiles" ]]; then
 fi
 source "$dotfiles_dir/lib/platform.sh"
 source "$dotfiles_dir/lib/profile.sh"
-
-# Location of the dotfiles
-DEV_ENV="$dotfiles_dir/env"
-
-# Location of the commands
-DEV_COMMANDS="$dotfiles_dir/commands"
+source "$dotfiles_dir/lib/prompt.sh"
+source "$dotfiles_dir/lib/manifest.sh"
+source "$dotfiles_dir/lib/drift.sh"
 
 dry="0"
+yes="0"
 profile_arg=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
   --dry)
     dry="1"
+    ;;
+  --yes)
+    yes="1"
     ;;
   --profile)
     shift
@@ -117,86 +126,7 @@ manifest="$dotfiles_dir/profiles/$profile/env.manifest"
 # Pass 1: read and check the manifest
 # ---------------------------------------------------
 
-# Each action is "<directive>|<absolute src>|<absolute dest>". A group carries
-# its label in the src field.
-actions=()
-lineno=0
-
-# Set by the `none` directive. A profile that copies nothing is legitimate, but
-# so is a manifest whose every line was commented out by mistake, and the two
-# look the same. `none` tells them apart.
-copies_nothing="0"
-
-while IFS= read -r line || [[ -n "$line" ]]; do
-  lineno=$((lineno + 1))
-  where="$manifest:$lineno"
-
-  # Blank lines and whole-line comments.
-  [[ "$line" =~ ^[[:space:]]*(#.*)?$ ]] && continue
-
-  read -r directive rest <<<"$line"
-
-  if [[ "$directive" == "group" ]]; then
-    [[ -n "$rest" ]] || die "$where: group needs a label"
-    actions+=("group|$rest|")
-    continue
-  fi
-
-  if [[ "$directive" == "none" ]]; then
-    [[ -z "$rest" ]] || die "$where: none takes no arguments"
-    copies_nothing="1"
-    continue
-  fi
-
-  read -r src dest extra <<<"$rest"
-
-  # A command is read from ./commands/ rather than ./env/, so the directive
-  # decides which tree its source is relative to.
-  case "$directive" in
-  file | dir | subdirs)
-    src_root="$DEV_ENV"
-    src_label="env/"
-    ;;
-  command)
-    src_root="$DEV_COMMANDS"
-    src_label="commands/"
-    ;;
-  *) die "$where: unknown directive '$directive'" ;;
-  esac
-
-  [[ -n "$src" && -n "$dest" ]] || die "$where: $directive needs a source and a destination"
-  [[ -z "$extra" ]] || die "$where: too many fields ('$extra')"
-  [[ "$src" != /* ]] || die "$where: source '$src' must be relative to $src_label"
-  [[ "/$src/" != */../* ]] || die "$where: source '$src' must not leave $src_label"
-
-  dest="${dest//\$HOME/$HOME}"
-  [[ "$dest" != *'$'* ]] || die "$where: destination '$dest' has an unknown variable"
-  [[ "$dest" == "$HOME" || "$dest" == "$HOME"/* ]] ||
-    die "$where: destination '$dest' is outside \$HOME"
-
-  src="$src_root/$src"
-
-  case "$directive" in
-  file)
-    [[ -f "$src" ]] || die "$where: '$src' is not a file"
-    ;;
-  dir | subdirs)
-    [[ -d "$src" ]] || die "$where: '$src' is not a directory"
-    # dir and subdirs both remove a path before copying, so neither may
-    # target $HOME itself.
-    [[ "$dest" != "$HOME" ]] || die "$where: $directive cannot target \$HOME itself"
-    ;;
-  command)
-    [[ -d "$src" ]] || die "$where: '$src' is not a directory"
-    # The entry point carries the command's name, because that is the name the
-    # symlink on PATH gets.
-    [[ -x "$src/$(basename "$src")" ]] ||
-      die "$where: '$src' holds no executable $(basename "$src")"
-    ;;
-  esac
-
-  actions+=("$directive|$src|$dest")
-done <"$manifest"
+read_manifest "$manifest" || exit 1
 
 if [[ "$copies_nothing" == "1" ]]; then
   [[ ${#actions[@]} -eq 0 ]] ||
@@ -209,7 +139,49 @@ fi
   die "$manifest lists nothing to copy. Use the 'none' directive when that is deliberate."
 
 # ---------------------------------------------------
-# Pass 2: copy
+# Pass 2: check for drift
+# ---------------------------------------------------
+
+# split_action sets directive, src and dest from one action.
+split_action() {
+  local rest
+  directive="${1%%|*}"
+  rest="${1#*|}"
+  src="${rest%%|*}"
+  dest="${rest#*|}"
+}
+
+log "------------ sync-env ------------"
+log "profile: $profile"
+
+# Every question is asked before anything is copied, so a declined target
+# never leaves $HOME half synced. skipped holds "|<index>|" for each one.
+skipped=""
+skipped_dests=()
+
+for i in "${!actions[@]}"; do
+  split_action "${actions[$i]}"
+  [[ "$directive" == "group" ]] && continue
+
+  drift="$(target_drift "$directive" "$src" "$dest")"
+  [[ -n "$drift" ]] || continue
+
+  where="$(tilde "$dest")"
+  echo "Drift in $where ($directive), since the last sync:"
+  show_drift <<<"$drift"
+
+  if [[ "$dry" == "1" ]]; then
+    log "would ask to overwrite the drift in $where"
+  elif [[ "$yes" == "1" ]] || ! has_terminal; then
+    echo "WARNING: overwriting the drift in $where" >&2
+  elif ! confirm "Overwrite the drift in $where?"; then
+    skipped+="|$i|"
+    skipped_dests+=("$where")
+  fi
+done
+
+# ---------------------------------------------------
+# Pass 3: copy
 # ---------------------------------------------------
 
 copy_file() {
@@ -272,27 +244,44 @@ record_checkout() {
   printf '%s\n' "$dotfiles_dir" >"$file"
 }
 
-log "------------ sync-env ------------"
-log "profile: $profile"
 record_checkout
 
-for action in "${actions[@]}"; do
-  directive="${action%%|*}"
-  rest="${action#*|}"
-  src="${rest%%|*}"
-  dest="${rest#*|}"
+# The new sync record, built in manifest order. A skipped target keeps its old
+# lines, so its drift is asked about again on the next run.
+new_record="$(mktemp)"
+trap 'rm -f "$new_record"' EXIT
 
-  case "$directive" in
-  group)
+for i in "${!actions[@]}"; do
+  split_action "${actions[$i]}"
+
+  if [[ "$directive" == "group" ]]; then
     echo "---------------------------"
     echo "$src:"
-    ;;
+    continue
+  fi
+
+  if [[ "$skipped" == *"|$i|"* ]]; then
+    log "skip $(tilde "$dest"), which keeps its drift"
+    recorded_lines "$directive" "$src" "$dest" >>"$new_record"
+    continue
+  fi
+
+  case "$directive" in
   file) copy_file "$src" "$dest" ;;
   dir) copy_dir "$src" "$dest" ;;
   subdirs) copy_subdirs "$src" "$dest" ;;
   command) install_command "$src" "$dest" ;;
   esac
+  record_lines "$directive" "$src" "$dest" >>"$new_record"
 done
+
+log "record the sync in $SYNC_RECORD"
+[[ $dry == "1" ]] || write_record <"$new_record"
 
 echo "----------------------------------------"
 echo "Dotfiles synced"
+
+if [[ ${#skipped_dests[@]} -gt 0 ]]; then
+  echo "Skipped, because you kept their drift:"
+  printf '  %s\n' "${skipped_dests[@]}"
+fi
