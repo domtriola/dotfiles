@@ -1,5 +1,5 @@
 # Checks for the dev-mac profile. Sourced by doctor, which supplies section,
-# ok, warn, fail, pending and have.
+# ok, warn, fail, pending, tunable and have.
 #
 # Each check asks whether a setup step or sync-env left a working result, not
 # which packages it chose. macOS ships bash 3.2, so nothing here needs bash 4.

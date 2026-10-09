@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Giving this machine a key of the App. The App itself is created by hand: see
-# "Set up sandbox GitHub tokens" in the profile's bootstrap.md.
+# "Set up sandbox GitHub tokens" in profiles/dev-mac/bootstrap.md.
 
 # import_key <app id> <pem file> stores the key, and checks it with GitHub
 # before the config is written.

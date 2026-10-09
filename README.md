@@ -105,5 +105,8 @@ runs in this repo.
 
 ## Further reading
 
-- [docs/dev_workflow.md](docs/dev_workflow.md): the tmux project workflow.
+- [docs/dev-workflow.md](docs/dev-workflow.md): the tmux project workflow.
+- [docs/agent-workflow.md](docs/agent-workflow.md): how the agent skills fit together.
+- [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md): where specs and tickets live (GitHub issues).
+- [docs/research/](docs/research/): cited findings behind past decisions.
 - [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and the sandbox commands.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Usage: doctor [--profile <name>]
+# Usage: doctor [--profile <name>] [--offline]
 #
 # Reports whether this machine is configured the way its profile intends.
 # Changes nothing.

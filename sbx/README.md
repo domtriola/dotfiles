@@ -33,10 +33,14 @@ removed first, so every start begins from fresh state.
 
 Inside tmux it opens an `sbx` window, which runs the agent. The window name
 carries the branch as a suffix, unless the branch is the default one.
+Outside tmux, `sbx-up` runs the sandbox in the current terminal.
 
-No shell window opens, in either workspace mode. The sandbox has its own
-GitHub token (see `sbx-token --help`), so the agent commits and pushes its
-work itself.
+`sbx-up` opens no shell window, in either workspace mode (see
+[Opening a shell](#opening-a-shell)). The sandbox has its own GitHub token (see
+`sbx-token --help`), so the agent commits and pushes its work itself.
+
+`sbx-up` also runs `sync-skills` before it starts the sandbox, so the
+`agent-skills` kit ships the skills that are on disk at that moment.
 
 ## Opening a shell
 
@@ -49,11 +53,6 @@ The window runs the command's `sbx-wait` helper first, which draws the wait
 and names the step it is on. When the `dotfiles` kit is still configuring the
 sandbox, it waits for the kit too. Outside tmux, the shell runs in the current
 terminal.
-
-`sbx-up` also runs `sync-skills` before it starts the sandbox, so the
-`agent-skills` kit ships the skills that are on disk at that moment.
-
-Outside tmux, `sbx-up` runs the sandbox in the current terminal.
 
 ## Per-project settings
 
