@@ -141,7 +141,8 @@ setup:
           profile="${DOTFILES_PROFILE:-sbx-linux}"
 
           step "copying the dotfiles"
-          ./commands/sync-env/sync-env --profile "$profile"
+          # --yes skips the drift check. A sandbox has nothing to keep.
+          ./commands/sync-env/sync-env --profile "$profile" --yes
 
           step "installing the packages"
           ./commands/setup/setup --profile "$profile"

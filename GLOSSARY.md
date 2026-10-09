@@ -32,6 +32,14 @@ _Avoid_: Environment file, config file
 A profile's list of the dotfiles and commands that `sync-env` copies onto its machine.
 _Avoid_: env.manifest, the list
 
+**Sync record**:
+What `sync-env` stores about each file that it copied, so that a later run can tell when the copy in the home directory changed.
+_Avoid_: State file, lock file, checksums
+
+**Drift**:
+A change in the home directory, since the last sync, to a file that the next sync would overwrite or delete.
+_Avoid_: Local changes, diff, divergence
+
 **Checkout**:
 The copy of this repo on a machine, from which the commands read the profiles and the dotfiles.
 _Avoid_: Clone, repo, dotfiles dir
