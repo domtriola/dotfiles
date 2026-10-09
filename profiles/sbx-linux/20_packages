@@ -53,23 +53,29 @@ echo "Installing: ${missing[*]}"
 # gets "Could not get lock /var/lib/apt/lists/lock".
 #
 # DPkg::Lock::Timeout makes apt wait for the dpkg locks, but not for the lists
-# lock that `apt-get update` takes, so the retry below covers that one.
+# lock that `apt-get update` takes, so update_lists covers that one.
 apt_opts=(-o DPkg::Lock::Timeout=120)
 
-install_packages() {
-  sudo apt-get "${apt_opts[@]}" update -qq &&
-    sudo DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" \
-      install -y --no-install-recommends "$@"
+# update_lists retries `apt-get update` once a second while another apt holds
+# the lists lock, for up to two minutes. The other apt usually finishes within
+# a few seconds, so a short poll costs much less than a long fixed sleep. Any
+# other failure stops at once, because a retry will not fix it.
+update_lists() {
+  local deadline=$((SECONDS + 120)) out
+
+  until out="$(sudo apt-get "${apt_opts[@]}" update -qq 2>&1)"; do
+    if ! grep -q 'Could not get lock' <<<"$out" || ((SECONDS >= deadline)); then
+      printf '%s\n' "$out" >&2
+      return 1
+    fi
+    sleep 1
+  done
+  [[ -z "$out" ]] || printf '%s\n' "$out"
 }
 
-attempt=1
-attempts=4
-until install_packages "${missing[@]}"; do
-  if [[ $attempt -ge $attempts ]]; then
-    echo "apt failed after $attempts attempts." >&2
-    exit 1
-  fi
-  echo "apt attempt $attempt failed, another apt may be running. Retrying in 10s."
-  attempt=$((attempt + 1))
-  sleep 10
-done
+started=$SECONDS
+update_lists
+echo "Package lists updated in $((SECONDS - started))s."
+
+sudo DEBIAN_FRONTEND=noninteractive apt-get "${apt_opts[@]}" \
+  install -y --no-install-recommends "${missing[@]}"
