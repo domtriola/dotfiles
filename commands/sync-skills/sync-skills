@@ -45,6 +45,7 @@ if [[ ! -d "$dotfiles_dir/profiles" ]]; then
 fi
 tracked="$dotfiles_dir/env/.agents/skills"
 local_skills="$dotfiles_dir/env/.agents/skills-local"
+source "$dotfiles_dir/lib/style.sh"
 kit_home="$dotfiles_dir/sbx/kits/mixins/agent-skills/files/home"
 
 LAYOUT="${SKILLS_LAYOUT:-hooks}"
@@ -56,17 +57,11 @@ die() {
   exit 1
 }
 
-log() {
-  if [[ $dry == "1" ]]; then
-    echo "[DRY RUN]: $*"
-  else
-    echo "$*"
-  fi
-}
-
+# execute runs a command. A dry run prints it instead, muted under the status
+# line of its destination.
 execute() {
-  log "execute $*"
   if [[ $dry == "1" ]]; then
+    status_note "$*"
     return
   fi
 
@@ -98,47 +93,67 @@ esac
 # behind to ship alongside the new one.
 managed=("$kit_home/skills" "$kit_home/.claude" "$kit_home/.agents")
 
+# count_skills prints how many skills $1 holds. A directory with no SKILL.md
+# is not a skill.
+count_skills() {
+  local dir count=0
+  [[ -d "$1" ]] || {
+    echo 0
+    return
+  }
+  for dir in "$1"/*/; do
+    [[ -f "$dir/SKILL.md" ]] && count=$((count + 1))
+  done
+  echo "$count"
+}
+
 # Copies every skill in $1 into $2, leaving anything already there alone unless
-# it has the same name. The count goes in $copied rather than on stdout, so
-# that the log lines are not swallowed by a command substitution.
-copied=0
+# it has the same name.
 copy_skills() {
   local src="$1" dest="$2" dir name
 
-  copied=0
   [[ -d "$src" ]] || return 0
 
   for dir in "$src"/*/; do
     [[ -d "$dir" ]] || continue
-    # A directory with no SKILL.md is not a skill.
     [[ -f "$dir/SKILL.md" ]] || continue
 
     name="$(basename "$dir")"
     execute rm -rf "$dest/$name"
     execute cp -R "${dir%/}" "$dest/$name"
-    copied=$((copied + 1))
   done
 }
 
-log "------------ sync-skills ------------"
-log "layout: $LAYOUT"
+heading "sync-skills: $LAYOUT layout"
+[[ "$dry" == "1" ]] && echo "Dry run: nothing changes"
+echo
 
-for path in "${managed[@]}"; do
-  execute rm -rf "$path"
-done
+count_tracked="$(count_skills "$tracked")"
+count_local="$(count_skills "$local_skills")"
 
-for dest in "${destinations[@]}"; do
+for i in "${!destinations[@]}"; do
+  dest="${destinations[$i]}"
+  if [[ "$dry" == "1" ]]; then
+    status copy "${dest#"$dotfiles_dir"/}" "$count_tracked tracked, $count_local local"
+  else
+    status copied "${dest#"$dotfiles_dir"/}" "$count_tracked tracked, $count_local local"
+  fi
+
+  # Removed before the first copy. See $managed.
+  if [[ $i -eq 0 ]]; then
+    for path in "${managed[@]}"; do
+      execute rm -rf "$path"
+    done
+  fi
+
   execute mkdir -p "$dest"
-
   copy_skills "$tracked" "$dest"
-  count="$copied"
   copy_skills "$local_skills" "$dest"
-
-  echo "---------------------------"
-  echo "$dest: $count tracked, $copied local"
 done
 
-if [[ $dry != "1" ]]; then
-  echo "----------------------------------------"
-  echo "Kit payload up to date"
+echo
+if [[ "$dry" == "1" ]]; then
+  verdict copy "sync-skills: $count_tracked tracked and $count_local local skills to copy"
+else
+  verdict ok "sync-skills: $count_tracked tracked and $count_local local skills in the kit payload"
 fi

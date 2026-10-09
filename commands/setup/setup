@@ -39,6 +39,7 @@ if [[ ! -d "$dotfiles_dir/profiles" ]]; then
 fi
 source "$dotfiles_dir/lib/platform.sh"
 source "$dotfiles_dir/lib/profile.sh"
+source "$dotfiles_dir/lib/style.sh"
 
 filter=""
 dry="0"
@@ -77,54 +78,109 @@ done
 
 profile="$(resolve_profile "$profile_arg" "$dry")"
 
-log() {
-  if [[ $dry == "1" ]]; then
-    echo "[DRY RUN]: $@"
+# The steps, and what became of each, for the summary at the end. The status
+# of a step is one of the status words, and its time is in seconds.
+step_names=()
+step_words=()
+step_times=()
+
+# duration prints a number of seconds as "42s" or "3m05s".
+duration() {
+  if [[ $1 -lt 60 ]]; then
+    printf '%ds' "$1"
   else
-    echo "$@"
+    printf '%dm%02ds' "$(($1 / 60))" "$(($1 % 60))"
   fi
 }
 
-execute() {
-  log "Execute $@"
-  if [[ $dry == "1" ]]; then
-    return
-  fi
+# finish prints the summary: every step with its status and time, then the
+# verdict. A step that did not run has no time.
+finish() {
+  local i word time count_ran=0 count_fail=0 count_not_run=0 count_skipped=0 count_info=0 worst summary
 
-  "$@"
-}
-
-run_script() {
-  local script="$1"
-  if [[ -n "$filter" ]] && ! echo "$script" | grep -q -- "$filter"; then
-    log "Skipping $script"
-    return
-  fi
-  execute "$script"
-}
-
-run_dir() {
-  local dir="$1"
-  local -a scripts
-  local script line
-  [[ -d "$dir" ]] || return 0
-  log "--- $dir ---"
-
-  scripts=()
-  while IFS= read -r line; do scripts+=("$line"); done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
-
-  for script in "${scripts[@]}"; do
-    [[ -f "$script" && -x "$script" ]] || continue
-    run_script "$script"
+  echo
+  for i in "${!step_names[@]}"; do
+    word="${step_words[$i]}"
+    time=""
+    [[ "$word" == "ran" || "$word" == "FAIL" ]] && time="$(duration "${step_times[$i]}")"
+    case "$word" in
+    ran) count_ran=$((count_ran + 1)) ;;
+    FAIL) count_fail=$((count_fail + 1)) ;;
+    "not run") count_not_run=$((count_not_run + 1)) ;;
+    skipped)
+      count_skipped=$((count_skipped + 1))
+      time="does not match '$filter'"
+      ;;
+    info)
+      count_info=$((count_info + 1))
+      time="would run"
+      ;;
+    esac
+    status "$word" "${step_names[$i]}" "$time"
   done
+
+  if [[ "$dry" == "1" ]]; then
+    summary="setup: $count_info to run"
+    worst="info"
+  else
+    summary="setup: $count_ran ran"
+    worst="ok"
+    if [[ $count_fail -gt 0 ]]; then
+      summary+=", $count_fail FAIL, $count_not_run not run"
+      worst="FAIL"
+    fi
+  fi
+  [[ $count_skipped -gt 0 ]] && summary+=", $count_skipped skipped"
+  [[ ${#step_names[@]} -gt 0 ]] || summary="setup: $profile has no setup steps"
+
+  [[ ${#step_names[@]} -gt 0 ]] && echo
+  verdict "$worst" "$summary"
 }
 
-log "$dotfiles_dir -- $filter"
-log "profile: $profile"
+heading "setup: $profile"
+[[ "$dry" == "1" ]] && echo "Dry run: nothing changes"
 
 cd "$dotfiles_dir"
 
-run_dir "$dotfiles_dir/profiles/$profile"
+scripts=()
+dir="$dotfiles_dir/profiles/$profile"
+if [[ -d "$dir" ]]; then
+  while IFS= read -r line; do
+    [[ -f "$line" && -x "$line" ]] && scripts+=("$line")
+  done < <(find "$dir" -maxdepth 1 -mindepth 1 -type f | sort)
+fi
 
-echo "----------------------------------------"
-echo "All setup steps ran"
+# A step that fails stops the run, because a later step can depend on it. The
+# steps after it are listed as not run, and setup exits with its status.
+failed_status=0
+for script in "${scripts[@]}"; do
+  name="$(basename "$script")"
+  step_names+=("$name")
+  step_times+=(0)
+
+  if [[ "$failed_status" -ne 0 ]]; then
+    step_words+=("not run")
+  elif [[ -n "$filter" ]] && ! grep -q -- "$filter" <<<"$script"; then
+    step_words+=("skipped")
+  elif [[ "$dry" == "1" ]]; then
+    step_words+=("info")
+  else
+    # The step's own output passes through as it is: an indent would break the
+    # progress bars of a package manager, and a capture would hide its prompts.
+    section "$name"
+    start=$SECONDS
+    if "$script"; then
+      step_words+=("ran")
+      word="ran"
+    else
+      failed_status=$?
+      step_words+=("FAIL")
+      word="FAIL"
+    fi
+    step_times[${#step_times[@]} - 1]=$((SECONDS - start))
+    status "$word" "$name" "$(duration $((SECONDS - start)))"
+  fi
+done
+
+finish
+exit "$failed_status"

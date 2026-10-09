@@ -21,7 +21,7 @@ When two laws of UX conflict, the higher law wins.
 ## Design system
 
 - **Style guide:** This file.
-- **Tokens:** `lib/style.sh` (not written yet). Until it exists, the closest thing is the `C_*` variables in `commands/doctor/doctor`.
+- **Tokens:** `lib/style.sh`. It holds the semantic color variables, the color of each status word, and the layout functions (`status`, `status_note`, `section`, `heading`, `verdict`).
 
 ### Rules
 

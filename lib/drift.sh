@@ -18,7 +18,7 @@
 #
 # Bash 3.2 has no associative arrays, so the lookups are done in awk.
 #
-# Requires $dotfiles_dir to name the checkout.
+# Requires $dotfiles_dir to name the checkout, and lib/style.sh for the colors.
 
 SYNC_RECORD="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/synced"
 
@@ -167,6 +167,24 @@ write_record() {
   ' >"$tmp" && mv "$tmp" "$SYNC_RECORD"
 }
 
+# target_matches reports whether every path that a target replaces already
+# holds exactly its source, so that a copy would change nothing. For a command,
+# the symlink on PATH must point at the installed entry point too.
+#
+# Usage: target_matches <directive> <src> <dest>
+target_matches() {
+  local home_root src_root name
+
+  while IFS=$'\t' read -r home_root src_root; do
+    [[ "$(_hash_tree "$home_root" | sort)" == "$(_hash_tree "$src_root" | sort)" ]] || return 1
+  done < <(_target_scopes "$@")
+
+  if [[ "$1" == "command" ]]; then
+    name="$(basename "$2")"
+    [[ "$(readlink "$3/bin/$name")" == "$3/lib/$name/$name" ]] || return 1
+  fi
+}
+
 # tilde prints a path with $HOME shortened to ~.
 tilde() {
   case "$1" in
@@ -193,18 +211,18 @@ show_drift() {
   done <<<"$lines"
 }
 
-# _color_diff colors a unified diff when it goes to a terminal, unless
-# $NO_COLOR is set. Not every diff has --color, so this works on any of them.
+# _color_diff colors a unified diff as git does, with the style colors. Not
+# every diff has --color, so this works on any of them.
 _color_diff() {
-  if [[ ! -t 1 || -n "${NO_COLOR:-}" ]]; then
+  if [[ -z "${STYLE_OFF:-}" ]]; then
     cat
     return
   fi
-  awk '
-    /^(---|\+\+\+) / { print "\033[1m" $0 "\033[0m"; next }
-    /^@@/ { print "\033[36m" $0 "\033[0m"; next }
-    /^-/ { print "\033[31m" $0 "\033[0m"; next }
-    /^\+/ { print "\033[32m" $0 "\033[0m"; next }
+  awk -v head="$STYLE_HEAD" -v hunk="$STYLE_INFO" -v del="$STYLE_FAIL" -v add="$STYLE_OK" -v off="$STYLE_OFF" '
+    /^(---|\+\+\+) / { print head $0 off; next }
+    /^@@/ { print hunk $0 off; next }
+    /^-/ { print del $0 off; next }
+    /^\+/ { print add $0 off; next }
     { print }
   '
 }

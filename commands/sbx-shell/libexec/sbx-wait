@@ -67,6 +67,21 @@ if ! command -v sbx >/dev/null 2>&1; then
   exit 1
 fi
 
+# The shared output style, from the checkout that this file came from. The sbx-
+# commands do not otherwise need a checkout, so without one the results are
+# printed plainly rather than not at all.
+dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." >/dev/null 2>&1 && pwd)"
+[[ -f "$dotfiles_dir/lib/style.sh" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ -f "$dotfiles_dir/lib/style.sh" ]]; then
+  source "$dotfiles_dir/lib/style.sh"
+else
+  status() { printf '  %-7s %s\n' "$1" "$2"; }
+  heading() { printf '%s\n' "$1"; }
+  style_clear_line() { [[ -t 1 ]] && printf '\r' && tput el 2>/dev/null; return 0; }
+fi
+
 # $SECONDS counts from the start of the script, which is also what the reader
 # wants to see: how long they have been waiting in total.
 SECONDS=0
@@ -88,21 +103,19 @@ last=""
 draw() {
   local text="$1"
   if ((interactive)); then
-    printf '\r\033[2K  %s  %5s  %s' "${frames[frame]}" "$(clock)" "$text"
+    style_clear_line
+    printf '  %s %5s  %s' "${frames[frame]}" "$(clock)" "$text"
     frame=$(((frame + 1) % ${#frames[@]}))
   elif [[ "$text" != "$last" ]]; then
-    printf '     %5s  %s\n' "$(clock)" "$text"
+    printf '  %7s %s\n' "$(clock)" "$text"
   fi
   last="$text"
 }
 
 # note ends the progress line and prints a result in its place.
 note() {
-  local mark="$1" text="$2"
-  if ((interactive)); then
-    printf '\r\033[2K'
-  fi
-  printf '  %s  %s\n' "$mark" "$text"
+  style_clear_line
+  status "$1" "$2"
   last=""
 }
 
@@ -123,11 +136,13 @@ in_sandbox() {
 }
 
 kit_log() {
-  note '·' 'the last 30 lines of the kit log:'
+  note info 'the last 30 lines of the kit log:'
   in_sandbox 'tail -n 30 "$HOME/.dotfiles-kit.log"' || true
 }
 
-printf '\n  sbx-shell: preparing the %s sandbox\n\n' "$name"
+echo
+heading "sbx-shell: preparing the $name sandbox"
+echo
 
 # ---------------------------------------------------------------------------
 # Stage 1: the container is starting.
@@ -136,14 +151,14 @@ printf '\n  sbx-shell: preparing the %s sandbox\n\n' "$name"
 draw 'starting the sandbox'
 until sbx exec "$name" -- true >/dev/null 2>&1; do
   if ((SECONDS >= timeout)); then
-    note '✗' "timed out after ${timeout}s waiting for the $name sandbox"
+    note FAIL "timed out after ${timeout}s waiting for the $name sandbox"
     exit 1
   fi
   spin 'starting the sandbox'
 done
 
 if ! in_sandbox 'test -f "$HOME/.dotfiles-kit.status"' >/dev/null; then
-  note '✓' "ready in $(clock)"
+  note ok "ready in $(clock)"
   exit 0
 fi
 
@@ -163,14 +178,14 @@ while :; do
   case "$status" in
   ready) break ;;
   failed)
-    note '✗' 'the dotfiles kit failed'
+    note FAIL 'the dotfiles kit failed'
     kit_log
     exit 2
     ;;
   esac
 
   if ((SECONDS >= timeout)); then
-    note '✗' "timed out after ${timeout}s waiting for the dotfiles kit"
+    note FAIL "timed out after ${timeout}s waiting for the dotfiles kit"
     kit_log
     exit 2
   fi
@@ -178,7 +193,7 @@ while :; do
   spin "${status:-waiting for the dotfiles kit}"
 done
 
-note '✓' "ready in $(clock)"
+note ok "ready in $(clock)"
 
 # The kit installs the nvim plugins in the background, so the shell does not
 # wait for them. Say so, because an nvim opened too early installs them in the
@@ -187,6 +202,6 @@ nvim_status="$(in_sandbox 'cat "$HOME/.dotfiles-kit.nvim-status"' || true)"
 nvim_status="${nvim_status%%$'\n'*}"
 case "$nvim_status" in
 ready | '') ;;
-failed) note '!' 'the nvim plugin install failed; see ~/.dotfiles-kit.nvim.log' ;;
-*) note '·' "$nvim_status, in the background; give nvim a minute" ;;
+failed) note warn 'the nvim plugin install failed; see ~/.dotfiles-kit.nvim.log' ;;
+*) note info "$nvim_status, in the background; give nvim a minute" ;;
 esac

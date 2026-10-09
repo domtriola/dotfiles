@@ -83,7 +83,7 @@ answer() {
 
   run "$sync_env" --dry
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Drift in ~/.config/app (dir)"* ]]
+  [[ "$output" == *"drift   ~/.config/app "*"dir, changed since the last sync"* ]]
   [[ "$output" == *"changed  ~/.config/app/a.conf"* ]]
   [[ "$output" == *"added    ~/.config/app/secret.conf"* ]]
   [[ "$output" == *"deleted  ~/.config/app/sub/b.conf"* ]]
@@ -123,8 +123,8 @@ answer() {
   run "$sync_env"
   [ "$status" -eq 0 ]
   [ "$(cat "$HOME/.testrc")" = "mine" ]
-  [[ "$output" == *"Skipped, because you kept their drift:"* ]]
-  [[ "$output" == *"  ~"* ]]
+  [[ "$output" == *"skipped ~/.testrc"*"keeps its drift"* ]]
+  [[ "$output" == *"1 skipped with drift"* ]]
   grep "	file env/.testrc " "$record" >"$BATS_TEST_TMPDIR/after"
   grep "	file env/.testrc " "$BATS_TEST_TMPDIR/record.before" | diff - "$BATS_TEST_TMPDIR/after"
 
@@ -140,7 +140,7 @@ answer() {
   run "$sync_env"
   [ "$status" -eq 0 ]
   [ "$(cat "$HOME/.testrc")" = "rc" ]
-  [[ "$output" != *"WARNING"* ]]
+  [[ "$output" != *"overwriting the drift"* ]]
 }
 
 @test "with no terminal, the drift is overwritten with a warning" {
@@ -149,7 +149,7 @@ answer() {
 
   run "$sync_env"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING: overwriting the drift in ~/.config/app"* ]]
+  [[ "$output" == *"sync-env: overwriting the drift in ~/.config/app, because there is no terminal to ask"* ]]
   [ "$(cat "$HOME/.config/app/a.conf")" = "a" ]
 
   run "$sync_env" --dry
@@ -164,7 +164,7 @@ answer() {
   run "$sync_env" --yes
   [ "$status" -eq 0 ]
   [[ "$output" != *"Drift"* ]]
-  [[ "$output" != *"WARNING"* ]]
+  [[ "$output" != *"overwriting the drift"* ]]
   [ "$(cat "$HOME/.testrc")" = "rc" ]
 
   run "$sync_env" --dry
@@ -192,7 +192,7 @@ answer() {
 
   run "$sync_env" --dry
   [[ "$output" == *"changed  ~/.testrc"* ]]
-  [[ "$output" != *"Drift in ~/.config/app"* ]]
+  [[ "$output" != *"drift   ~/.config/app"* ]]
 }
 
 @test "a file that a later target wrote into the tree is not drift" {
@@ -211,8 +211,8 @@ EOF
 
   echo "mine" >"$HOME/skills-all/two/SKILL.md"
   run "$sync_env" --dry
-  [ "$(grep -c "^Drift in" <<<"$output")" -eq 1 ]
-  [[ "$output" == *"Drift in ~/skills-all (subdirs)"* ]]
+  [ "$(grep -c "^  drift " <<<"$output")" -eq 1 ]
+  [[ "$output" == *"drift   ~/skills-all "*"subdirs, changed since the last sync"* ]]
 }
 
 @test "an edited command is drift" {
@@ -220,8 +220,53 @@ EOF
   echo "echo evil" >>"$HOME/.local/lib/hello/hello"
 
   run "$sync_env" --dry
-  [[ "$output" == *"Drift in ~/.local (command)"* ]]
+  [[ "$output" == *"drift   ~/.local/bin/hello "*"command, changed since the last sync"* ]]
   [[ "$output" == *"changed  ~/.local/lib/hello/hello"* ]]
+}
+
+@test "a sync prints one status line for each target, and no raw commands" {
+  run "$sync_env"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Test"* ]]
+  [[ "$output" == *"copied  ~/.testrc"* ]]
+  [[ "$output" == *"copied  ~/.config/app"* ]]
+  [[ "$output" == *"copied  ~/skills"* ]]
+  [[ "$output" == *"copied  ~/.local/bin/hello"* ]]
+  [[ "$output" != *"cp "* ]]
+  [ "$(tail -1 <<<"$output")" = "sync-env: 4 copied, 0 same" ]
+
+  echo "rc2" >"$checkout/env/.testrc"
+  run "$sync_env"
+  [[ "$output" == *"copied  ~/.testrc"* ]]
+  [[ "$output" == *"same    ~/.config/app"* ]]
+  [[ "$output" == *"same    ~/.local/bin/hello"* ]]
+  [ "$(tail -1 <<<"$output")" = "sync-env: 1 copied, 3 same" ]
+}
+
+@test "a missing command symlink is copied, not same" {
+  "$sync_env"
+  rm "$HOME/.local/bin/hello"
+
+  run "$sync_env"
+  [[ "$output" == *"copied  ~/.local/bin/hello"* ]]
+  [ -L "$HOME/.local/bin/hello" ]
+}
+
+@test "--dry prints a header, the status lines and the raw commands" {
+  run "$sync_env" --dry
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Dry run: nothing changes"* ]]
+  [[ "$output" == *"copy    ~/.testrc"* ]]
+  [[ "$output" == *"cp $checkout/env/.testrc $HOME/.testrc"* ]]
+  [[ "$output" == *"info    sync record"* ]]
+  [ "$(tail -1 <<<"$output")" = "sync-env: 4 to copy, 0 same" ]
+  [ ! -e "$HOME/.testrc" ]
+}
+
+@test "output to a pipe has no escape codes" {
+  echo "mine" >"$HOME/.testrc"
+  run "$sync_env" --dry
+  [[ "$output" != *$'\033'* ]]
 }
 
 @test "doctor warns for each target with drift" {
@@ -233,6 +278,7 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"Dotfiles"* ]]
   [ "$(grep -c "drifted, see sync-env --dry" <<<"$output")" -eq 2 ]
+  [ "$(tail -1 <<<"$output")" = "doctor: 0 ok, 2 warn, 0 FAIL, 0 pending" ]
 }
 
 @test "doctor says nothing about dotfiles without drift, or without a record" {

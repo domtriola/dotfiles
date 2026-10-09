@@ -61,6 +61,7 @@ source "$dotfiles_dir/lib/profile.sh"
 source "$dotfiles_dir/lib/prompt.sh"
 source "$dotfiles_dir/lib/manifest.sh"
 source "$dotfiles_dir/lib/drift.sh"
+source "$dotfiles_dir/lib/style.sh"
 
 dry="0"
 yes="0"
@@ -102,17 +103,11 @@ die() {
   exit 1
 }
 
-log() {
-  if [[ $dry == "1" ]]; then
-    echo "[DRY RUN]: $@"
-  else
-    echo "$@"
-  fi
-}
-
+# execute runs a command. A dry run prints it instead, muted under the status
+# line of its target.
 execute() {
-  log "execute $@"
   if [[ $dry == "1" ]]; then
+    status_note "$*"
     return
   fi
 
@@ -133,7 +128,7 @@ read_manifest "$manifest" || exit 1
 if [[ "$copies_nothing" == "1" ]]; then
   [[ ${#actions[@]} -eq 0 ]] ||
     die "$manifest: none cannot be combined with another directive"
-  log "$profile copies no dotfiles"
+  verdict ok "sync-env: $profile copies no dotfiles"
   exit 0
 fi
 
@@ -153,13 +148,23 @@ split_action() {
   dest="${rest#*|}"
 }
 
-log "------------ sync-env ------------"
-log "profile: $profile"
+# target_label names what a target writes, for its status line: the file for
+# `file`, the command on PATH for `command`, and the destination otherwise.
+target_label() {
+  case "$directive" in
+  file) tilde "$dest/$(basename "$src")" ;;
+  command) tilde "$dest/bin/$(basename "$src")" ;;
+  *) tilde "$dest" ;;
+  esac
+}
+
+heading "sync-env: $profile"
+[[ "$dry" == "1" ]] && echo "Dry run: nothing changes"
 
 # Every question is asked before anything is copied, so a declined target
 # never leaves $HOME half synced. skipped holds "|<index>|" for each one.
 skipped=""
-skipped_dests=()
+drifted=()
 
 for i in "${!actions[@]}"; do
   split_action "${actions[$i]}"
@@ -169,17 +174,18 @@ for i in "${!actions[@]}"; do
   drift="$(target_drift "$directive" "$src" "$dest")"
   [[ -n "$drift" ]] || continue
 
-  where="$(tilde "$dest")"
-  echo "Drift in $where ($directive), since the last sync:"
+  where="$(target_label)"
+  [[ ${#drifted[@]} -gt 0 ]] || section "Drift"
+  drifted+=("$where")
+  status drift "$where" "$directive, changed since the last sync"
   show_drift <<<"$drift"
 
   if [[ "$dry" == "1" ]]; then
-    log "would ask to overwrite the drift in $where"
+    status_note "would ask to overwrite the drift in $where"
   elif ! has_terminal; then
-    echo "WARNING: overwriting the drift in $where" >&2
+    echo "sync-env: overwriting the drift in $where, because there is no terminal to ask" >&2
   elif ! confirm "Overwrite the drift in $where?"; then
     skipped+="|$i|"
-    skipped_dests+=("$where")
   fi
 done
 
@@ -241,32 +247,55 @@ install_command() {
 record_checkout() {
   local file="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout"
 
-  log "record checkout $dotfiles_dir in $file"
-  [[ $dry == "1" ]] && return
+  if [[ $dry == "1" ]]; then
+    status info "checkout" "would record $dotfiles_dir in $(tilde "$file")"
+    return
+  fi
   mkdir -p "$(dirname "$file")"
   printf '%s\n' "$dotfiles_dir" >"$file"
 }
-
-record_checkout
 
 # The new sync record, built in manifest order. A skipped target keeps its old
 # lines, so its drift is asked about again on the next run.
 new_record="$(mktemp)"
 trap 'rm -f "$new_record"' EXIT
 
+# A dry run says this at the end, beside the sync record.
+[[ $dry == "1" ]] || record_checkout
+
+count_copied=0
+count_same=0
+count_skipped=0
+
 for i in "${!actions[@]}"; do
   split_action "${actions[$i]}"
 
   if [[ "$directive" == "group" ]]; then
-    echo "---------------------------"
-    echo "$src:"
+    section "$src"
     continue
   fi
 
+  where="$(target_label)"
+
   if [[ "$skipped" == *"|$i|"* ]]; then
-    log "skip $(tilde "$dest"), which keeps its drift"
+    count_skipped=$((count_skipped + 1))
+    status skipped "$where" "keeps its drift"
     recorded_lines "$directive" "$src" "$dest" >>"$new_record"
     continue
+  fi
+
+  # A target that already matches its source is copied all the same, so that
+  # the result never depends on this check.
+  if target_matches "$directive" "$src" "$dest"; then
+    count_same=$((count_same + 1))
+    status same "$where"
+  else
+    count_copied=$((count_copied + 1))
+    if [[ "$dry" == "1" ]]; then
+      status copy "$where"
+    else
+      status copied "$where"
+    fi
   fi
 
   case "$directive" in
@@ -278,13 +307,26 @@ for i in "${!actions[@]}"; do
   record_lines "$directive" "$src" "$dest" >>"$new_record"
 done
 
-log "record the sync in $SYNC_RECORD"
-[[ $dry == "1" ]] || write_record <"$new_record"
-
-echo "----------------------------------------"
-echo "Dotfiles synced"
-
-if [[ ${#skipped_dests[@]} -gt 0 ]]; then
-  echo "Skipped, because you kept their drift:"
-  printf '  %s\n' "${skipped_dests[@]}"
+if [[ $dry == "1" ]]; then
+  echo
+  record_checkout
+  status info "sync record" "would write $(tilde "$SYNC_RECORD")"
+else
+  write_record <"$new_record"
 fi
+
+summary="$count_same same"
+if [[ $dry == "1" ]]; then
+  summary="sync-env: $count_copied to copy, $summary"
+  worst="copy"
+else
+  summary="sync-env: $count_copied copied, $summary"
+  worst="ok"
+fi
+if [[ $count_skipped -gt 0 ]]; then
+  summary+=", $count_skipped skipped with drift"
+  worst="drift"
+fi
+
+echo
+verdict "$worst" "$summary"
