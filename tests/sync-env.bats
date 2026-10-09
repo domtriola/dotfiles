@@ -156,15 +156,19 @@ answer() {
   [[ "$output" != *"Drift"* ]]
 }
 
-@test "--yes overwrites the drift without asking" {
+@test "--yes copies everything without a drift check, and writes the record" {
   "$sync_env"
   echo "mine" >"$HOME/.testrc"
 
   answer n
   run "$sync_env" --yes
   [ "$status" -eq 0 ]
-  [[ "$output" == *"WARNING: overwriting the drift in ~"* ]]
+  [[ "$output" != *"Drift"* ]]
+  [[ "$output" != *"WARNING"* ]]
   [ "$(cat "$HOME/.testrc")" = "rc" ]
+
+  run "$sync_env" --dry
+  [[ "$output" != *"Drift"* ]]
 }
 
 @test "--dry shows the drift and writes nothing" {

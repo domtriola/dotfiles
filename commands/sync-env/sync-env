@@ -30,7 +30,8 @@
 # $HOME since the last sync (see lib/drift.sh). Before anything is copied, each
 # target with drift shows the changed files and a diff, then asks whether to
 # overwrite it. A declined target is skipped, and asks again on the next run.
-# With no terminal, or with --yes, the drift is overwritten with a warning.
+# With no terminal, the drift is overwritten with a warning. With --yes, there
+# is no drift check at all.
 #
 # To test against a fake home:
 # mkdir -p /tmp/fakehome && HOME=/tmp/fakehome commands/sync-env/sync-env
@@ -41,7 +42,8 @@
 #              reused. $DOTFILES_PROFILE overrides both, without saving.
 #   --dry      Print what would be copied, and any drift, without making any
 #              changes.
-#   --yes      Overwrite drift without asking.
+#   --yes      Copy everything without a drift check. The sandbox kit uses
+#              it, because nothing in a sandbox is worth the time of a check.
 
 set -eo pipefail
 
@@ -162,6 +164,7 @@ skipped_dests=()
 for i in "${!actions[@]}"; do
   split_action "${actions[$i]}"
   [[ "$directive" == "group" ]] && continue
+  [[ "$yes" == "1" ]] && break
 
   drift="$(target_drift "$directive" "$src" "$dest")"
   [[ -n "$drift" ]] || continue
@@ -172,7 +175,7 @@ for i in "${!actions[@]}"; do
 
   if [[ "$dry" == "1" ]]; then
     log "would ask to overwrite the drift in $where"
-  elif [[ "$yes" == "1" ]] || ! has_terminal; then
+  elif ! has_terminal; then
     echo "WARNING: overwriting the drift in $where" >&2
   elif ! confirm "Overwrite the drift in $where?"; then
     skipped+="|$i|"

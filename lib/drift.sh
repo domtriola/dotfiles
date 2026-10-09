@@ -189,6 +189,22 @@ show_drift() {
   while IFS=$'\t' read -r kind home src; do
     [[ "$kind" == "deleted" ]] && continue
     [[ -f "$src" ]] || src=/dev/null
-    diff -u "$home" "$src" || true
+    diff -u "$home" "$src" | _color_diff || true
   done <<<"$lines"
+}
+
+# _color_diff colors a unified diff when it goes to a terminal, unless
+# $NO_COLOR is set. Not every diff has --color, so this works on any of them.
+_color_diff() {
+  if [[ ! -t 1 || -n "${NO_COLOR:-}" ]]; then
+    cat
+    return
+  fi
+  awk '
+    /^(---|\+\+\+) / { print "\033[1m" $0 "\033[0m"; next }
+    /^@@/ { print "\033[36m" $0 "\033[0m"; next }
+    /^-/ { print "\033[31m" $0 "\033[0m"; next }
+    /^\+/ { print "\033[32m" $0 "\033[0m"; next }
+    { print }
+  '
 }
