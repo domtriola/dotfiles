@@ -57,7 +57,7 @@ Examples:
 Per-project settings live in a .sbx.json at the project root. Every key is
 optional:
 
-  agent     the agent kit to run, which the argument above overrides.
+  agent     the sandbox kit to run, which the argument above overrides.
             Default: my-claude
   kits      the kits mixed into the sandbox.
             Default: agent-skills, dotfiles
@@ -79,7 +79,7 @@ repository: an agent under sbx/kits/sandboxes, a mixin under sbx/kits/mixins.
 Environment:
   SBX_UP_DOTFILES     the checkout that holds the kits and sync-skills.
                       Default: ~/src/personal/dotfiles
-  SBX_KIT_ARGS_FILE   values for an agent kit that declares arguments.
+  SBX_KIT_ARGS_FILE   values for a sandbox kit that declares arguments.
                       Default: ~/.config/sbx/kit.args
 EOF
 }

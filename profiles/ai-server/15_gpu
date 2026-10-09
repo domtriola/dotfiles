@@ -12,7 +12,7 @@
 # are SOURCED by grub-mkconfig after the main file, so a plain assignment would
 # replace what the distribution set and the value has to append to itself. That
 # is the opposite of /etc/ssh/sshd_config.d, which 05_hardening writes. Writing
-# the whole file also makes this script idempotent for free: there is no string
+# the whole file also makes this step idempotent for free: there is no string
 # to match and no parameter to accidentally add twice.
 
 set -eo pipefail
@@ -55,7 +55,7 @@ echo "IOMMU: $iommu"
 # ---------------------------------------------------------------------------
 #
 # $GRUB_CMDLINE_LINUX is escaped so the file holds it literally. It is expanded
-# by grub-mkconfig, after the main file has set it, and not by this script.
+# by grub-mkconfig, after the main file has set it, and not by this step.
 desired="$(
   cat <<EOF
 # Managed by dotfiles: profiles/ai-server/15_gpu
@@ -116,5 +116,5 @@ done
 if [[ $needs_reboot -eq 1 ]]; then
   echo
   echo "NOTE: the kernel parameters changed. Reboot to apply them, then check"
-  echo "      that GTT reads about 124 GiB. This script does not reboot."
+  echo "      that GTT reads about 124 GiB. This step does not reboot."
 fi

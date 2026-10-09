@@ -1,10 +1,10 @@
-# AI server: manual bootstrap
+# AI server: bootstrap
 
 Every step from a bare Framework Desktop to the point where the `ai-server`
 profile can run. This is the source of truth for those steps.
 
 Nothing here is scripted, and each step says why. Everything after the last
-step is done by the scripts in this directory.
+step is done by the setup steps in this directory.
 
 The Ubuntu side of this follows
 [their networking](https://ubuntu.com/server/docs/#networking) and
@@ -88,7 +88,7 @@ online.
 
 LUKS sits below the volume group, so an encrypted install needs nothing extra.
 
-The script takes all of the free extents, set by `$AI_SERVER_LV_FREE_PCT`.
+The `12_storage` setup step takes all of the free extents, set by `$AI_SERVER_LV_FREE_PCT`.
 
 **One volume holds everything**: the system, its packages, the logs, and the
 models. There is no separate allocation for models, and a download large
@@ -287,12 +287,12 @@ NETBIRD_SETUP_KEY='<key>' ./commands/setup/setup 25_network
 
 This is also what moves the model server off `0.0.0.0` and onto the overlay
 address, so it stops answering on `127.0.0.1` afterwards. Test it at the
-address the script prints.
+address the setup step prints.
 
 The dashboard policy that lets a client reach the `ai-server` group must allow
 TCP port 22 as well as the model port. NetBird drops traffic to a port that the
 policy does not allow, so without port 22 the model server answers but `ssh` to
 the overlay address hangs at `Connecting to … port 22` with no error.
 
-Run `./commands/sync-env/sync-env` to pull environment configs. It also puts
+Run `./commands/sync-env/sync-env` to copy the dotfiles. It also puts
 the commands that `env.manifest` lists on PATH, so later runs need no path.

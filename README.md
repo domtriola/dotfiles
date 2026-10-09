@@ -1,6 +1,6 @@
 # My Dotfiles
 
-Environment configurations for quick set-up of a new machine.
+Dotfiles, commands, and setup steps that make a new machine ready for its profile.
 
 ## Fresh system setup
 
@@ -8,7 +8,7 @@ Environment configurations for quick set-up of a new machine.
 1. Clone these dotfiles:
    `cd ~/src/personal && git clone git@github.com:domtriola/dotfiles.git && cd dotfiles`
 1. Perform steps if any in `profiles/<profile>/bootstrap.md`
-1. Run the setup tools from the checkout, naming the profile the first time:
+1. Run the commands from the checkout, naming the profile the first time:
    1. `./commands/sync-env/sync-env --profile <name>`
    2. `./commands/setup/setup`
 1. Open a new shell. The commands are now on PATH, so later runs need no path.
@@ -38,8 +38,8 @@ Run `setup` after a change to anything in `profiles/<profile>/`.
 ## Profiles
 
 Every machine has a profile. A profile names what the machine is **for**, not
-only which operating system it runs on. It decides which scripts `setup` runs
-and which files `sync-env` copies.
+only which operating system it runs on. It decides which setup steps `setup`
+runs and which dotfiles `sync-env` copies.
 
 | Profile         | Machine                                      |
 | --------------- | -------------------------------------------- |
@@ -64,9 +64,9 @@ profiles/<profile>/
 
 `setup` never looks inside `lib/`, and skips files that are not executable.
 
-Profiles share no scripts. The same tool can appear in more than one profile,
-and that duplication is deliberate: every machine installs what its use-case
-needs, and nothing else.
+Profiles share no setup steps. The same package can appear in more than one
+profile, and that duplication is deliberate: every machine installs what its
+use-case needs, and nothing else.
 
 ## Testing changes safely
 
@@ -106,4 +106,4 @@ runs in this repo.
 ## Further reading
 
 - [docs/dev_workflow.md](docs/dev_workflow.md): the tmux project workflow.
-- [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and helper commands.
+- [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and the sandbox commands.

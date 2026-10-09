@@ -2,18 +2,18 @@
 #
 # Usage: setup [<pattern>] [--profile <name>] [--dry]
 #
-# Discovers and executes the scripts for this machine's profile under ./profiles/.
+# Discovers and runs the setup steps for this machine's profile under ./profiles/.
 #
-# Every profile owns its scripts, in profiles/<profile>/. There is no shared
+# Every profile owns its setup steps, in profiles/<profile>/. There is no shared
 # directory, because each machine installs what its use-case needs and
 # duplication is accepted.
 #
-# Scripts run in filename order. Use numeric prefixes (00_, 10_, 20_) to
+# Setup steps run in filename order. Use numeric prefixes (00_, 10_, 20_) to
 # control ordering.
 #
 # Arguments:
-#   <pattern>  A grep pattern. Only scripts whose path matches <pattern> are run.
-#              If omitted, all scripts are run.
+#   <pattern>  A grep pattern. Only setup steps whose path matches <pattern>
+#              run. If omitted, all setup steps run.
 #   --profile  The use-case of this machine, named by a directory under
 #              ./profiles/. Only needed the first time: the name is saved and
 #              reused. $DOTFILES_PROFILE overrides both, without saving.
@@ -21,9 +21,9 @@
 #              never writes the profile file and never prompts.
 #
 # Examples:
-#   setup                          # run all platform-appropriate scripts
-#   setup packages                 # run only scripts matching "packages"
-#   setup packages --dry           # preview which scripts would run
+#   setup                          # run every setup step of the profile
+#   setup packages                 # run only setup steps matching "packages"
+#   setup packages --dry           # preview which setup steps would run
 #   setup --profile dev-mac --dry  # preview a profile, saving nothing
 
 set -eo pipefail
@@ -119,4 +119,4 @@ cd "$dotfiles_dir"
 run_dir "$dotfiles_dir/profiles/$profile"
 
 echo "----------------------------------------"
-echo "All scripts executed"
+echo "All setup steps ran"

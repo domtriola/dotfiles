@@ -1,4 +1,4 @@
-# dev-mac: manual steps
+# dev-mac: bootstrap
 
 Steps that are not scripted by `setup`.
 

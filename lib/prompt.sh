@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Prompts shared by the setup scripts.
+# Prompts shared by the setup steps.
 
 # Ask a yes/no question before a step that is safe to skip.
 #
 # The answer is read from the terminal rather than from stdin, because a setup
-# script can be reached through a pipe. With no terminal the answer is yes,
+# setup step can be reached through a pipe. With no terminal the answer is yes,
 # since an unattended run is there to install things.
 #
 # Usage: if confirm "Update starship?"; then ...

@@ -40,7 +40,7 @@ cmd_show() {
 EOF
 
   # Not a setting: derived by the preflight from its own location, and read by
-  # every tool that needs to re-run setup.
+  # every command that needs to re-run setup.
   printf '\n  repository           %s\n' "${AI_SERVER_DOTFILES_DIR:-<unset>}"
   if [[ -n "${AI_SERVER_DOTFILES_DIR:-}" && ! -x "${AI_SERVER_DOTFILES_DIR}/commands/setup/setup" ]]; then
     echo "      WARNING: that path holds no commands/setup/setup, so a change cannot be applied." >&2

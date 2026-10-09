@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Configures tools.
+# Configures installed packages: the Claude Code policy and the GitHub CLI.
 #
-# Needs sudo for the Claude Code policy, so this script prompts for a password.
+# Needs sudo for the Claude Code policy, so this step prompts for a password.
 
 set -eox pipefail
 

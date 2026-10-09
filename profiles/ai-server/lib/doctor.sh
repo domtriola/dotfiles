@@ -278,9 +278,9 @@ fi
 
 for helper in ai-model; do
   if [[ -x "/usr/local/bin/$helper" ]]; then
-    ok "$helper helper" "/usr/local/bin/$helper"
+    ok "$helper command" "/usr/local/bin/$helper"
   else
-    pending "$helper helper" "not installed"
+    pending "$helper command" "not installed"
   fi
 done
 

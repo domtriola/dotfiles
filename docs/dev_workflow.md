@@ -1,6 +1,6 @@
 # Dev Workflow
 
-Custom tooling in this repo automates tmux sessions and windows.
+The commands in this repo automate tmux sessions and windows.
 
 To open a project:
 
@@ -11,12 +11,12 @@ To open a project:
 
 Keep workflow reminders in `cheat workflow`. To edit them: `cheat -e workflow`.
 
-## Scripts
+## Commands
 
-These work together. `sync-env` copies the executables into `~/.local/bin`;
+These work together. `sync-env` copies the commands into `~/.local/bin`;
 `.ready-tmux` is a file a project holds.
 
-| Script             | What it does                                                                      |
+| Command            | What it does                                                                      |
 | ------------------ | --------------------------------------------------------------------------------- |
 | `tmux-sessionizer` | Picks a project with `fzf`, then creates or switches to a session named after it. |
 | `ready-tmux`       | Runs the project's `.ready-tmux`, or `~/.ready-tmux` if the project has none.     |

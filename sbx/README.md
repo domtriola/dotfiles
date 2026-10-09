@@ -83,7 +83,7 @@ printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
 kit declares arguments. `sbx` rejects an argument that no kit declares, so
 passing it to every sandbox would break the ones that take none.
 
-`$SBX_KIT_ARGS_FILE` names a different file. An agent kit given as a URL or a
+`$SBX_KIT_ARGS_FILE` names a different file. A sandbox kit given as a URL or a
 zip is left alone, because the check reads the kit's spec from disk; supply its
 arguments with `--kit-arg` by hand.
 

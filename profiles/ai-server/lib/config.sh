@@ -2,7 +2,7 @@
 #
 # Machine configuration for the ai-server profile.
 #
-# Sourced by every setup script that needs an answer it cannot work out for
+# Sourced by every setup step that needs an answer it cannot work out for
 # itself. The answers live in /etc/ai-server/config.env, written once by
 # 00_preflight, so that a run never stops half way to ask a question.
 #
@@ -14,7 +14,7 @@
 # as set, and so means "ignore the file", not "unanswered".
 #
 # **The file is parsed, not sourced.** Sourcing would run whatever is in it as
-# code, and the scripts that read it go on to use sudo. Only plain assignments
+# code, and the setup steps that read it go on to use sudo. Only plain assignments
 # to upper-case names are honoured; anything else is ignored rather than
 # executed.
 #
@@ -59,7 +59,7 @@ ai_server_config_load() {
 }
 
 # ---------------------------------------------------------------------------
-# ai_server_require names the settings a script cannot run without, and lists
+# ai_server_require names the settings a setup step cannot run without, and lists
 # every missing one rather than failing on the first.
 #
 # It points at the preflight rather than at the file, because a value written

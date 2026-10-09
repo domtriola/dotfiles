@@ -5,7 +5,7 @@
 #
 # This runs first so that the rest of the profile never stops half way through
 # to ask something. A run that begins is a run that finishes, and the answers
-# are written to /etc/ai-server/config.env where every later script, and every
+# are written to /etc/ai-server/config.env where every later setup step, and every
 # tool, reads them from.
 #
 # A question earns a place here when getting it wrong locks the machine out,
@@ -145,7 +145,7 @@ cat >"$tmp" <<EOF
 # reports on this machine reads it. The overlay setup key is prompted for at
 # the moment it is used and never written down.
 
-# Where this profile is checked out. Tools that change a setting re-run
+# Where this profile is checked out. Commands that change a setting re-run
 # setup from here, so a moved or deleted clone breaks them; doctor says so.
 AI_SERVER_DOTFILES_DIR=$dotfiles_dir
 
@@ -225,5 +225,5 @@ ai_server_config_summary AI_SERVER_DOTFILES_DIR AI_SERVER_IOMMU \
 cat <<EOF
 
 Nothing here is permanent. Every value above can be changed later, and the
-script that owns it re-runs when it does.
+setup step that owns it re-runs when it does.
 EOF
