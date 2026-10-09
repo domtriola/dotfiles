@@ -131,4 +131,4 @@ I choose one option from the comparison below. All three options are behind the 
 - To confirm before building C:
   - Whether GitHub accepts every permission parameter at once in the pre-fill URL for a personal account.
   - Whether the `GitHub-Authentication-Token-Expiration` response header is still sent. If it is, the saved expiry can be checked against it.
-- The research behind the PAT facts is in `docs/research/fine-grained-gh-tokens-for-sandboxes.md`. The spec for the current App design is `docs/specs/sbx-gh-tokens.md`.
+- The research behind the PAT facts is in `docs/research/fine-grained-gh-tokens-for-sandboxes.md`. The current App design is described in `sbx-token --help` and in the dev-mac bootstrap. Its spec was removed when it was built, and is in the Git history.
