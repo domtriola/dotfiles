@@ -8,6 +8,16 @@ Steps that are not scripted by `setup`.
 xcode-select --install
 ```
 
+## Caps Lock remap (MacOS)
+
+Open System Settings, go to Keyboard > Keyboard Shortcuts > Modifier Keys, and set the Caps Lock key to Control. Repeat it for every attached keyboard, since the setting is per keyboard.
+
+## Disable separate spaces for displays
+
+```
+Settings -> Desktop & Dock -> Mission Control -> Displays have separate spaces -> off
+```
+
 ## Enroll Touch ID fingers
 
 Do this before you run `setup`. The SSH key from `40_ssh_key` needs Touch ID for each use, and it has no password fallback. If Touch ID is not reliable for you, see [Use a key without Touch ID](#use-a-key-without-touch-id).
@@ -125,13 +135,3 @@ Each machine gets its own key, so that you can revoke the key of a lost machine 
 1. [ ] Test it: `sbx-token check`. It prints `<your login>-sbx, installed on <your login>`.
 
 To revoke a machine, delete its key pair under **Credentials**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.
-
-## Caps Lock remap (MacOS)
-
-Open System Settings, go to Keyboard > Keyboard Shortcuts > Modifier Keys, and set the Caps Lock key to Control. Repeat it for every attached keyboard, since the setting is per keyboard.
-
-## Disable separate spaces for displays
-
-```
-Settings -> Desktop & Dock -> Mission Control -> Displays have separate spaces -> off
-```
