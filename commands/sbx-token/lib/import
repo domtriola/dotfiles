@@ -10,7 +10,8 @@ import_key() {
 
   [[ "$id" =~ ^[0-9]+$ ]] || die "not an App ID: $id"
   [[ -f "$file" ]] || die "no such file: $file"
-  openssl pkey -in "$file" -noout 2>/dev/null || die "$file is not a private key"
+  openssl pkey -in "$file" -noout 2>/dev/null ||
+    die "$file is not a private key. Use the .pem file of a key pair, not a client secret."
 
   store_put <"$file"
 

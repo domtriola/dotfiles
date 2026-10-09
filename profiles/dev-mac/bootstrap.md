@@ -115,7 +115,7 @@ When the token expires, make a new one and log in again.
 Each machine gets its own key, so that you can revoke the key of a lost machine and keep the others working.
 
 1. [ ] Open the App's settings page: https://github.com/settings/apps, then **Edit** next to the App.
-1. [ ] Under **Private keys**, click **Generate a private key**. The browser downloads a `.pem` file.
+1. [ ] Under **Credentials**, generate a **key pair**. The browser downloads its private key as a `.pem` file. Do not generate a client secret: it is only for OAuth sign-in, which the App does not use. `sbx-token` signs its requests to GitHub with the private key.
 1. [ ] Store it, then delete the file:
 
    ```sh
@@ -124,7 +124,7 @@ Each machine gets its own key, so that you can revoke the key of a lost machine 
 
 1. [ ] Test it: `sbx-token check`. It prints `<your login>-sbx, installed on <your login>`.
 
-To revoke a machine, delete its key under **Private keys**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.
+To revoke a machine, delete its key pair under **Credentials**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.
 
 ## Caps Lock remap (MacOS)
 

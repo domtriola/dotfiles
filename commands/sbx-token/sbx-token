@@ -50,7 +50,8 @@ Verbs:
               the key are on this machine.
   import-key  Store a private key of the App in the OS secret store, check
               it with GitHub, and save the App's ID and slug. Generate one
-              key for each machine on the App's settings page.
+              key pair for each machine under "Credentials" on the App's
+              settings page (not a client secret).
 
 Options:
   --repo      A repository the token reaches. Repeat for more. They must all
