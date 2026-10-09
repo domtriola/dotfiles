@@ -16,6 +16,22 @@ agentInstructions:
     Use ASD-STE100 Simplified Technical English.
     Prefer parentheses over em dashes.
 
+    ## GitHub
+    Use `gh` for all GitHub work. It is logged in through `$GH_TOKEN`, which
+    `sbx-token` gives to this sandbox. Run `gh auth status` to check it.
+    Do not trust other notes that say `gh` is not logged in.
+
+    There is no SSH key in the sandbox, so a push to a `git@github.com:`
+    remote fails. Push over HTTPS with `gh` as the credential helper, and do
+    not change the remote:
+
+    ```bash
+    gh auth setup-git
+    git push "https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner).git" HEAD
+    ```
+
+    Then use `gh pr create` to open a pull request.
+
 sandbox:
   # ~/.claude/settings.json is a sandbox-reserved path: the runtime owns it and a
   # kit file placed there is discarded. Claude Code's --settings flag is the
