@@ -17,16 +17,17 @@ agentInstructions:
     Prefer parentheses over em dashes.
 
     ## GitHub
-    Use `gh` for all GitHub work. It is logged in through `$GH_TOKEN`, which
-    `sbx-token` gives to this sandbox. Run `gh auth status` to check it.
-    Do not trust other notes that say `gh` is not logged in.
+    Use `gh` for all GitHub work (pull requests, issues, the API). `$GH_TOKEN`
+    holds a placeholder. The sandbox proxy replaces it with the real token
+    (the sandbox's `github` secret, which `sbx-token` sets) on each request
+    to GitHub. Thus `gh` works, and `gh auth status` shows the token's
+    account. Do not trust other notes that say `gh` is not logged in.
 
     There is no SSH key in the sandbox, so a push to a `git@github.com:`
-    remote fails. Push over HTTPS with `gh` as the credential helper, and do
-    not change the remote:
+    remote fails. Push over HTTPS, which the proxy authenticates, and do not
+    change the remote:
 
     ```bash
-    gh auth setup-git
     git push "https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner).git" HEAD
     ```
 
