@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Minting a token, and storing the command that mints one as a sandbox's
+# GitHub secret.
+
+# mint_token prints a new installation token, limited to the repositories in
+# repos and the permissions in perms (both arrays, set by the entry point).
+# Every failure names its cause, because sbx shows the helper's stderr when it
+# cannot use the secret.
+mint_token() {
+  local jwt out status=0 installation_id first
+
+  config_load
+  scope_repos ${repos[@]+"${repos[@]}"}
+  scope_permissions ${perms[@]+"${perms[@]}"}
+  jwt="$(app_jwt)" || exit 1
+
+  # The installation of the first repository is the installation of all of
+  # them, because they have one owner.
+  first="$(jq -r '.[0]' <<<"$scope_names")"
+  out="$(api GET "/repos/$scope_owner/$first/installation" "$jwt")" || status=$?
+  if [[ "$status" -eq 22 && "$(api_message "$out")" == "Not Found" ]]; then
+    die "the $app_slug App is not installed on $scope_owner, or $scope_owner/$first does not exist. Install it at $(install_url "$app_slug")"
+  elif [[ "$status" -ne 0 ]]; then
+    api_die "could not find the App installation for $scope_owner" "$status" "$out"
+  fi
+  installation_id="$(jq -r '.id' <<<"$out")"
+
+  status=0
+  out="$(api POST "/app/installations/$installation_id/access_tokens" "$jwt" \
+    "$(jq -nc --argjson names "$scope_names" --argjson perms "$scope_perms" \
+      '{repositories: $names, permissions: $perms}')")" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    api_die "could not mint a token for $(repo_list)" "$status" "$out"
+  fi
+
+  jq -r '.token' <<<"$out"
+}
+
+# api_die reports a failed request, with GitHub's own message when it sent one.
+api_die() {
+  local what="$1" status="$2" out="$3" message
+  if [[ "$status" -eq 22 ]]; then
+    message="$(api_message "$out")"
+    die "$what: ${message:-GitHub returned an error}"
+  fi
+  die "$what: GitHub could not be reached (curl exit $status)"
+}
+
+repo_list() {
+  jq -r --arg owner "$scope_owner" 'map("\($owner)/\(.)") | join(", ")' <<<"$scope_names"
+}
+
+# register <sandbox> mints one token, so that a problem is reported here and
+# not later from inside the sandbox, and then stores the command that mints
+# the next ones as the sandbox's GitHub secret. The sbx daemon runs that
+# command again before each token expires.
+register() {
+  local sandbox="$1" helper cmd arg
+
+  [[ "$sandbox" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "not a sandbox name: $sandbox"
+  command -v sbx >/dev/null 2>&1 || die "sbx is not installed"
+
+  mint_token >/dev/null
+
+  helper="$(resolve_path "$sbx_token_bin")"
+  [[ -x "$helper" ]] || die "$sbx_token_bin is missing; run sync-env"
+  [[ "$helper" != *"'"* ]] || die "the path of $helper holds a quote"
+
+  # sbx runs this through the host shell, which may not be bash, so the
+  # command is plain words. Every value in it was checked against a strict
+  # pattern above, and the path is quoted.
+  cmd="'$helper' mint"
+  for arg in ${repos[@]+"${repos[@]}"}; do cmd+=" --repo $arg"; done
+  for arg in ${perms[@]+"${perms[@]}"}; do cmd+=" --perm $arg"; done
+
+  sbx secret set github --sandbox "$sandbox" --command "$cmd" </dev/null >/dev/null ||
+    die "sbx could not store the GitHub secret for $sandbox"
+  printf 'sbx-token: %s can reach %s\n' "$sandbox" "$(repo_list)" >&2
+}
+
+resolve_path() {
+  local path="$1" target
+  while [[ -L "$path" ]]; do
+    target="$(readlink "$path")"
+    [[ "$target" == /* ]] || target="$(dirname "$path")/$target"
+    path="$target"
+  done
+  printf '%s' "$path"
+}

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 #
-# The two windows a sandbox gets, and how each one is launched.
+# The window a sandbox gets, and how it is launched.
 
-# Windows left over from the previous sandbox are attached to nothing.
+# A window left over from the previous sandbox is attached to nothing. A shell
+# window from sbx-shell closes by itself, because its `sbx exec` ends with the
+# sandbox.
 #
 # Only an exact name match is killed, and never the window this was called
 # from: tmux resolves a target it cannot match as a window against sessions and
@@ -14,7 +16,7 @@ tmux_clear_windows() {
   current="$(tmux display-message -p '#{window_id}' 2>/dev/null || true)"
 
   while read -r id existing; do
-    if [[ ("$existing" == "$window" || "$existing" == "$shell_window") && "$id" != "$current" ]]; then
+    if [[ "$existing" == "$window" && "$id" != "$current" ]]; then
       tmux kill-window -t "$id" || true
     fi
   done < <(tmux list-windows -F '#{window_id} #{window_name}' 2>/dev/null || true)
@@ -30,42 +32,4 @@ tmux_open_agent() {
   launch+='printf "Press enter to close this window... "; read -r _; }'
 
   tmux new-window -n "$window" "$launch"
-}
-
-# tmux_open_shell replaces this process with the shell window, which only a
-# --clone sandbox gets.
-#
-# `sbx run` is still creating the container, and the dotfiles kit then clones
-# and installs into it, so the window waits before it opens a shell. sbx-wait
-# draws the progress and names the step it is waiting on.
-tmux_open_shell() {
-  local wait_cmd=("$wait_bin") launch
-
-  if [[ "$uses_dotfiles" == "true" ]]; then
-    wait_cmd+=(--dotfiles)
-  fi
-  wait_cmd+=("$name")
-
-  # Only exit 1 is fatal (the sandbox never answered). Exit 2 means the
-  # dotfiles kit failed or timed out: sbx-wait has already printed the end of
-  # its log, and a shell on an unconfigured sandbox is still more useful than
-  # no shell.
-  launch="$(printf '%q ' "${wait_cmd[@]}")"
-  launch+='
-if [ "$?" = 1 ]; then
-  printf "Press enter to close this window... "
-  read -r _
-  exit 1
-fi
-'
-
-  # -it gives the sandbox process a pseudo-terminal. Without it bash starts
-  # non-interactive (no prompt, no starship) and a full-screen program such as
-  # nvim has no terminal to draw on and exits at once.
-  #
-  # A login shell, so ~/.bash_profile runs and the prompt and PATH match my
-  # other machines.
-  launch+="exec $(printf '%q ' sbx exec -it "$name" -- bash -l)"
-
-  exec tmux new-window -n "$shell_window" "$launch"
 }

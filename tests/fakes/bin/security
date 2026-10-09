@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# A fake macOS security, with one secret in $FAKE_STATE/store. Its -i mode
+# takes add-generic-password lines on stdin, and logs them so that a test can
+# check that the key never reached argv.
+printf '%s\n' "$*" >>"$FAKE_STATE/security.argv"
+case "$1" in
+-i)
+  read -r line
+  printf '%s' "${line##* -w }" >"$FAKE_STATE/store"
+  ;;
+find-generic-password) [[ -f "$FAKE_STATE/store" ]] && cat "$FAKE_STATE/store" ;;
+*) exit 2 ;;
+esac

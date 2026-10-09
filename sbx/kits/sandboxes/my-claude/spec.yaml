@@ -16,6 +16,23 @@ agentInstructions:
     Use ASD-STE100 Simplified Technical English.
     Prefer parentheses over em dashes.
 
+    ## GitHub
+    Use `gh` for all GitHub work (pull requests, issues, the API). `$GH_TOKEN`
+    holds a placeholder. The sandbox proxy replaces it with the real token
+    (the sandbox's `github` secret, which `sbx-token` sets) on each request
+    to GitHub. Thus `gh` works, and `gh auth status` shows the token's
+    account. Do not trust other notes that say `gh` is not logged in.
+
+    There is no SSH key in the sandbox, so a push to a `git@github.com:`
+    remote fails. Push over HTTPS, which the proxy authenticates, and do not
+    change the remote:
+
+    ```bash
+    git push "https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner).git" HEAD
+    ```
+
+    Then use `gh pr create` to open a pull request.
+
 sandbox:
   # ~/.claude/settings.json is a sandbox-reserved path: the runtime owns it and a
   # kit file placed there is discarded. Claude Code's --settings flag is the

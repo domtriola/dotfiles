@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# A fake gh. Nothing should call it: sbx-token never falls back to its token.
+printf '%s\n' "$*" >>"$FAKE_STATE/gh.log"

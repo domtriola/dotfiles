@@ -8,6 +8,16 @@ Steps that are not scripted by `setup`.
 xcode-select --install
 ```
 
+## Caps Lock remap (MacOS)
+
+Open System Settings, go to Keyboard > Keyboard Shortcuts > Modifier Keys, and set the Caps Lock key to Control. Repeat it for every attached keyboard, since the setting is per keyboard.
+
+## Disable separate spaces for displays
+
+```
+Settings -> Desktop & Dock -> Mission Control -> Displays have separate spaces -> off
+```
+
 ## Enroll Touch ID fingers
 
 Do this before you run `setup`. The SSH key from `40_ssh_key` needs Touch ID for each use, and it has no password fallback. If Touch ID is not reliable for you, see [Use a key without Touch ID](#use-a-key-without-touch-id).
@@ -80,12 +90,48 @@ Later runs of `setup` keep the key, and show a warning.
 
 When the token expires, make a new one and log in again.
 
-## Caps Lock remap (MacOS)
+## Set up sandbox GitHub tokens
 
-Open System Settings, go to Keyboard > Keyboard Shortcuts > Modifier Keys, and set the Caps Lock key to Control. Repeat it for every attached keyboard, since the setting is per keyboard.
+`sbx-up` gives each sandbox a token from a GitHub App. The token reaches only the project's repositories, and `sbx` renews it every hour. You make the App by hand, once, and then give each machine its own private key, which stays in the Keychain. Do this after `sync-env`, which installs `sbx-token`.
 
-## Disable separate spaces for displays
+### Create the App (once)
 
-```
-Settings -> Desktop & Dock -> Mission Control -> Displays have separate spaces -> off
-```
+1. [ ] Go to https://github.com/settings/apps/new.
+1. [ ] Fill in the form:
+   - **GitHub App name:** `<your login>-sbx`. The name must be unique on all of GitHub.
+   - **Homepage URL:** `https://github.com/<your login>`.
+   - **Callback URL**, **Setup URL**, and **Request user authorization (OAuth) during installation:** leave them empty or unchecked. Sandboxes do not sign in as you.
+   - **Webhook:** uncheck **Active**. The App receives no events.
+   - **Repository permissions** (give no others, and no organization or account permissions):
+
+     | Permission    | Access         |
+     | ------------- | -------------- |
+     | Actions       | Read-only      |
+     | Contents      | Read and write |
+     | Issues        | Read and write |
+     | Metadata      | Read-only      |
+     | Pull requests | Read and write |
+     | Workflows     | Read and write |
+
+     These are the most that any sandbox token can get. A token gets less by default (no Workflows), and `sbx-token check` reports any permission that the App lacks.
+
+   - **Where can this GitHub App be installed?:** **Only on this account**.
+
+1. [ ] Click **Create GitHub App**, and note the **App ID** at the top of the page.
+1. [ ] In the left sidebar, click **Install App**, then **Install** next to your account. Choose **All repositories**, and click **Install**. Each token is limited to its repositories when it is minted, so the installation does not need to be.
+
+### Give this machine a key (on every machine)
+
+Each machine gets its own key, so that you can revoke the key of a lost machine and keep the others working.
+
+1. [ ] Open the App's settings page: https://github.com/settings/apps, then **Edit** next to the App.
+1. [ ] Under **Credentials**, generate a **key pair**. The browser downloads its private key as a `.pem` file. Do not generate a client secret: it is only for OAuth sign-in, which the App does not use. `sbx-token` signs its requests to GitHub with the private key.
+1. [ ] Store it, then delete the file:
+
+   ```sh
+   sbx-token import-key --app-id <App ID> ~/Downloads/<file>.pem && rm ~/Downloads/<file>.pem
+   ```
+
+1. [ ] Test it: `sbx-token check`. It prints `<your login>-sbx, installed on <your login>`.
+
+To revoke a machine, delete its key pair under **Credentials**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.

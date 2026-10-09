@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# A fake tmux. It logs each call to $FAKE_STATE/tmux.log, one argument per
+# line and a blank line after the call, and has no windows.
+printf '%s\n' "$@" "" >>"$FAKE_STATE/tmux.log"
+case "$1" in
+display-message) echo '@1' ;;
+esac

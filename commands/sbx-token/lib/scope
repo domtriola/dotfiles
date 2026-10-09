@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# What one token can reach: which repositories, and with which permissions.
+
+# The permissions a token gets when nothing asks for others.
+scope_defaults='{"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read"}'
+
+# What the App itself holds, and so the most that any token can ask for. The
+# bootstrap steps give the App exactly these, and check reports any that an
+# installation lacks. A push that changes
+# .github/workflows needs "workflows", which "contents" does not include, so
+# it is here for the projects that ask for it.
+scope_ceiling='{"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "workflows": "write", "metadata": "read"}'
+
+# scope_repos <owner/name>... checks the repositories and sets scope_owner and
+# scope_names (a JSON list of names without the owner). One token belongs to
+# one installation, and an installation to one owner, so every repository must
+# have the same owner.
+scope_repos() {
+  local repo names="[]"
+  scope_owner=""
+
+  [[ $# -gt 0 ]] || die "name at least one repository with --repo owner/name"
+
+  for repo in "$@"; do
+    [[ "$repo" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] ||
+      die "not a repository: $repo (expected owner/name)"
+    if [[ -z "$scope_owner" ]]; then
+      scope_owner="${repo%%/*}"
+    elif [[ "${repo%%/*}" != "$scope_owner" ]]; then
+      die "$repo has a different owner than $scope_owner. One token can only reach the repositories of one owner."
+    fi
+    names="$(jq -c --arg name "${repo#*/}" '. + [$name]' <<<"$names")"
+  done
+
+  scope_names="$names"
+}
+
+# scope_permissions <name=level>... merges the overrides over the defaults and
+# sets scope_perms to the JSON object a token asks for. A level of "none"
+# drops a default. Anything above the ceiling fails here, rather than as an
+# error from GitHub.
+scope_permissions() {
+  local perm overrides="{}" over
+
+  for perm in "$@"; do
+    [[ "$perm" =~ ^[a-z_]+=(read|write|none)$ ]] ||
+      die "not a permission: $perm (expected name=read, name=write or name=none)"
+    overrides="$(jq -c --arg k "${perm%%=*}" --arg v "${perm#*=}" '. + {($k): $v}' <<<"$overrides")"
+  done
+
+  over="$(jq -r --argjson ceiling "$scope_ceiling" '
+    def rank: {"read": 1, "write": 2}[.];
+    to_entries[]
+    | select(.value != "none")
+    | select(($ceiling[.key] == null) or ((.value | rank) > ($ceiling[.key] | rank)))
+    | "\(.key)=\(.value)"
+  ' <<<"$overrides")"
+  if [[ -n "$over" ]]; then
+    die "the App cannot grant $(tr '\n' ' ' <<<"$over")(its most is $(jq -r 'to_entries | map("\(.key)=\(.value)") | join(" ")' <<<"$scope_ceiling"))"
+  fi
+
+  scope_perms="$(jq -c --argjson defaults "$scope_defaults" '
+    $defaults + . | with_entries(select(.value != "none")) | . + {"metadata": "read"}
+  ' <<<"$overrides")"
+}
