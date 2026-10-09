@@ -13,7 +13,7 @@ check() {
   local offline="${1:-false}" jwt out status=0 installs lacking selected
 
   if [[ ! -f "$sbx_token_config" ]]; then
-    printf 'not set up, see "Set up sandbox GitHub tokens" in bootstrap.md\n'
+    printf 'not set up, see "Set up sandbox GitHub tokens" in profiles/dev-mac/bootstrap.md\n'
     exit 3
   fi
   config_load

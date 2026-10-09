@@ -1,5 +1,5 @@
 # Checks for the ai-server profile. Sourced by doctor, which supplies
-# section, ok, warn, fail, pending and have.
+# section, ok, warn, fail, pending, tunable and have.
 #
 # Lives under lib/ because it is not a setup step. setup only runs files
 # directly inside the profile directory and never looks into lib/.
@@ -278,9 +278,9 @@ fi
 
 for helper in ai-model; do
   if [[ -x "/usr/local/bin/$helper" ]]; then
-    ok "$helper helper" "/usr/local/bin/$helper"
+    ok "$helper command" "/usr/local/bin/$helper"
   else
-    pending "$helper helper" "not installed"
+    pending "$helper command" "not installed"
   fi
 done
 

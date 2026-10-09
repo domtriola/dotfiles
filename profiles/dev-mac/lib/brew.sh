@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Homebrew helpers shared by the dev-mac scripts.
+# Homebrew helpers shared by the dev-mac setup steps.
 
 # Install a package unless it is already present.
 #

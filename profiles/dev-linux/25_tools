@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Tools installed from their own installers rather than from dnf.
+# Packages installed from their own installers rather than from dnf.
 # Runs after 15_languages, because the pi agent needs npm.
 
 set -x
@@ -13,10 +13,3 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 # Pi agent harness
 npm install -g --ignore-scripts @earendil-works/pi-coding-agent
-
-# Hermes Agent
-if command -v hermes &>/dev/null; then
-  hermes update
-else
-  curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
-fi

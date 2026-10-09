@@ -140,7 +140,7 @@ setup:
           # on the variable reaching this shell.
           profile="${DOTFILES_PROFILE:-sbx-linux}"
 
-          step "copying the config files"
+          step "copying the dotfiles"
           ./commands/sync-env/sync-env --profile "$profile"
 
           step "installing the packages"
@@ -181,7 +181,7 @@ agentInstructions:
 
     - `sync-env` copies the files listed in
       `profiles/sbx-linux/env.manifest` into $HOME.
-    - `setup` runs the scripts in `profiles/sbx-linux/`, which install a small
+    - `setup` runs the setup steps in `profiles/sbx-linux/`, which install a small
       CLI set with apt.
     - All of this runs in the background while you start, so for about the
       first twenty seconds the dotfiles and these tools may not be there yet.

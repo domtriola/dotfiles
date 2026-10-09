@@ -57,12 +57,12 @@ config_load() {
   gh_perms="$(jq -r '.perms[]' <<<"$plan")"
 
   # `sbx` rejects an argument that no resolved kit declares, so the file is
-  # passed only to an agent kit that asks for one. The check reads the kit's
+  # passed only to a sandbox kit that asks for one. The check reads the kit's
   # spec, so a kit named by a URL or a zip is left alone and takes --kit-arg
   # by hand.
   spec="$(jq -r '.spec' <<<"$plan")"
   if [[ ! -d "$(dirname "$spec")" ]]; then
-    die "agent kit not found: $spec"
+    die "sandbox kit not found: $spec"
   fi
   if [[ -f "$sbx_up_kit_args_file" && -f "$spec" ]] && grep -q '^args:' "$spec"; then
     run+=(--kit-args-file "$sbx_up_kit_args_file")

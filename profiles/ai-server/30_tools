@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# The command-line tools this profile installs.
+# The commands this profile owns, installed here rather than by sync-env.
 #
 #   ai-model    the models: what is installed, and how each one is served
 #   ai-server   the machine: what it is set to, and changing it

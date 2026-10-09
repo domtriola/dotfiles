@@ -11,7 +11,7 @@
 # default key files as soon as any IdentityFile is set. IdentitiesOnly stops
 # ssh from also offering keys from an agent.
 #
-# Needs Touch ID, so this script cannot run unattended the first time.
+# Needs Touch ID, so this step cannot run unattended the first time.
 #
 # SSH_KEY_PROT=none makes a new key without Touch ID, for when Touch ID is not
 # reliable. Any process that runs as you can then use the key without a
@@ -60,7 +60,7 @@ elif [[ "$key_prot" == "none" ]]; then
 elif [[ "$key_prot" != "bio" ]]; then
   echo "The \"$key_label\" Secure Enclave identity is not a single key with bio or none protection:" >&2
   sc_auth list-ctk-identities >&2
-  echo "Delete it with sc_auth delete-ctk-identity -h <hash>, then run this script again." >&2
+  echo "Delete it with sc_auth delete-ctk-identity -h <hash>, then run this step again." >&2
   exit 1
 fi
 
@@ -125,7 +125,7 @@ git config --global commit.gpgsign true
 # For `git log --show-signature`. Verification needs only the public key.
 email="$(git config --global user.email || true)"
 if [[ -z "$email" ]]; then
-  echo "Set user.email with git config --global, then run this script again." >&2
+  echo "Set user.email with git config --global, then run this step again." >&2
   exit 1
 fi
 echo "$email $(cat "$key_file.pub")" >"$allowed_signers"

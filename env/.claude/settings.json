@@ -99,7 +99,7 @@
   "hooks": {},
   "statusLine": {
     "type": "command",
-    "command": "sh ~/.claude/statusline.sh"
+    "command": "bash ~/.claude/statusline.sh"
   },
   "enabledPlugins": {
     "example-skills@anthropic-agent-skills": false,

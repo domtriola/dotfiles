@@ -36,7 +36,7 @@ Every token comes from one GitHub App, which holds the most that any token can
 get. A token is limited to the repositories and permissions it is minted for,
 and expires after one hour.
 
-The App is created by hand, once. The steps are in the profile's bootstrap.md,
+The App is created by hand, once. The steps are in profiles/dev-mac/bootstrap.md,
 under "Set up sandbox GitHub tokens".
 
 Verbs:
