@@ -52,6 +52,10 @@ it in this order:
 
 `sbx-up` finds the checkout in a different way. See `sbx-up --help`.
 
+`sbx-shell`'s `sbx-wait` reads only the output style (`lib/style.sh`) from the
+checkout, in the same order. Without a checkout, it prints its results without
+color.
+
 ## Tests
 
 The tests in `tests/` run each command through its command line, with fakes
