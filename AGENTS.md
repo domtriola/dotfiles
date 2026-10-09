@@ -1,1 +1,2 @@
-# dotfiles
+@README.md
+@GLOSSARY.md
