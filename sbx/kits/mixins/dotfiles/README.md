@@ -29,9 +29,11 @@ sbx run ./sbx/kits/sandboxes/my-claude --kit ./sbx/kits/mixins/dotfiles
 
 ## Knowing when it has finished
 
-The hook takes about twenty seconds: a clone, then roughly 150 MB of packages.
-A shell opened before it finishes has the dotfiles but not yet the tools. The
-nvim plugins take longer, and no shell waits for them.
+The startup hook returns at once, so the agent does not wait for it. It writes
+the work to `~/.dotfiles-kit.sh` and starts it in the background. The work takes
+about twenty seconds: a clone, then roughly 150 MB of packages. Until it
+finishes, the agent and any shell opened early have neither the dotfiles nor
+the tools. The nvim plugins take longer, and no shell waits for them.
 
 These files under `$HOME` report the state:
 
@@ -68,4 +70,4 @@ sbx exec <name> -- cat /home/agent/.dotfiles-kit.nvim.log
   the packages are already there, and the files are copied again.
 - The `sbx-linux` manifest leaves the agent skills out on purpose. The
   [`agent-skills`](../agent-skills/README.md) kit delivers those before the
-  agent starts, and this hook runs about twenty seconds later.
+  agent starts, and this kit's work runs while the agent is already running.

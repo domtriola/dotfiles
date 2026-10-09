@@ -3,8 +3,8 @@ kind: mixin
 name: agent-skills
 displayName: Agent Skills
 description: >-
-  Ships this repo's personal agent skills into the sandbox and exposes them
-  to whichever coding agent is running.
+  Installs my personal agent skills before the agent starts. Read this before
+  you edit a skill: the installed skills are copies.
 
 setup:
   # The payload at ~/skills comes from files/home/skills, which sync-skills

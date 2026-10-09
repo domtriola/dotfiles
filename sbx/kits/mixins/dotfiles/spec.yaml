@@ -3,8 +3,9 @@ kind: mixin
 name: dotfiles
 displayName: Dotfiles
 description: >-
-  Clones my dotfiles and runs them with the sbx-linux profile, so a sandbox
-  gets the same shell, tmux, nvim and git configuration as my other machines.
+  Applies my dotfiles (shell, tmux, nvim, git) in the background after the
+  sandbox starts. Read this if a shell tool or config is missing, or before you
+  touch ~/src/personal/dotfiles.
 sourceURL: https://github.com/domtriola/dotfiles
 
 environment:
@@ -56,30 +57,43 @@ setup:
 
           # Four files under $HOME report what this hook is doing. They are the
           # only channel it has: the engine does not stop a sandbox whose
-          # startup hook fails, so a failure has to leave evidence somewhere
-          # readable.
+          # startup hook fails, and the work below outlives the hook, so a
+          # failure has to leave evidence somewhere readable.
           #
-          #   .dotfiles-kit.log          everything this hook printed
+          #   .dotfiles-kit.log          everything the work printed
           #   .dotfiles-kit.status       the current step, then ready | failed
           #   .dotfiles-kit.done         written only after the last step
           #   .dotfiles-kit.nvim-status  the background nvim warm-up
           #
           # sbx-wait polls the status file, so its shell window can name the
-          # step it is waiting on and stop early when the hook fails. The
-          # stale ones are removed first, so a restart never reports the
-          # previous start's result.
+          # step it is waiting on and stop early when the work fails. The
+          # stale ones are reset before the hook returns, so a restart never
+          # reports the previous start's result, even for a moment.
+          log="$HOME/.dotfiles-kit.log"
+          status_file="$HOME/.dotfiles-kit.status"
+          done_file="$HOME/.dotfiles-kit.done"
+          rm -f "$done_file" "$HOME/.dotfiles-kit.nvim-status"
+          : >"$log"
+          echo "starting the dotfiles kit" >"$status_file"
+
+          # The engine starts the agent only after every startup hook returns,
+          # and this work takes about twenty seconds that the agent does not
+          # need: it has its skills from agent-skills, and its tools from the
+          # base image. So the hook writes the work to a script, starts it
+          # detached, and returns at once. Only the shell window waits for it,
+          # through sbx-wait.
+          #
+          # setsid detaches the work from this hook's process group, so it
+          # survives the hook exiting.
+          script="$HOME/.dotfiles-kit.sh"
+          cat >"$script" <<'KIT'
+          set -eu
+
           log="$HOME/.dotfiles-kit.log"
           status_file="$HOME/.dotfiles-kit.status"
           done_file="$HOME/.dotfiles-kit.done"
           nvim_status="$HOME/.dotfiles-kit.nvim-status"
           nvim_log="$HOME/.dotfiles-kit.nvim.log"
-          rm -f "$done_file" "$nvim_status"
-          : >"$log"
-
-          # Keep the engine's stdout on fd 3, to repeat the log there on a
-          # failure, and send everything else to the log.
-          exec 3>&1
-          exec >>"$log" 2>&1
 
           finish() {
             code=$?
@@ -87,8 +101,7 @@ setup:
               echo ready >"$status_file"
             else
               echo failed >"$status_file"
-              echo "dotfiles kit failed (exit $code):" >&3
-              cat "$log" >&3
+              echo "dotfiles kit failed (exit $code)"
             fi
           }
           trap finish EXIT
@@ -135,12 +148,12 @@ setup:
 
           # LazyVim clones about forty plugins on the first nvim start, which
           # takes minutes. Doing it here instead means nvim is usually warm by
-          # the time a shell opens, and doing it in the background means the
+          # the time a shell opens, and doing it in its own process means the
           # shell does not wait for it. Its own status file lets sbx-wait warn
           # when it is not warm yet.
           #
-          # setsid detaches it from this hook's process group, so it survives
-          # the hook exiting a second later.
+          # setsid detaches it from this script's process group, so it
+          # survives the script exiting a second later.
           if [ "${DOTFILES_NVIM_PREWARM:-1}" = 1 ] && command -v nvim >/dev/null 2>&1; then
             step "starting the nvim plugin install"
             echo "installing the nvim plugins" >"$nvim_status"
@@ -155,7 +168,10 @@ setup:
 
           : >"$done_file"
           echo "--- dotfiles kit finished ---"
-      description: "Clone the dotfiles and run sync-env and setup"
+          KIT
+
+          setsid nohup sh "$script" >>"$log" 2>&1 </dev/null &
+      description: "Start the dotfiles clone, sync-env, and setup in the background"
       user: "1000"
 
 agentInstructions:
@@ -167,6 +183,9 @@ agentInstructions:
       `profiles/sbx-linux/env.manifest` into $HOME.
     - `setup` runs the scripts in `profiles/sbx-linux/`, which install a small
       CLI set with apt.
+    - All of this runs in the background while you start, so for about the
+      first twenty seconds the dotfiles and these tools may not be there yet.
+      Until `~/.dotfiles-kit.status` reads `ready`, the kit is still working.
     - The nvim plugins are then installed in the background. Until
       `~/.dotfiles-kit.nvim-status` reads `ready`, nvim is still warming up.
 
