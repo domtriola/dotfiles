@@ -12,7 +12,7 @@ How the agent skills in `env/.agents/skills/` fit together. Each skill's own `SK
 | Spec      | `author-spec`                                                  | A spec in the repo's tracker              |
 | Threat    | `author-threat-model`, for a feature that adds attack surface  | A model in `docs/threat-model/`           |
 | Tickets   | `author-tickets`, for a spec too big for one session           | Tickets with blocking edges               |
-| Implement | `implement` or `implement-tickets`, with `tdd` and `author-pr` | A PR that closes the spec                 |
+| Implement | `implement` or `implement-tickets`, with `tdd` and `author-pr` | A PR that closes the spec or issue        |
 | Review    | `code-review`                                                  | Findings on standards, spec, and security |
 
 Run `skills-init` once per repo before the first stage. It writes
@@ -22,7 +22,10 @@ GitHub issues. A spec is temporary in both cases: the PR that implements it
 deletes or closes it.
 
 The agent can push branches and open PRs, but branch protection keeps merges
-with a human.
+with a human. An instruction to implement is the approval to commit, push, and
+open the PR, so an issue that `triage` marks `ready-for-agent` needs no other
+approval. `implement` stops to ask only when the spec contradicts the code, or
+before a one-way door.
 
 Two skills work at any stage: `diagnosing-bugs` for a hard bug, and
 `author-prototype` for a design question. Run `retro` after a session to find
