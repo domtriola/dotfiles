@@ -33,6 +33,10 @@ agentInstructions:
 
     Then use `gh pr create` to open a pull request.
 
+    ## Implementing
+    When I say to implement something, finish the work: commit, push the
+    branch, and open a PR, without asking first. Never merge.
+
 sandbox:
   # ~/.claude/settings.json is a sandbox-reserved path: the runtime owns it and a
   # kit file placed there is discarded. Claude Code's --settings flag is the

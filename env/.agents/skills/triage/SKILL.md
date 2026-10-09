@@ -44,7 +44,7 @@ When PRs are in scope, add the external PRs to the buckets, and tag each line `[
 3. **Verify the claim** before any grilling. For a bug, reproduce it from the reporter's steps. For a PR, check it out and run the relevant tests or commands. Report the result: confirmed (with the code path), failed, or not enough detail (a strong `needs-info` signal).
 4. **Grill**, if the request needs it, with the `grilling` and `domain-modeling` skills. Update `GLOSSARY.md` and the ADRs as decisions land.
 5. **Apply the outcome**:
-   - `ready-for-agent`: post an agent brief ([AGENT-BRIEF.md](AGENT-BRIEF.md)).
+   - `ready-for-agent`: post an agent brief ([AGENT-BRIEF.md](AGENT-BRIEF.md)). If the maintainer also asks you to implement it, continue with the `implement` skill, which runs through to an open PR without asking again.
    - `ready-for-human`: post a brief with the same structure, and say why an agent cannot do it (judgment calls, external access, design decisions, manual testing).
    - `needs-info`: post triage notes with the template below.
    - `wontfix`, already implemented: say where the change lives, and close. Write nothing to `.out-of-scope/`, which is for rejected requests only.
