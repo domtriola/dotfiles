@@ -4,10 +4,10 @@
 
 # check [offline] prints one line and exits 0 when the App authenticates, 3
 # when this machine has no App set up yet, 4 when the App is also installed on
-# an account that is not allowed, and 1 for anything else. Offline, it only
+# an account that is not expected, and 1 for anything else. Offline, it only
 # checks that the config and the key are on this machine.
 #
-# An installation on an account that is not allowed is a warning, not a
+# An installation on an account that is not expected is a warning, not a
 # failure: minting still works, and the installation reaches only that
 # account's repositories. But the key then reaches them too.
 #
@@ -15,7 +15,7 @@
 # grants with the ceiling: a permission missed on the GitHub form would
 # otherwise surface only as a failed push inside a sandbox.
 check() {
-  local offline="${1:-false}" jwt out status=0 installs allowed unknown lacking selected
+  local offline="${1:-false}" jwt out status=0 installs expected unknown lacking selected
 
   if [[ ! -f "$sbx_token_config" ]]; then
     printf 'not set up, see "Set up sandbox GitHub tokens" in profiles/dev-mac/bootstrap.md\n'
@@ -38,8 +38,8 @@ check() {
     exit 1
   fi
 
-  allowed="$(allowed_accounts "$jwt")" || exit 1
-  unknown="$(jq -r --argjson allowed "$allowed" 'map(.account.login) - $allowed | join(", ")' <<<"$out")"
+  expected="$(expected_accounts "$jwt")" || exit 1
+  unknown="$(jq -r --argjson expected "$expected" 'map(.account.login) - $expected | join(", ")' <<<"$out")"
 
   lacking="$(jq -r --argjson ceiling "$scope_ceiling" '
     def rank: {"read": 1, "write": 2, "admin": 3}[.] // 0;
@@ -58,7 +58,7 @@ check() {
   fi
 
   if [[ -n "$unknown" ]]; then
-    printf '%s is also installed on %s, which is not an allowed account. If you installed it, run sbx-token allow <account>. If not, run sbx-token uninstall <account>.\n' "$app_slug" "$unknown"
+    printf '%s is also installed on %s, which is not an expected account. If you installed it, run sbx-token expect <account>. If not, run sbx-token uninstall <account>.\n' "$app_slug" "$unknown"
     exit 4
   fi
 

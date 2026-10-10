@@ -242,16 +242,16 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
-@test "check exits 4 on an installation on an account that is not allowed" {
+@test "check exits 4 on an installation on an account that is not expected" {
   given_app
   FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" check
   [ "$status" -eq 4 ]
-  [[ "$output" == *"also installed on stranger, which is not an allowed account"* ]]
-  [[ "$output" == *"sbx-token allow <account>"* ]]
+  [[ "$output" == *"also installed on stranger, which is not an expected account"* ]]
+  [[ "$output" == *"sbx-token expect <account>"* ]]
   [[ "$output" == *"sbx-token uninstall <account>"* ]]
 }
 
-@test "check reports lacking permissions before an account that is not allowed" {
+@test "check reports lacking permissions before an account that is not expected" {
   given_app
   FAKE_GH_INSTALLATIONS="$(installations me stranger | jq -c '.[0].permissions.contents = "read"')" \
     run "$sbx_token" check
@@ -259,33 +259,33 @@ setup() {
   [[ "$output" == *"lacks permissions on me (contents=write)"* ]]
 }
 
-@test "allow adds an account, and check then accepts its installation" {
+@test "expect adds an account, and check then accepts its installation" {
   given_app
-  run "$sbx_token" allow my-org
+  run "$sbx_token" expect my-org
   [ "$status" -eq 0 ]
-  [ "$(jq -c . "$XDG_CONFIG_HOME/sbx-token/config.json")" = '{"app_id":99,"slug":"me-sbx","accounts":["my-org"]}' ]
+  [ "$(jq -c . "$XDG_CONFIG_HOME/sbx-token/config.json")" = '{"app_id":99,"slug":"me-sbx","expected_accounts":["my-org"]}' ]
 
-  "$sbx_token" allow my-org
-  [ "$(jq -c .accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
+  "$sbx_token" expect my-org
+  [ "$(jq -c .expected_accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
 
   FAKE_GH_INSTALLATIONS="$(installations me my-org)" run "$sbx_token" check
   [ "$status" -eq 0 ]
   [ "$output" = "me-sbx, installed on me, my-org" ]
 }
 
-@test "allow refuses a malformed account" {
+@test "expect refuses a malformed account" {
   given_app
-  run "$sbx_token" allow "bad name"
+  run "$sbx_token" expect "bad name"
   [ "$status" -eq 1 ]
   [[ "$output" == *"not an account"* ]]
 }
 
-@test "import-key keeps the allowed accounts" {
+@test "import-key keeps the expected accounts" {
   given_app
-  "$sbx_token" allow my-org
+  "$sbx_token" expect my-org
   run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
   [ "$status" -eq 0 ]
-  [ "$(jq -c .accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
+  [ "$(jq -c .expected_accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
 }
 
 @test "uninstall deletes the installation on an account" {

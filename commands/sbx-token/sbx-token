@@ -30,7 +30,7 @@ Usage:
   sbx-token register <sandbox> [--repo owner/name]... [--perm name=level]...
   sbx-token mint [--repo owner/name]... [--perm name=level]...
   sbx-token check [--offline]
-  sbx-token allow <account>
+  sbx-token expect <account>
   sbx-token uninstall <account>
   sbx-token import-key --app-id <id> <pem file>
 
@@ -49,11 +49,12 @@ Verbs:
   mint        Print a new token. This is the command that register stores.
   check       Report whether this machine can mint tokens. Exits 3 when no
               App is set up yet, and 4 when the App is also installed on an
-              account that is not allowed. --offline only checks that the config and
+              account that is not expected. --offline only checks that the config and
               the key are on this machine.
-  allow       Let the App be installed on another account, such as an
-              organization. The App's owner is always allowed. Run it on
-              every machine.
+  expect      Record that you installed the App on another account, such as
+              an organization, so that check does not warn about it. It
+              changes nothing on GitHub. The App's owner is always expected.
+              Run it on every machine.
   uninstall   Delete the App's installation on an account that is not yours.
   import-key  Store a private key of the App in the OS secret store, check
               it with GitHub, and save the App's ID and slug. Generate one
@@ -130,7 +131,7 @@ while [[ $# -gt 0 ]]; do
       [[ -z "$file" ]] || die "only one key file can be named"
       file="$1"
       ;;
-    allow | uninstall)
+    expect | uninstall)
       [[ -z "$account" ]] || die "only one account can be named"
       account="$1"
       ;;
@@ -158,10 +159,10 @@ check)
   require_deps
   check "$offline"
   ;;
-allow)
+expect)
   [[ -n "$account" ]] || die "name the account. Run sbx-token --help."
   require_deps
-  allow "$account"
+  expect "$account"
   ;;
 uninstall)
   [[ -n "$account" ]] || die "name the account. Run sbx-token --help."

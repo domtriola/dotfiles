@@ -135,9 +135,9 @@ Each machine gets its own key, so that you can revoke the key of a lost machine 
    sbx-token import-key --app-id <App ID> ~/Downloads/<file>.pem && rm ~/Downloads/<file>.pem
    ```
 
-1. [ ] For each organization that has the App, allow it: `sbx-token allow <organization>`. Your own account is always allowed.
+1. [ ] For each organization that has the App, run `sbx-token expect <organization>`. Then `sbx-token check` does not warn about that installation. Your own account is always expected.
 1. [ ] Test it: `sbx-token check`. It prints `<your login>-sbx, installed on <your login>`, followed by your organizations.
 
 To revoke a machine, delete its key pair under **Credentials**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.
 
-If `sbx-token check` reports an installation on an account that is not allowed, and you did not install the App there, delete that installation with `sbx-token uninstall <account>`. Only the API can do this, because GitHub does not show you the installations on other accounts.
+If `sbx-token check` reports an installation on an account that is not expected, and you did not install the App there, delete that installation with `sbx-token uninstall <account>`. Only the API can do this, because GitHub does not show you the installations on other accounts.

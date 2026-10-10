@@ -30,25 +30,25 @@ require_deps() {
   done
 }
 
-# config_load sets app_id, app_slug and app_accounts (a JSON list of the
-# accounts that `allow` added), or fails with the step that sets them.
+# config_load sets app_id, app_slug and app_expected_accounts (a JSON list of
+# the accounts that `expect` added), or fails with the step that sets them.
 config_load() {
   [[ -f "$sbx_token_config" ]] ||
     die "no GitHub App is set up on this machine. Create one by hand (see \"Set up sandbox GitHub tokens\" in profiles/dev-mac/bootstrap.md), then run sbx-token import-key."
   app_id="$(jq -r '.app_id // empty' "$sbx_token_config")"
   app_slug="$(jq -r '.slug // empty' "$sbx_token_config")"
-  app_accounts="$(jq -c '.accounts // []' "$sbx_token_config")"
+  app_expected_accounts="$(jq -c '.expected_accounts // []' "$sbx_token_config")"
   [[ "$app_id" =~ ^[0-9]+$ ]] || die "$sbx_token_config has no app_id"
   [[ -n "$app_slug" ]] || die "$sbx_token_config has no slug"
 }
 
-# config_save keeps the allowed accounts of an earlier config.
+# config_save keeps the expected accounts of an earlier config.
 config_save() {
   local id="$1" slug="$2" accounts="[]"
   mkdir -p "$sbx_token_config_dir"
-  [[ ! -f "$sbx_token_config" ]] || accounts="$(jq -c '.accounts // []' "$sbx_token_config")"
+  [[ ! -f "$sbx_token_config" ]] || accounts="$(jq -c '.expected_accounts // []' "$sbx_token_config")"
   jq -n --argjson id "$id" --arg slug "$slug" --argjson accounts "$accounts" \
-    '{app_id: $id, slug: $slug} + (if $accounts == [] then {} else {accounts: $accounts} end)' >"$sbx_token_config"
+    '{app_id: $id, slug: $slug} + (if $accounts == [] then {} else {expected_accounts: $accounts} end)' >"$sbx_token_config"
 }
 
 # The page where the App is installed on an account.

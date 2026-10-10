@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# The accounts that the App may be installed on. The App is public, so that
-# it can be installed on an organization, which means that any account can
-# install it. check reports every other installation, and uninstall removes
-# one.
+# The accounts that the App is expected to be installed on. The App is public,
+# so that it can be installed on an organization, which means that any account
+# can install it. The list is only on this machine, and GitHub knows nothing
+# of it: check warns about every other installation, and uninstall removes one.
 
-# allowed_accounts <jwt> prints a JSON list of the allowed accounts: the App's
-# owner, and the accounts in the config.
-allowed_accounts() {
+# expected_accounts <jwt> prints a JSON list of the expected accounts: the
+# App's owner, and the accounts in the config.
+expected_accounts() {
   local owner
   owner="$(app_owner "$1")" || exit 1
-  jq -nc --arg owner "$owner" --argjson accounts "$app_accounts" '[$owner] + $accounts | unique'
+  jq -nc --arg owner "$owner" --argjson accounts "$app_expected_accounts" '[$owner] + $accounts | unique'
 }
 
 # app_owner <jwt> prints the login of the account that owns the App.
@@ -25,17 +25,17 @@ check_account() {
   [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || die "not an account: $1"
 }
 
-# allow <account> adds an account to the config. It does not install the App
-# there: that is done on GitHub.
-allow() {
+# expect <account> adds an account to the config. It changes nothing on
+# GitHub: the App is installed there by hand.
+expect() {
   local account="$1" tmp
   check_account "$account"
   config_load
   tmp="$sbx_token_config.tmp"
-  jq --arg account "$account" '.accounts = ((.accounts // []) + [$account] | unique)' \
+  jq --arg account "$account" '.expected_accounts = ((.expected_accounts // []) + [$account] | unique)' \
     "$sbx_token_config" >"$tmp" && mv "$tmp" "$sbx_token_config" ||
     die "could not write $sbx_token_config"
-  printf 'sbx-token: %s may now have an installation of %s\n' "$account" "$app_slug" >&2
+  printf 'sbx-token: check now expects %s to be installed on %s\n' "$app_slug" "$account" >&2
 }
 
 # uninstall <account> deletes the App's installation on an account. The App's
