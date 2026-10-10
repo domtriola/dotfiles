@@ -242,13 +242,21 @@ setup() {
   [ "$status" -eq 1 ]
 }
 
-@test "check fails on an installation on an account that is not allowed" {
+@test "check exits 4 on an installation on an account that is not allowed" {
   given_app
   FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" check
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"installed on stranger, which is not an allowed account"* ]]
+  [ "$status" -eq 4 ]
+  [[ "$output" == *"also installed on stranger, which is not an allowed account"* ]]
   [[ "$output" == *"sbx-token allow <account>"* ]]
   [[ "$output" == *"sbx-token uninstall <account>"* ]]
+}
+
+@test "check reports lacking permissions before an account that is not allowed" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger | jq -c '.[0].permissions.contents = "read"')" \
+    run "$sbx_token" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"lacks permissions on me (contents=write)"* ]]
 }
 
 @test "allow adds an account, and check then accepts its installation" {

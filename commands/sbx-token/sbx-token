@@ -48,8 +48,8 @@ Verbs:
               the secret with the sandbox.
   mint        Print a new token. This is the command that register stores.
   check       Report whether this machine can mint tokens. Exits 3 when no
-              App is set up yet. Fails when the App is installed on an account
-              that is not allowed. --offline only checks that the config and
+              App is set up yet, and 4 when the App is also installed on an
+              account that is not allowed. --offline only checks that the config and
               the key are on this machine.
   allow       Let the App be installed on another account, such as an
               organization. The App's owner is always allowed. Run it on

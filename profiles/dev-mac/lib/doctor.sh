@@ -163,6 +163,7 @@ if have sbx-token; then
   case "$token_status" in
   0) ok "sandbox token App" "$token_out" ;;
   3) pending "sandbox token App" "not set up, see bootstrap.md" ;;
+  4) warn "sandbox token App" "$token_out" ;;
   *) fail "sandbox token App" "$token_out" ;;
   esac
   unset token_args token_status token_out
