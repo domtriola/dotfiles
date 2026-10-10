@@ -75,5 +75,4 @@ setup:
         sha256sum --check --ignore-missing "gh_${v}_checksums.txt"
         tar -xzf "$tarball"
         install -m 0755 gh_*/bin/gh /usr/local/bin/gh
-      user: "0"
       description: "Install a current gh from its GitHub release"
