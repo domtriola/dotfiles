@@ -81,7 +81,7 @@ The user gives a loose idea.
 The user gives a map, and optionally a ticket. Resolve one ticket per session; research tickets are the only exception.
 
 1. Load the map, but not every ticket body.
-2. Take the ticket the user named, or else the first frontier ticket. Claim it before any other work, so that concurrent sessions skip it.
+2. Take the ticket the user named, or else the first unclaimed frontier ticket. Claim it before any other work, so that concurrent sessions skip it.
 3. Resolve it. Fetch any related or closed ticket when you need its detail. Use the skills that the map's Notes name; if in doubt, use the `grilling` and `domain-modeling` skills.
 4. Record the resolution the way `docs/agents/issue-tracker.md` describes, with a line in **Decisions so far**.
 5. Create the new tickets that the answer reveals, and wire their edges. Move fog that the answer made sharp out of **Not yet specified** and into tickets. Rule out of scope any ticket that the answer puts past the destination. Update or delete the tickets that the answer invalidates.

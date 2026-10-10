@@ -8,7 +8,7 @@ Implement the spec the user names, through its tickets.
 
 Read `docs/agents/issue-tracker.md` first. If it is missing, stop and tell the user to run the `skills-init` skill. If the spec has no tickets, tell the user to run the `author-tickets` skill first.
 
-The tickets are a **task graph**, not a list. The **frontier** is every ticket that is not merged yet and whose blockers are all merged into the integration branch.
+The tickets are a **task graph**, not a list. The **frontier** is every ticket that is not merged yet and whose blockers are all merged into the integration branch. Work it out from the task graph, not from the tracker: the tickets close only at the end, so until then the tracker shows merged blockers as open.
 
 Talk to sub-agents through **context pointers** (the spec, the tickets, the exploration notes, earlier commits), and keep the messages short. A sub-agent reads the pointer; it does not need a copy.
 
@@ -17,7 +17,7 @@ Talk to sub-agents through **context pointers** (the spec, the tickets, the expl
 1. Read the spec and its tickets, and build the task graph.
 2. Optional: dispatch an **explorer** sub-agent for the codebase files and external docs that the tickets need. It saves Markdown notes in a directory outside the repo, so that every later sub-agent can read them.
 3. Create the integration branch from the default branch.
-4. For each frontier ticket, claim it the way `docs/agents/issue-tracker.md` describes, and dispatch an **implementer** sub-agent in the background, in its own worktree (`git worktree add`) on its own branch from the integration branch. Each implementer:
+4. For each unclaimed frontier ticket, claim it the way `docs/agents/issue-tracker.md` describes, and dispatch an **implementer** sub-agent in the background, in its own worktree (`git worktree add`) on its own branch from the integration branch. Each implementer:
    - confirms that its branch starts from the integration branch, and resets onto it if not;
    - builds the ticket test-first with the `tdd` skill;
    - merges the integration branch tip into its own branch before it reports done.
