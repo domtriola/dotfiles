@@ -11,6 +11,15 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+=(?<currentValue>\\S+)"
       ],
       "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "The nvm install script URL in the language setup steps",
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)15_languages$/"],
+      "matchStrings": [
+        "raw\\.githubusercontent\\.com/(?<depName>nvm-sh/nvm)/(?<currentValue>v[0-9.]+)/install\\.sh"
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ]
 }
