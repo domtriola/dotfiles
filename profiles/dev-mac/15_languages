@@ -17,7 +17,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # #######################################
 # Install nvm (null PROFILE prevents script from writing to shell config).
 # Homebrew installs of nvm are unsupported upstream.
-PROFILE=/dev/null bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash'
+PROFILE=/dev/null bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh | bash'
 
 export NVM_DIR="$HOME/.nvm"
 
