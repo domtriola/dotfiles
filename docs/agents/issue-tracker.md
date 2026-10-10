@@ -13,8 +13,9 @@ Specs, tickets, and maps for this repo are GitHub issues. Use the `gh` CLI, whic
 
 - **Publish**: `gh issue create --label ready-for-agent --title "..." --body-file <file>`, then make it a sub-issue of its spec with `gh issue edit <spec> --add-sub-issue <ticket>` (`gh` 2.94 or later). If sub-issues are not available, put `Part of #<spec>` at the top of the body.
 - **Blocking**: GitHub's native issue dependencies, which show in the GitHub UI. Add an edge with `gh api --method POST repos/{owner}/{repo}/issues/<ticket>/dependencies/blocked_by -F issue_id=<blocker-id>`. `<blocker-id>` is the database id from `gh api repos/{owner}/{repo}/issues/<number> --jq .id`, not the issue number. If dependencies are not available, put `Blocked by: #<n>, #<n>` at the top of the body.
-- **Frontier**: the open sub-issues of the parent (`gh api repos/{owner}/{repo}/issues/<parent>/sub_issues`) that have no assignee and no open blocker (`issue_dependencies_summary.blocked_by` is 0). The first in order wins.
-- **Claim**: `gh issue edit <number> --add-assignee @me`, before any other work.
+- **Frontier**: the open sub-issues of the parent (`gh api repos/{owner}/{repo}/issues/<parent>/sub_issues`) that have no assignee, no `in-progress` label, and no open blocker (`issue_dependencies_summary.blocked_by` is 0). The first in order wins.
+- **Claim**: `gh issue edit <number> --add-label in-progress`, before any other work. Create the label with `gh label create in-progress` if it is missing. Do not assign the issue to yourself: a GitHub App bot cannot be an assignee.
+- **Release**: `gh issue edit <number> --remove-label in-progress`, if you stop before the work is done.
 - **Close**: put `Closes #<number>` in the PR body, as for a spec.
 
 ## Maps
@@ -22,7 +23,7 @@ Specs, tickets, and maps for this repo are GitHub issues. Use the `gh` CLI, whic
 The `wayfinder` skill uses these operations.
 
 - **Map**: one issue with the label `wayfinder:map`.
-- **Map ticket**: a sub-issue of the map with the label `wayfinder:<type>`. Publish, block, find the frontier, and claim as for tickets.
+- **Map ticket**: a sub-issue of the map with the label `wayfinder:<type>`. Publish, block, find the frontier, claim, and release as for tickets.
 - **Resolve**: `gh issue comment <number> --body "<answer>"`, then `gh issue close <number>`, then add a line to the map's "Decisions so far" with `gh issue edit <map> --body-file <file>`.
 
 ## Triage
