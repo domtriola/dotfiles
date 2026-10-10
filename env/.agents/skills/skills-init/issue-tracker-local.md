@@ -12,7 +12,7 @@ Specs, tickets, and maps for this repo are Markdown files in `docs/`, committed 
 
 - **Publish**: write one file per ticket at `docs/specs/<slug>/<NN>-<ticket-slug>.md`, numbered from `01` with blockers first, and commit them. Put a `Status: ready-for-agent` line at the top of each file.
 - **Blocking**: a `Blocked by: <NN>, <NN>` line at the top of the file, or `Blocked by: none`.
-- **Frontier**: the ticket files with `Status: ready-for-agent` whose blockers all have `Status: done`. The lowest number wins.
+- **Frontier**: the ticket files that do not have `Status: done` and whose blockers all have `Status: done`. A frontier ticket is unclaimed when it has `Status: ready-for-agent`. Take the unclaimed one with the lowest number.
 - **Claim**: set `Status: claimed` before any other work.
 - **Close**: set `Status: done`.
 
@@ -22,7 +22,7 @@ The `wayfinder` skill uses these operations.
 
 - **Map**: `docs/maps/<effort>/map.md`.
 - **Map ticket**: `docs/maps/<effort>/<NN>-<slug>.md`, numbered from `01`, with a `Type: <type>` line, a `Status: open` line, and a `Blocked by:` line as for tickets.
-- **Frontier**: the map tickets with `Status: open` whose blockers all have `Status: resolved`. The lowest number wins.
+- **Frontier**: the map tickets that do not have `Status: resolved` and whose blockers all have `Status: resolved`. A frontier ticket is unclaimed when it has `Status: open`. Take the unclaimed one with the lowest number.
 - **Claim**: set `Status: claimed` before any other work.
 - **Resolve**: add the answer under an `## Answer` heading, set `Status: resolved`, then add a line to "Decisions so far" in `map.md`.
 

@@ -67,3 +67,21 @@ _Avoid_: Agent kit, agent
 
 **Mixin**:
 A kit that adds one capability to any sandbox kit, such as the dotfiles or the agent skills.
+
+### Agent work
+
+**Ticket**:
+One item of work that the skills track on the project's tracker: a slice of a build, or a decision on a map.
+_Avoid_: Task, issue, card
+
+**Blocker**:
+An item that must be settled before another item can start. Each context says what settles it, such as an answer, a merge, or a closed ticket.
+_Avoid_: Dependency, prerequisite
+
+**Frontier**:
+The open items whose blockers are all settled: the work or the questions that can start now. A claimed item stays in the frontier.
+_Avoid_: Ready queue, next tickets, available tickets
+
+**Claim**:
+A mark on a ticket that says that one session works on it, so that other sessions skip it.
+_Avoid_: Assign, lock
