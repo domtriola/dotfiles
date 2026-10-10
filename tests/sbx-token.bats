@@ -241,3 +241,60 @@ setup() {
   run "$sbx_token" check --offline
   [ "$status" -eq 1 ]
 }
+
+@test "check fails on an installation on an account that is not allowed" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"installed on stranger, which is not an allowed account"* ]]
+  [[ "$output" == *"sbx-token allow <account>"* ]]
+  [[ "$output" == *"sbx-token uninstall <account>"* ]]
+}
+
+@test "allow adds an account, and check then accepts its installation" {
+  given_app
+  run "$sbx_token" allow my-org
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . "$XDG_CONFIG_HOME/sbx-token/config.json")" = '{"app_id":99,"slug":"me-sbx","accounts":["my-org"]}' ]
+
+  "$sbx_token" allow my-org
+  [ "$(jq -c .accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
+
+  FAKE_GH_INSTALLATIONS="$(installations me my-org)" run "$sbx_token" check
+  [ "$status" -eq 0 ]
+  [ "$output" = "me-sbx, installed on me, my-org" ]
+}
+
+@test "allow refuses a malformed account" {
+  given_app
+  run "$sbx_token" allow "bad name"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not an account"* ]]
+}
+
+@test "import-key keeps the allowed accounts" {
+  given_app
+  "$sbx_token" allow my-org
+  run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c .accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
+}
+
+@test "uninstall deletes the installation on an account" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" uninstall stranger
+  [ "$status" -eq 0 ]
+  requests | grep -qx "DELETE /app/installations/43"
+}
+
+@test "uninstall refuses the App owner's account, and an account without an installation" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" uninstall me
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"owns the App"* ]]
+
+  FAKE_GH_INSTALLATIONS="$(installations me)" run "$sbx_token" uninstall nobody
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not installed on nobody"* ]]
+  ! requests | grep -q DELETE
+}

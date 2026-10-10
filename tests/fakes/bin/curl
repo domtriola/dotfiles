@@ -47,12 +47,14 @@ case "$method $path" in
   echo '{"token": "ghs_fake", "expires_at": "2026-10-08T13:00:00Z"}'
   ;;
 "GET /app/installations")
-  default='[{"account": {"login": "me"}, "repository_selection": "all", "permissions": {"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "workflows": "write", "metadata": "read"}}]'
+  default='[{"id": 42, "account": {"login": "me"}, "repository_selection": "all", "permissions": {"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "workflows": "write", "metadata": "read"}}]'
   echo "${FAKE_GH_INSTALLATIONS:-$default}"
   ;;
 "GET /app")
   [[ -z "${FAKE_GH_BAD_KEY:-}" ]] || fail "A JSON web token could not be decoded"
-  echo '{"id": 99, "slug": "me-sbx"}'
+  echo '{"id": 99, "slug": "me-sbx", "owner": {"login": "me"}}'
+  ;;
+"DELETE /app/installations/"*)
   ;;
 *)
   fail "fake curl has no answer for $method $path"

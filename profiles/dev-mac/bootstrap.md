@@ -115,10 +115,13 @@ When the token expires, make a new one and log in again.
 
      These are the most that any sandbox token can get. A token gets less by default (no Workflows), and `sbx-token check` reports any permission that the App lacks.
 
-   - **Where can this GitHub App be installed?:** **Only on this account**.
+   - **Where can this GitHub App be installed?:** **Any account**. A private App can only be installed on your own account, and not on an organization that you own. A public App is not listed anywhere, and it gives nobody access to your repositories. If a stranger installs it, the App gets access to *their* repositories, and `sbx-token check` reports it (see below).
 
 1. [ ] Click **Create GitHub App**, and note the **App ID** at the top of the page.
 1. [ ] In the left sidebar, click **Install App**, then **Install** next to your account. Choose **All repositories**, and click **Install**. Each token is limited to its repositories when it is minted, so the installation does not need to be.
+1. [ ] To use the App in an organization, open https://github.com/apps/<your login>-sbx/installations/new, choose the organization, and install it there too. A token reaches the repositories of one account only, so a sandbox can work in your repositories or in the organization's, not in both.
+
+An App that you made with **Only on this account** can be made public later: on its settings page, click **Advanced**, then **Make public**.
 
 ### Give this machine a key (on every machine)
 
@@ -132,6 +135,9 @@ Each machine gets its own key, so that you can revoke the key of a lost machine 
    sbx-token import-key --app-id <App ID> ~/Downloads/<file>.pem && rm ~/Downloads/<file>.pem
    ```
 
-1. [ ] Test it: `sbx-token check`. It prints `<your login>-sbx, installed on <your login>`.
+1. [ ] For each organization that has the App, allow it: `sbx-token allow <organization>`. Your own account is always allowed.
+1. [ ] Test it: `sbx-token check`. It prints `<your login>-sbx, installed on <your login>`, followed by your organizations.
 
 To revoke a machine, delete its key pair under **Credentials**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.
+
+If `sbx-token check` reports an installation on an account that is not allowed, and you did not install the App there, delete that installation with `sbx-token uninstall <account>`. Only the API can do this, because GitHub does not show you the installations on other accounts.

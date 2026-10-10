@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+#
+# The accounts that the App may be installed on. The App is public, so that
+# it can be installed on an organization, which means that any account can
+# install it. check reports every other installation, and uninstall removes
+# one.
+
+# allowed_accounts <jwt> prints a JSON list of the allowed accounts: the App's
+# owner, and the accounts in the config.
+allowed_accounts() {
+  local owner
+  owner="$(app_owner "$1")" || exit 1
+  jq -nc --arg owner "$owner" --argjson accounts "$app_accounts" '[$owner] + $accounts | unique'
+}
+
+# app_owner <jwt> prints the login of the account that owns the App.
+app_owner() {
+  local jwt="$1" out status=0
+  out="$(api GET "/app" "$jwt")" || status=$?
+  [[ "$status" -eq 0 ]] || api_die "could not read the $app_slug App" "$status" "$out"
+  jq -r '.owner.login' <<<"$out"
+}
+
+check_account() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || die "not an account: $1"
+}
+
+# allow <account> adds an account to the config. It does not install the App
+# there: that is done on GitHub.
+allow() {
+  local account="$1" tmp
+  check_account "$account"
+  config_load
+  tmp="$sbx_token_config.tmp"
+  jq --arg account "$account" '.accounts = ((.accounts // []) + [$account] | unique)' \
+    "$sbx_token_config" >"$tmp" && mv "$tmp" "$sbx_token_config" ||
+    die "could not write $sbx_token_config"
+  printf 'sbx-token: %s may now have an installation of %s\n' "$account" "$app_slug" >&2
+}
+
+# uninstall <account> deletes the App's installation on an account. The App's
+# owner does this through the API, because the installation is not theirs to
+# see on GitHub.
+uninstall() {
+  local account="$1" jwt out status=0 id
+  check_account "$account"
+  config_load
+  jwt="$(app_jwt)" || exit 1
+
+  [[ "$account" != "$(app_owner "$jwt")" ]] ||
+    die "$account owns the App. Uninstall it on GitHub, at https://github.com/settings/installations"
+
+  out="$(api GET "/app/installations" "$jwt")" || status=$?
+  [[ "$status" -eq 0 ]] || api_die "could not list the installations of $app_slug" "$status" "$out"
+  id="$(jq -r --arg account "$account" '.[] | select(.account.login == $account) | .id' <<<"$out")"
+  [[ -n "$id" ]] || die "$app_slug is not installed on $account"
+
+  status=0
+  out="$(api DELETE "/app/installations/$id" "$jwt")" || status=$?
+  [[ "$status" -eq 0 ]] || api_die "could not uninstall $app_slug from $account" "$status" "$out"
+  printf 'sbx-token: uninstalled %s from %s\n' "$app_slug" "$account" >&2
+}

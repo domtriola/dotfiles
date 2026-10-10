@@ -30,6 +30,8 @@ Usage:
   sbx-token register <sandbox> [--repo owner/name]... [--perm name=level]...
   sbx-token mint [--repo owner/name]... [--perm name=level]...
   sbx-token check [--offline]
+  sbx-token allow <account>
+  sbx-token uninstall <account>
   sbx-token import-key --app-id <id> <pem file>
 
 Every token comes from one GitHub App, which holds the most that any token can
@@ -46,8 +48,13 @@ Verbs:
               the secret with the sandbox.
   mint        Print a new token. This is the command that register stores.
   check       Report whether this machine can mint tokens. Exits 3 when no
-              App is set up yet. --offline only checks that the config and
+              App is set up yet. Fails when the App is installed on an account
+              that is not allowed. --offline only checks that the config and
               the key are on this machine.
+  allow       Let the App be installed on another account, such as an
+              organization. The App's owner is always allowed. Run it on
+              every machine.
+  uninstall   Delete the App's installation on an account that is not yours.
   import-key  Store a private key of the App in the OS secret store, check
               it with GitHub, and save the App's ID and slug. Generate one
               key pair for each machine under "Credentials" on the App's
@@ -77,6 +84,7 @@ verb="${1:-}"
 repos=()
 perms=()
 sandbox=""
+account=""
 id=""
 file=""
 offline="false"
@@ -122,6 +130,10 @@ while [[ $# -gt 0 ]]; do
       [[ -z "$file" ]] || die "only one key file can be named"
       file="$1"
       ;;
+    allow | uninstall)
+      [[ -z "$account" ]] || die "only one account can be named"
+      account="$1"
+      ;;
     *) die "unexpected argument $1. Run sbx-token --help." ;;
     esac
     ;;
@@ -145,6 +157,16 @@ register)
 check)
   require_deps
   check "$offline"
+  ;;
+allow)
+  [[ -n "$account" ]] || die "name the account. Run sbx-token --help."
+  require_deps
+  allow "$account"
+  ;;
+uninstall)
+  [[ -n "$account" ]] || die "name the account. Run sbx-token --help."
+  require_deps
+  uninstall "$account"
   ;;
 import-key)
   [[ -n "$id" && -n "$file" ]] || die "import-key needs --app-id and a key file. Run sbx-token --help."
