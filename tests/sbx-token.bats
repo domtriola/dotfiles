@@ -241,3 +241,68 @@ setup() {
   run "$sbx_token" check --offline
   [ "$status" -eq 1 ]
 }
+
+@test "check exits 4 on an installation on an account that is not expected" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" check
+  [ "$status" -eq 4 ]
+  [[ "$output" == *"also installed on stranger, which is not an expected account"* ]]
+  [[ "$output" == *"sbx-token expect <account>"* ]]
+  [[ "$output" == *"sbx-token uninstall <account>"* ]]
+}
+
+@test "check reports lacking permissions before an account that is not expected" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger | jq -c '.[0].permissions.contents = "read"')" \
+    run "$sbx_token" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"lacks permissions on me (contents=write)"* ]]
+}
+
+@test "expect adds an account, and check then accepts its installation" {
+  given_app
+  run "$sbx_token" expect my-org
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . "$XDG_CONFIG_HOME/sbx-token/config.json")" = '{"app_id":99,"slug":"me-sbx","expected_accounts":["my-org"]}' ]
+
+  "$sbx_token" expect my-org
+  [ "$(jq -c .expected_accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
+
+  FAKE_GH_INSTALLATIONS="$(installations me my-org)" run "$sbx_token" check
+  [ "$status" -eq 0 ]
+  [ "$output" = "me-sbx, installed on me, my-org" ]
+}
+
+@test "expect refuses a malformed account" {
+  given_app
+  run "$sbx_token" expect "bad name"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not an account"* ]]
+}
+
+@test "import-key keeps the expected accounts" {
+  given_app
+  "$sbx_token" expect my-org
+  run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c .expected_accounts "$XDG_CONFIG_HOME/sbx-token/config.json")" = '["my-org"]' ]
+}
+
+@test "uninstall deletes the installation on an account" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" uninstall stranger
+  [ "$status" -eq 0 ]
+  requests | grep -qx "DELETE /app/installations/43"
+}
+
+@test "uninstall refuses the App owner's account, and an account without an installation" {
+  given_app
+  FAKE_GH_INSTALLATIONS="$(installations me stranger)" run "$sbx_token" uninstall me
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"owns the App"* ]]
+
+  FAKE_GH_INSTALLATIONS="$(installations me)" run "$sbx_token" uninstall nobody
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not installed on nobody"* ]]
+  ! requests | grep -q DELETE
+}

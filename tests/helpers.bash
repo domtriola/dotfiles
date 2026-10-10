@@ -55,3 +55,14 @@ verify_jwt() {
     openssl dgst -sha256 -verify "$BATS_TEST_TMPDIR/pub.pem" -signature <(b64url_decode "$sig") >/dev/null &&
     [[ "$(b64url_decode "$payload" | jq -r .iss)" == "99" ]]
 }
+
+# installations <login>... prints a GitHub list of installations with every
+# permission, one for each account, with IDs from 42 up.
+installations() {
+  local login id=42 out=()
+  for login in "$@"; do
+    out+=("{\"id\": $id, \"account\": {\"login\": \"$login\"}, \"repository_selection\": \"all\", \"permissions\": {\"contents\": \"write\", \"pull_requests\": \"write\", \"issues\": \"write\", \"actions\": \"read\", \"workflows\": \"write\", \"metadata\": \"read\"}}")
+    id=$((id + 1))
+  done
+  printf '[%s]' "$(IFS=,; printf '%s' "${out[*]}")"
+}
