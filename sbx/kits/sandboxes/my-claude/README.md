@@ -16,6 +16,8 @@ sbx run ./sbx/kits/sandboxes/my-claude
   and a small permission denylist.
 - `files/home/.local/bin/statusline.sh` draws the status line.
 - `agentInstructions` in `spec.yaml` adds the language preferences.
+- `setup.install` in `spec.yaml` installs a pinned `gh` release over the old
+  `gh` that the image ships. Renovate opens a PR when a new `gh` comes out.
 
 `~/.claude/settings.json` is a sandbox-reserved path, so a kit file placed
 there is discarded. The kit owns a file elsewhere instead and passes it with
