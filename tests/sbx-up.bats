@@ -37,10 +37,10 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
 
 @test "the repos and permissions in .sbx.json reach the token" {
   given_app
-  echo '{"repos": ["me/app", "me/lib"], "permissions": {"workflows": "write", "issues": "none"}}' >.sbx.json
+  echo '{"repos": ["me/app", "me/lib"], "permissions": {"contents": "read", "issues": "none"}}' >.sbx.json
   run sbx_up
   [ "$status" -eq 0 ]
-  [ "$(cat "$FAKE_STATE/secrets/app-main")" = "'$sbx_token' mint --repo me/app --repo me/lib --perm workflows=write --perm issues=none" ]
+  [ "$(cat "$FAKE_STATE/secrets/app-main")" = "'$sbx_token' mint --repo me/app --repo me/lib --perm contents=read --perm issues=none" ]
   [ "$(token_request | jq -c .repositories)" = '["app","lib"]' ]
 }
 

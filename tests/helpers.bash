@@ -61,7 +61,7 @@ verify_jwt() {
 installations() {
   local login id=42 out=()
   for login in "$@"; do
-    out+=("{\"id\": $id, \"account\": {\"login\": \"$login\"}, \"repository_selection\": \"all\", \"permissions\": {\"contents\": \"write\", \"pull_requests\": \"write\", \"issues\": \"write\", \"actions\": \"read\", \"workflows\": \"write\", \"metadata\": \"read\"}}")
+    out+=("{\"id\": $id, \"account\": {\"login\": \"$login\"}, \"repository_selection\": \"all\", \"permissions\": {\"contents\": \"write\", \"pull_requests\": \"write\", \"issues\": \"write\", \"actions\": \"read\", \"metadata\": \"read\"}}")
     id=$((id + 1))
   done
   printf '[%s]' "$(IFS=,; printf '%s' "${out[*]}")"
