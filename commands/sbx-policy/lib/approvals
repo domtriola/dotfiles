@@ -30,29 +30,33 @@ approvals() {
 }
 
 # pending prints the approvals that wait, for one sandbox or for all of them.
+# For all of them, each sandbox is a section, so that a long destination does
+# not push the sandbox name out of its column.
 #
 # Usage: pending [sandbox]
 pending() {
-  local want="$1" id sandbox title count=0 list
+  local want="$1" id sandbox title count=0 list group groups
   list="$(approvals)"
 
   if [[ -n "$want" ]]; then
     heading "Pending approvals for $want"
+    echo
+    groups="$want"
   else
     heading "Pending approvals"
+    # The sandboxes, in the order that sbx lists them first.
+    groups="$(awk -F'\t' 'NF && !seen[$2]++ { print $2 }' <<<"$list")"
   fi
-  echo
 
-  while IFS=$'\t' read -r id sandbox title; do
-    [[ -n "$id" ]] || continue
-    [[ -z "$want" || "$sandbox" == "$want" ]] || continue
-    if [[ -n "$want" ]]; then
+  while IFS= read -r group; do
+    [[ -n "$group" ]] || continue
+    [[ -n "$want" ]] || section "$group"
+    while IFS=$'\t' read -r id sandbox title; do
+      [[ -n "$id" && "$sandbox" == "$group" ]] || continue
       status waiting "$title"
-    else
-      status waiting "$title" "$sandbox"
-    fi
-    count=$((count + 1))
-  done <<<"$list"
+      count=$((count + 1))
+    done <<<"$list"
+  done <<<"$groups"
 
   echo
   if ((count == 0)); then

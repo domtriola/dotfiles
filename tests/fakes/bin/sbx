@@ -32,12 +32,24 @@ case "$1 ${2:-}" in
   # pending approval, from FAKE_SBX_APPROVALS ("<id> <sandbox> <title>" lines).
   case "$3" in
   ls)
-    printf '%-56s %-12s %-40s %-40s %s\n' APPROVAL SANDBOX TITLE DETAIL OPTIONS
+    # Each column is as wide as its longest value, as in the real table.
+    rows=("APPROVAL"$'\t'"SANDBOX"$'\t'"TITLE"$'\t'"DETAIL"$'\t'"OPTIONS")
     while read -r id sandbox title; do
       [[ -n "$id" ]] || continue
-      printf '%-56s %-12s %-40s %-40s %s\n' "$id" "$sandbox" "$title" \
-        'Protocol: TCP Resource type: domain' 'allow (Allow), dismiss (Dismiss)'
+      rows+=("$id"$'\t'"$sandbox"$'\t'"$title"$'\t'"Protocol: TCP Resource type: domain"$'\t'"allow (Allow), dismiss (Dismiss)")
     done <<<"${FAKE_SBX_APPROVALS:-}"
+    widths=(0 0 0 0)
+    for row in "${rows[@]}"; do
+      IFS=$'\t' read -r -a cells <<<"$row"
+      for i in 0 1 2 3; do
+        ((${#cells[i]} > widths[i])) && widths[i]=${#cells[i]}
+      done
+    done
+    for row in "${rows[@]}"; do
+      IFS=$'\t' read -r -a cells <<<"$row"
+      printf '%-*s   %-*s   %-*s   %-*s   %s\n' "${widths[0]}" "${cells[0]}" "${widths[1]}" "${cells[1]}" \
+        "${widths[2]}" "${cells[2]}" "${widths[3]}" "${cells[3]}" "${cells[4]}"
+    done
     ;;
   respond) echo "Recorded: ${*: -1}" ;;
   esac

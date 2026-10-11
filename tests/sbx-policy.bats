@@ -99,3 +99,20 @@ policy rm network --sandbox app --id 2d3c1f0e-4a73-4e05-bc9d-f2f9a4b50d67" ]
   [[ "$output" == "Usage:"* ]]
   [ ! -s "$FAKE_STATE/sbx.log" ]
 }
+
+@test "pending for all sandboxes groups the approvals under each sandbox" {
+  export FAKE_SBX_APPROVALS="$FAKE_SBX_APPROVALS
+network:ddd other telemetry.nextjs.org.other.docker.internal:443"
+  run "$sbx_policy" pending
+  [ "$status" -eq 0 ]
+  [ "$(sed -n '2,$p' <<<"$output")" = "
+app
+  waiting api.example.com:443
+  waiting registry.npmjs.org:443
+
+other
+  waiting cdn.example.com:443
+  waiting telemetry.nextjs.org.other.docker.internal:443
+
+4 pending. Answer with sbx-policy approve or dismiss." ]
+}
