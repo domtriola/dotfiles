@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# The network rules in the local policy store: the ones that I add, and the
+# ones that an approval records. sbx prints its own result for each of them.
+
+# rule_ids_pattern matches the RULE_ID that `sbx policy ls --wide` prints. Any
+# other value to rm is a host.
+rule_id_pattern='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+
+# join_hosts prints the hosts as one comma-separated list, the form that sbx
+# takes.
+join_hosts() {
+  local IFS=,
+  printf '%s' "$*"
+}
+
+# add_rule adds one allow or deny rule for all the hosts.
+#
+# Usage: add_rule <allow|deny> <sandbox or ""> <host>...
+add_rule() {
+  local decision="$1" sandbox="$2" scope=()
+  shift 2
+  [[ -z "$sandbox" ]] || scope=(--sandbox "$sandbox")
+  sbx policy "$decision" network "${scope[@]+"${scope[@]}"}" "$(join_hosts "$@")"
+}
+
+# remove_rules removes rules by host, in one call, and by rule ID, one call
+# each, since --id takes one ID. --force skips the prompt of sbx, because the
+# rules are named on the command line.
+#
+# Usage: remove_rules <sandbox or ""> <host or rule ID>...
+remove_rules() {
+  local sandbox="$1" scope=() hosts=() ids=() value id
+  shift
+  [[ -z "$sandbox" ]] || scope=(--sandbox "$sandbox")
+  for value in "$@"; do
+    if [[ "$value" =~ $rule_id_pattern ]]; then
+      ids+=("$value")
+    else
+      hosts+=("$value")
+    fi
+  done
+
+  if ((${#hosts[@]})); then
+    sbx policy rm network "${scope[@]+"${scope[@]}"}" --force --resource "$(join_hosts "${hosts[@]}")"
+  fi
+  for id in "${ids[@]+"${ids[@]}"}"; do
+    sbx policy rm network "${scope[@]+"${scope[@]}"}" --force --id "$id"
+  done
+}
+
+# list_rules shows the local network rules, one per row with its RULE_ID, for
+# all sandboxes or for one. Other arguments go to `sbx policy ls`.
+#
+# Usage: list_rules [sandbox] [sbx policy ls flags]
+list_rules() {
+  exec sbx policy ls --wide --source local --type network "$@"
+}

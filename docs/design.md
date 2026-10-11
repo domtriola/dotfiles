@@ -34,13 +34,13 @@ When two laws of UX conflict, the higher law wins.
 
 - **Status words.** A result is one line: a status word in a fixed-width colored column, a label, and an optional detail. Use ASCII words, never symbols, so that the output reads the same without color. Each word belongs to one semantic color:
 
-  | Variable      | Meaning                     | Words                                   |
-  | ------------- | --------------------------- | --------------------------------------- |
-  | `STYLE_OK`    | it worked                   | `ok`, `copied`, `ran`                   |
-  | `STYLE_WARN`  | needs a look or a decision  | `warn`, `drift`                         |
-  | `STYLE_FAIL`  | broken                      | `FAIL`                                  |
-  | `STYLE_MUTED` | nothing happened            | `same`, `skipped`, `not run`, `pending` |
-  | `STYLE_INFO`  | information, with no verdict | `tunable`, `info`, `copy` (dry run)    |
+  | Variable      | Meaning                      | Words                                   |
+  | ------------- | ---------------------------- | --------------------------------------- |
+  | `STYLE_OK`    | it worked                    | `ok`, `copied`, `ran`                   |
+  | `STYLE_WARN`  | needs a look or a decision   | `warn`, `drift`, `waiting`              |
+  | `STYLE_FAIL`  | broken                       | `FAIL`                                  |
+  | `STYLE_MUTED` | nothing happened             | `same`, `skipped`, `not run`, `pending` |
+  | `STYLE_INFO`  | information, with no verdict | `tunable`, `info`, `copy` (dry run)     |
 
 - **Sections.** A group starts with a blank line and its name in bold. Do not use lines of dashes.
 - **Summary.** Every command ends with a blank line, then a table of results if it has one (for `setup`, every step with its status and time), then one verdict line. The verdict line gives the counts, in the color of the worst status.

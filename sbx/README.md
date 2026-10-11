@@ -14,14 +14,16 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 `sync-env` installs these commands into `~/.local/bin` for the `dev-mac` and
 `dev-linux` profiles.
 
-| Command     | What it does                                                  | Reference           |
-| ----------- | ------------------------------------------------------------- | ------------------- |
-| `sbx-up`    | Starts a sandbox for the current project and branch.          | `sbx-up --help`     |
-| `sbx-shell` | Opens a shell into a sandbox, in a new tmux window.           | `sbx-shell --help`  |
-| `sbx-token` | Gives a sandbox a GitHub token for its repositories only.     | `sbx-token --help`  |
-| `sbx-pull`  | Fetches commits made inside a `--clone` sandbox.              | its header comment  |
+| Command      | What it does                                               | Reference           |
+| ------------ | ---------------------------------------------------------- | ------------------- |
+| `sbx-up`     | Starts a sandbox for the current project and branch.       | `sbx-up --help`     |
+| `sbx-shell`  | Opens a shell into a sandbox, in a new tmux window.        | `sbx-shell --help`  |
+| `sbx-token`  | Gives a sandbox a GitHub token for its repositories only.  | `sbx-token --help`  |
+| `sbx-policy` | Answers sandbox approvals and manages local network rules. | `sbx-policy --help` |
+| `sbx-pull`   | Fetches commits made inside a `--clone` sandbox.           | its header comment  |
 
-`sbx-up`, `sbx-shell` and `sbx-token` are command directories in `commands/`.
+`sbx-up`, `sbx-shell`, `sbx-token` and `sbx-policy` are command directories in
+`commands/`.
 `sbx-shell` has a `libexec/` holding `sbx-wait`, which the shell window runs
 rather than sources. `sbx-pull` is a single file in `env/.local/bin`.
 
@@ -53,6 +55,21 @@ The window runs the command's `sbx-wait` helper first, which draws the wait
 and names the step it is on. When the `dotfiles` kit is still configuring the
 sandbox, it waits for the kit too. Outside tmux, the shell runs in the current
 terminal.
+
+## Network access
+
+The sandbox firewall blocks a destination that no rule allows. When a policy
+asks for approval, the blocked request waits as a pending approval.
+`sbx-policy` answers them by sandbox and host, so there is no approval ID to
+copy:
+
+```console
+sbx-policy pending my-sandbox
+sbx-policy approve my-sandbox api.example.com
+```
+
+It also adds, lists and removes the local network rules (`sbx-policy allow`,
+`ls`, `rm`). See `sbx-policy --help`.
 
 ## Per-project settings
 

@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+#
+# Short verbs for the `sbx policy` commands that I use most: answer the
+# approvals that one sandbox waits for, and manage the network rules that I
+# add by hand.
+#
+# `sbx-policy --help` is the reference.
+
+set -euo pipefail
+
+# The command directory, resolved through any symlink, so that the same file
+# works from a checkout and from ~/.local/bin.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  target="$(readlink "$self")"
+  [[ "$target" == /* ]] || target="$(dirname "$self")/$target"
+  self="$target"
+done
+pkg="$(cd "$(dirname "$self")" >/dev/null 2>&1 && pwd)"
+
+# The shared output style, from the checkout that this file came from. The sbx-
+# commands do not otherwise need a checkout, so without one the results are
+# printed plainly rather than not at all.
+dotfiles_dir="$(cd "$pkg/../.." >/dev/null 2>&1 && pwd)"
+[[ -f "$dotfiles_dir/lib/style.sh" ]] ||
+  dotfiles_dir="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/checkout" 2>/dev/null || true)"
+dotfiles_dir="${DOTFILES_DIR:-$dotfiles_dir}"
+if [[ -f "$dotfiles_dir/lib/style.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$dotfiles_dir/lib/style.sh"
+else
+  status() { printf '  %-7s %-34s %s\n' "$1" "$2" "${3:-}"; }
+  heading() { printf '%s\n' "$1"; }
+  verdict() { printf '%s\n' "$2"; }
+fi
+
+for f in "$pkg"/lib/*; do
+  [[ -f "$f" ]] || continue
+  # shellcheck source=/dev/null
+  source "$f"
+done
+
+usage() {
+  cat <<'EOF'
+Usage:
+  sbx-policy pending [<sandbox>]
+  sbx-policy approve <sandbox> <host>... | --all
+  sbx-policy dismiss <sandbox> <host>... | --all
+  sbx-policy ls [<sandbox>] [sbx policy ls flags]
+  sbx-policy allow [-s <sandbox>] <host>...
+  sbx-policy deny [-s <sandbox>] <host>...
+  sbx-policy rm [-s <sandbox>] <host or rule ID>...
+
+Approvals: when a sandbox tries to reach a destination that needs approval,
+sbx blocks the request and keeps it as a pending approval.
+
+  pending     List the pending approvals, for one sandbox or for all.
+  approve     Allow the named hosts for the sandbox. sbx records each one as
+              a local rule, until you remove it with rm. A host without a port
+              (api.example.com) matches every port it asked for. --all
+              answers every approval of the sandbox.
+  dismiss     Leave the named hosts blocked. sbx asks again the next time the
+              sandbox tries to reach them.
+
+Rules: the network rules in the local policy store. Without -s a rule applies
+to every sandbox. With -s it applies to that sandbox only.
+
+  ls          List the local network rules with their RULE_ID, including the
+              ones that approve recorded. Other flags go to `sbx policy ls`,
+              for example --created-via approval or --decision deny.
+  allow       Add one allow rule for the hosts.
+  deny        Add one deny rule for the hosts. A deny wins over an allow.
+  rm          Remove rules by host, or by the RULE_ID that ls prints. A rule
+              that applies to one sandbox needs the same -s.
+
+A host is a domain (api.example.com), a wildcard (*.example.com), an IP
+address or a CIDR prefix, with an optional port (example.com:443). Quote
+wildcards, so the shell does not expand them.
+
+`sbx policy --help` is the reference for everything else, such as
+`sbx policy log`, which shows what the sandboxes reached and what was blocked.
+EOF
+}
+
+die() {
+  printf 'sbx-policy: %s\n' "$1" >&2
+  exit 1
+}
+
+verb="${1:-}"
+[[ $# -gt 0 ]] && shift
+
+case "$verb" in
+-h | --help)
+  usage
+  exit 0
+  ;;
+"")
+  usage >&2
+  exit 1
+  ;;
+esac
+
+command -v sbx >/dev/null 2>&1 || die "sbx is not installed"
+
+case "$verb" in
+pending)
+  [[ $# -le 1 ]] || die "only one sandbox can be named. Run sbx-policy --help."
+  pending "${1:-}"
+  ;;
+approve | dismiss)
+  [[ $# -ge 1 ]] || die "name the sandbox. Run sbx-policy --help."
+  [[ $# -ge 2 ]] || die "name the hosts to $verb, or pass --all. Run sbx-policy --help."
+  sandbox="$1"
+  shift
+  [[ "$verb" == approve ]] && option=allow || option=dismiss
+  answer "$option" "$sandbox" "$@"
+  ;;
+allow | deny | rm)
+  sandbox=""
+  values=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -s | --sandbox)
+      [[ $# -ge 2 && -n "$2" ]] || die "$1 needs a value. Run sbx-policy --help."
+      sandbox="$2"
+      shift
+      ;;
+    -*) die "unknown argument $1. Run sbx-policy --help." ;;
+    *) values+=("$1") ;;
+    esac
+    shift
+  done
+  ((${#values[@]})) || die "name the hosts. Run sbx-policy --help."
+  if [[ "$verb" == rm ]]; then
+    remove_rules "$sandbox" "${values[@]}"
+  else
+    add_rule "$verb" "$sandbox" "${values[@]}"
+  fi
+  ;;
+ls)
+  list_rules "$@"
+  ;;
+*)
+  die "unknown verb $verb. Run sbx-policy --help."
+  ;;
+esac

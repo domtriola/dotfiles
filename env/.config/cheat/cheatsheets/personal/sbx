@@ -21,8 +21,17 @@ sbx run claude -- auth login
 # Access sandbox port from outside sandbox
 sbx ports my-sandbox --publish 1234:1234
 
+# Answer the destinations a sandbox waits for
+sbx-policy pending my-sandbox
+sbx-policy approve my-sandbox api.example.com
+sbx-policy dismiss my-sandbox --all
+
 # Grant sandbox network access
-sbx policy allow network example.com
-sbx policy allow network --sandbox my-sandbox *.example.com
+sbx-policy allow example.com
+sbx-policy allow -s my-sandbox '*.example.com'
+
+# List and remove local rules (rm takes a host or a RULE_ID)
+sbx-policy ls my-sandbox
+sbx-policy rm -s my-sandbox '*.example.com'
 
 

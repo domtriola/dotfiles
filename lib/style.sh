@@ -35,7 +35,7 @@ _STYLE_LABEL_WIDTH=34
 style_color() {
   case "$1" in
   ok | copied | ran) printf '%s' "$STYLE_OK" ;;
-  warn | drift) printf '%s' "$STYLE_WARN" ;;
+  warn | drift | waiting) printf '%s' "$STYLE_WARN" ;;
   FAIL) printf '%s' "$STYLE_FAIL" ;;
   same | skipped | "not run" | pending) printf '%s' "$STYLE_MUTED" ;;
   tunable | info | copy) printf '%s' "$STYLE_INFO" ;;
