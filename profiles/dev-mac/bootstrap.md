@@ -111,9 +111,8 @@ When the token expires, make a new one and log in again.
      | Issues        | Read and write |
      | Metadata      | Read-only      |
      | Pull requests | Read and write |
-     | Workflows     | Read and write |
 
-     These are the most that any sandbox token can get. A token gets less by default (no Workflows), and `sbx-token check` reports any permission that the App lacks.
+     These are the most that any sandbox token can get, and `sbx-token check` reports any permission that the App lacks. Do not give **Workflows**: with it, a sandbox could change `.github/workflows` and run code in CI with the repository's secrets.
 
    - **Where can this GitHub App be installed?:** **Any account**. A private App can only be installed on your own account, and not on an organization that you own. A public App is not listed anywhere, and it gives nobody access to your repositories. If a stranger installs it, the App gets access to *their* repositories, and `sbx-token check` reports it (see below).
 

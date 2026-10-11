@@ -70,7 +70,7 @@ optional:
             Default: the repository of the origin remote
   permissions
             token permissions over the defaults of sbx-token, for example
-            {"workflows": "write", "issues": "none"}.
+            {"contents": "read", "issues": "none"}.
             Default: {}
 
 A kit value that holds a / is a path. Every other value names a kit in this

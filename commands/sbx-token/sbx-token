@@ -69,8 +69,8 @@ Options:
 
 Defaults:
   contents=write pull_requests=write issues=write actions=read
-  metadata=read is always added. The App also holds workflows=write, which a
-  token gets only when it asks for it.
+  metadata=read is always added. No token gets workflows, so a sandbox
+  cannot change .github/workflows.
 
 Environment:
   SBX_TOKEN_BIN    the sbx-token that the secret runs. It must be outside

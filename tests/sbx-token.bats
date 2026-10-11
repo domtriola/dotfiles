@@ -28,9 +28,9 @@ setup() {
 
 @test "mint applies permission overrides, and none drops a default" {
   given_app
-  run "$sbx_token" mint --repo me/app --perm workflows=write --perm issues=none --perm contents=read
+  run "$sbx_token" mint --repo me/app --perm issues=none --perm contents=read
   [ "$status" -eq 0 ]
-  [ "$(token_request | jq -cS .permissions)" = '{"actions":"read","contents":"read","metadata":"read","pull_requests":"write","workflows":"write"}' ]
+  [ "$(token_request | jq -cS .permissions)" = '{"actions":"read","contents":"read","metadata":"read","pull_requests":"write"}' ]
 }
 
 @test "mint takes several repositories of one owner" {
@@ -58,6 +58,10 @@ setup() {
   run "$sbx_token" mint --repo me/app --perm actions=write
   [ "$status" -eq 1 ]
   [[ "$output" == *"cannot grant actions=write"* ]]
+
+  run "$sbx_token" mint --repo me/app --perm workflows=write
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"cannot grant workflows=write"* ]]
 }
 
 @test "mint refuses a malformed repository or permission" {
@@ -118,9 +122,9 @@ setup() {
 
 @test "register stores the mint command as the sandbox's GitHub secret" {
   given_app
-  run "$sbx_token" register app-feature --repo me/app --perm workflows=write
+  run "$sbx_token" register app-feature --repo me/app --perm issues=none
   [ "$status" -eq 0 ]
-  [ "$(cat "$FAKE_STATE/secrets/app-feature")" = "'$sbx_token' mint --repo me/app --perm workflows=write" ]
+  [ "$(cat "$FAKE_STATE/secrets/app-feature")" = "'$sbx_token' mint --repo me/app --perm issues=none" ]
   grep -q '^secret set github --sandbox app-feature --command ' "$FAKE_STATE/sbx.log"
 }
 
@@ -172,12 +176,12 @@ setup() {
   FAKE_GH_INSTALLATIONS='[{"account": {"login": "me"}, "repository_selection": "all", "permissions": {"contents": "read", "pull_requests": "write", "issues": "write", "actions": "read", "metadata": "read"}}]' \
     run "$sbx_token" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *"lacks permissions on me (contents=write workflows=write)"* ]]
+  [[ "$output" == *"lacks permissions on me (contents=write)"* ]]
 }
 
 @test "check notes an installation on selected repositories only" {
   given_app
-  FAKE_GH_INSTALLATIONS="$(jq -c '.[0].repository_selection = "selected"' <<<'[{"account": {"login": "me"}, "permissions": {"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "workflows": "write", "metadata": "read"}}]')" \
+  FAKE_GH_INSTALLATIONS="$(jq -c '.[0].repository_selection = "selected"' <<<'[{"account": {"login": "me"}, "permissions": {"contents": "write", "pull_requests": "write", "issues": "write", "actions": "read", "metadata": "read"}}]')" \
     run "$sbx_token" check
   [ "$status" -eq 0 ]
   [ "$output" = "me-sbx, installed on me (only selected repositories on me)" ]
