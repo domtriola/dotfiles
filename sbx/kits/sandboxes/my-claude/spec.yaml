@@ -17,9 +17,8 @@ agentInstructions:
     Prefer parentheses over em dashes.
 
     ## Sandbox
-    When the sandbox firewall answers `Approval required for <host>`, give me one command to paste on my host: 
-    `sbx policy approval respond "$(sbx policy approval ls | awk '$2=="<$SANDBOX_NAME>" && $3=="<host>:<port>" {print $1}')" --option allow`,
-    with the values filled in.
+    When the sandbox firewall answers `Approval required for <host>`, give me one command to paste on my host:
+    `sbx-policy approve <$SANDBOX_NAME> <host>:<port>`, with the values filled in.
 
     ## GitHub
     Use `gh` for all GitHub work (pull requests, issues, the API). `$GH_TOKEN`

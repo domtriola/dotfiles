@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+#
+# The approvals: the destinations that a sandbox tried to reach, which wait
+# for an answer before the sandbox can reach them.
+
+# approvals prints one line per pending approval: the approval ID, the
+# sandbox and the destination, separated by tabs.
+#
+# `sbx policy approval ls` has no --json, so this reads its table. The columns
+# are cut at the offsets of the header words, because a destination that an
+# HTTP rule matched holds spaces (for example `GET api.example.com:443/v1`).
+approvals() {
+  local table
+  table="$(sbx policy approval ls)" || die "sbx could not list the approvals"
+  awk '
+    NR == 1 {
+      sandbox = index($0, "SANDBOX")
+      title = index($0, "TITLE")
+      detail = index($0, "DETAIL")
+      if (!sandbox || !title || !detail) exit 2
+      next
+    }
+    function trim(s) { gsub(/^ +| +$/, "", s); return s }
+    NF {
+      printf "%s\t%s\t%s\n", trim(substr($0, 1, sandbox - 1)),
+        trim(substr($0, sandbox, title - sandbox)),
+        trim(substr($0, title, detail - title))
+    }
+  ' <<<"$table" || die "sbx policy approval ls printed a table that sbx-policy cannot read"
+}
+
+# pending prints the approvals that wait, for one sandbox or for all of them.
+# For all of them, each sandbox is a section, so that a long destination does
+# not push the sandbox name out of its column.
+#
+# Usage: pending [sandbox]
+pending() {
+  local want="$1" id sandbox title count=0 list group groups
+  list="$(approvals)"
+
+  if [[ -n "$want" ]]; then
+    heading "Pending approvals for $want"
+    echo
+    groups="$want"
+  else
+    heading "Pending approvals"
+    # The sandboxes, in the order that sbx lists them first.
+    groups="$(awk -F'\t' 'NF && !seen[$2]++ { print $2 }' <<<"$list")"
+  fi
+
+  while IFS= read -r group; do
+    [[ -n "$group" ]] || continue
+    [[ -n "$want" ]] || section "$group"
+    while IFS=$'\t' read -r id sandbox title; do
+      [[ -n "$id" && "$sandbox" == "$group" ]] || continue
+      status waiting "$title"
+      count=$((count + 1))
+    done <<<"$list"
+  done <<<"$groups"
+
+  echo
+  if ((count == 0)); then
+    verdict ok "Nothing waits for an answer."
+  else
+    verdict waiting "$count pending. Answer with sbx-policy approve or dismiss."
+  fi
+}
+
+# destination prints the host and port of an approval's title, without the
+# method and path that an HTTP rule adds.
+destination() {
+  local title="$1"
+  [[ "$title" =~ ^[A-Z]+\ (.*)$ ]] && title="${BASH_REMATCH[1]}"
+  printf '%s' "${title%%/*}"
+}
+
+# answer gives one answer (allow or dismiss) to the approvals of one sandbox
+# that match the hosts. A host without a port matches every port, since a
+# sandbox asks for each port apart. With --all as the only host, it answers
+# every approval of the sandbox.
+#
+# Usage: answer <allow|dismiss> <sandbox> <host>...
+answer() {
+  local option="$1" want="$2" list id sandbox title dest host matched done=0 missing=0 word
+  shift 2
+  [[ "$option" == allow ]] && word=approved || word=dismissed
+  list="$(approvals)"
+
+  heading "Answering for $want"
+  echo
+
+  for host in "$@"; do
+    matched=0
+    while IFS=$'\t' read -r id sandbox title; do
+      [[ -n "$id" && "$sandbox" == "$want" ]] || continue
+      dest="$(destination "$title")"
+      [[ "$host" == --all || "$host" == "$dest" || "$host" == "${dest%:*}" ]] || continue
+      sbx policy approval respond "$id" --option "$option" >/dev/null ||
+        die "sbx could not answer the approval for $title"
+      status ok "$title" "$word"
+      matched=1
+      done=$((done + 1))
+    done <<<"$list"
+    if ((!matched)); then
+      [[ "$host" == --all ]] && host="anything"
+      status warn "$host" "not pending for $want"
+      missing=$((missing + 1))
+    fi
+  done
+
+  echo
+  if ((missing)); then
+    verdict warn "$done $word, $missing not found. Run sbx-policy pending $want."
+    return 1
+  fi
+  verdict ok "$done $word."
+}
