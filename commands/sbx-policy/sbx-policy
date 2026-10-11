@@ -90,6 +90,13 @@ die() {
 verb="${1:-}"
 [[ $# -gt 0 ]] && shift
 
+# Help after a verb too, except for ls, which passes its flags to sbx.
+if [[ "$verb" != ls ]]; then
+  for arg in "$@"; do
+    [[ "$arg" == -h || "$arg" == --help ]] && verb=--help
+  done
+fi
+
 case "$verb" in
 -h | --help)
   usage
@@ -139,7 +146,9 @@ allow | deny | rm)
   fi
   ;;
 ls)
-  list_rules "$@"
+  # The local network rules, one per row with its RULE_ID. Other arguments,
+  # such as a sandbox or --created-via approval, go to sbx.
+  exec sbx policy ls --wide --source local --type network "$@"
   ;;
 *)
   die "unknown verb $verb. Run sbx-policy --help."

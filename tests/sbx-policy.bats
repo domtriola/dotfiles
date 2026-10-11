@@ -76,8 +76,8 @@ policy deny network --sandbox app ads.example.com" ]
 @test "rm removes rules by host or by rule ID" {
   run "$sbx_policy" rm -s app api.example.com 2d3c1f0e-4a73-4e05-bc9d-f2f9a4b50d67 cdn.example.com
   [ "$status" -eq 0 ]
-  [ "$(cat "$FAKE_STATE/sbx.log")" = "policy rm network --sandbox app --force --resource api.example.com,cdn.example.com
-policy rm network --sandbox app --force --id 2d3c1f0e-4a73-4e05-bc9d-f2f9a4b50d67" ]
+  [ "$(cat "$FAKE_STATE/sbx.log")" = "policy rm network --sandbox app --resource api.example.com,cdn.example.com
+policy rm network --sandbox app --id 2d3c1f0e-4a73-4e05-bc9d-f2f9a4b50d67" ]
 }
 
 @test "ls lists the local network rules, and passes other flags to sbx" {
@@ -90,5 +90,12 @@ policy rm network --sandbox app --force --id 2d3c1f0e-4a73-4e05-bc9d-f2f9a4b50d6
   run "$sbx_policy" allow --sandbox app
   [ "$status" -eq 1 ]
   [[ "$output" == *"name the hosts"* ]]
+  [ ! -s "$FAKE_STATE/sbx.log" ]
+}
+
+@test "--help after a verb prints the usage, and changes nothing" {
+  run "$sbx_policy" approve --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == "Usage:"* ]]
   [ ! -s "$FAKE_STATE/sbx.log" ]
 }
