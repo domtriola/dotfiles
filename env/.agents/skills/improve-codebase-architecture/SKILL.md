@@ -17,7 +17,7 @@ Read the `codebase-design` skill first. Use its vocabulary exactly in every sugg
 
 Read `GLOSSARY.md` and the ADRs for the area first.
 
-Then dispatch a sub-agent to walk the codebase; if you cannot dispatch one, walk it yourself. Explore organically and note where you feel friction:
+Then dispatch a sub-agent to walk the codebase, the way the `context-economy` skill describes; if you cannot dispatch one, walk it yourself. Explore organically and note where you feel friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow**, with an interface nearly as complex as the implementation?

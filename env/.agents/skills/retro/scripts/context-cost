@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+#
+# Usage: context-cost <session id | path to a session .jsonl>
+#
+# Prints what a Claude Code session spent its context on:
+#
+#   - the context size (input + cache writes + cache reads) at the first turn,
+#     at 25%, 50% and 75% of the turns, at the last turn, and at its peak
+#   - the total cache reads, cache writes and output, in tokens
+#   - the ten largest tool results, with their tool and input
+#   - the attachments by type, such as edited_text_file (a file the harness
+#     pasted back because it changed on disk)
+#
+# Token counts from the API are exact. The sizes of tool results and
+# attachments are estimates: characters / 4.
+#
+# A session id is looked up as ~/.claude/projects/*/<id>.jsonl. Sub-agents
+# have their own logs, under <id>/subagents/, which this does not read.
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  sed -n '3p' "$0" | sed 's/^# //' >&2
+  exit 2
+fi
+
+log="$1"
+if [[ ! -f "$log" ]]; then
+  # The id is quoted, so a wildcard in it matches only itself.
+  for candidate in "$HOME"/.claude/projects/*/"$1".jsonl; do
+    [[ -f "$candidate" ]] && log="$candidate" && break
+  done
+fi
+if [[ ! -f "$log" ]]; then
+  echo "context-cost: no session log for $1" >&2
+  exit 1
+fi
+
+echo "Session: $log"
+
+# Claude Code writes one line per content block, and each line repeats the
+# message's usage, so every message counts once.
+jq -rs '
+  [.[] | select(.type == "assistant" and .message.usage != null)]
+  | reduce .[] as $message ({seen: {}, turns: []};
+      if .seen[$message.message.id] then . else
+        .seen[$message.message.id] = true | .turns += [$message.message.usage]
+      end)
+  | .turns
+  | map({
+      context: (.input_tokens + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0)),
+      reads: (.cache_read_input_tokens // 0),
+      writes: (.cache_creation_input_tokens // 0),
+      output: .output_tokens
+    }) as $turns
+  | ($turns | length) as $count
+  | if $count == 0 then "Turns: 0" else
+      def at(p): $turns[(($count - 1) * p) | floor].context;
+      "Turns: \($count)",
+      "Context per turn (tokens): first \(at(0)), 25% \(at(0.25)), 50% \(at(0.5)), 75% \(at(0.75)), last \(at(1)), peak \($turns | map(.context) | max)",
+      "Cache reads: \($turns | map(.reads) | add)",
+      "Cache writes: \($turns | map(.writes) | add)",
+      "Output: \($turns | map(.output) | add)"
+    end
+' "$log"
+
+echo
+echo "Largest tool results (estimated tokens, tool, input):"
+jq -rs '
+  ([.[] | select(.type == "assistant") | .message.content[]?
+    | select(.type == "tool_use")
+    | {key: .id, value: {name, input: (.input.command // .input.file_path // .input.pattern // .input.description // (.input | tojson))}}]
+    | from_entries) as $calls
+  | [.[] | select(.type == "user") | .message.content | arrays | .[]
+     | select(.type == "tool_result")
+     | {id: .tool_use_id,
+        size: ((if (.content | type) == "string" then .content
+                else [.content[]? | .text // tojson] | join("") end) | length / 4 | floor)}]
+  | sort_by(-.size) | .[:10][]
+  | ($calls[.id] // {name: "?", input: ""}) as $call
+  | "  \(.size)  \($call.name)  \($call.input | tostring | gsub("\\s+"; " ") | .[:80])"
+' "$log"
+
+echo
+echo "Attachments by type (type, count, estimated tokens):"
+jq -rs '
+  [.[] | select(.type == "attachment") | .attachment
+   | {type, size: (tojson | length / 4 | floor)}]
+  | group_by(.type)
+  | map({type: .[0].type, count: length, size: (map(.size) | add)})
+  | sort_by(-.size)[]
+  | "  \(.type)  \(.count)  \(.size)"
+' "$log"

@@ -31,6 +31,9 @@ Two skills work at any stage: `diagnosing-bugs` for a hard bug, and
 `author-prototype` for a design question. Run `retro` after a session to find
 improvements to the agent's environment.
 
+`context-economy` owns the rules that keep a long session's context small. The
+skills that explore or edit code link to it.
+
 Run `author-threat-model` once per repo for the product model. The
 Security axis of `code-review` checks every change against it.
 
