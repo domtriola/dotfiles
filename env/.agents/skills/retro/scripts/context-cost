@@ -26,9 +26,12 @@ fi
 
 log="$1"
 if [[ ! -f "$log" ]]; then
-  log="$(find "$HOME/.claude/projects" -maxdepth 2 -name "$1.jsonl" 2>/dev/null | head -n 1)"
+  # The id is quoted, so a wildcard in it matches only itself.
+  for candidate in "$HOME"/.claude/projects/*/"$1".jsonl; do
+    [[ -f "$candidate" ]] && log="$candidate" && break
+  done
 fi
-if [[ -z "$log" || ! -f "$log" ]]; then
+if [[ ! -f "$log" ]]; then
   echo "context-cost: no session log for $1" >&2
   exit 1
 fi
@@ -39,9 +42,9 @@ echo "Session: $log"
 # message's usage, so every message counts once.
 jq -rs '
   [.[] | select(.type == "assistant" and .message.usage != null)]
-  | reduce .[] as $m ({seen: {}, turns: []};
-      if .seen[$m.message.id] then . else
-        .seen[$m.message.id] = true | .turns += [$m.message.usage]
+  | reduce .[] as $message ({seen: {}, turns: []};
+      if .seen[$message.message.id] then . else
+        .seen[$message.message.id] = true | .turns += [$message.message.usage]
       end)
   | .turns
   | map({
@@ -49,15 +52,15 @@ jq -rs '
       reads: (.cache_read_input_tokens // 0),
       writes: (.cache_creation_input_tokens // 0),
       output: .output_tokens
-    }) as $t
-  | ($t | length) as $n
-  | if $n == 0 then "Turns: 0" else
-      def at(p): $t[(($n - 1) * p) | floor].context;
-      "Turns: \($n)",
-      "Context per turn (tokens): first \(at(0)), 25% \(at(0.25)), 50% \(at(0.5)), 75% \(at(0.75)), last \(at(1)), peak \($t | map(.context) | max)",
-      "Cache reads: \($t | map(.reads) | add)",
-      "Cache writes: \($t | map(.writes) | add)",
-      "Output: \($t | map(.output) | add)"
+    }) as $turns
+  | ($turns | length) as $count
+  | if $count == 0 then "Turns: 0" else
+      def at(p): $turns[(($count - 1) * p) | floor].context;
+      "Turns: \($count)",
+      "Context per turn (tokens): first \(at(0)), 25% \(at(0.25)), 50% \(at(0.5)), 75% \(at(0.75)), last \(at(1)), peak \($turns | map(.context) | max)",
+      "Cache reads: \($turns | map(.reads) | add)",
+      "Cache writes: \($turns | map(.writes) | add)",
+      "Output: \($turns | map(.output) | add)"
     end
 ' "$log"
 
@@ -74,8 +77,8 @@ jq -rs '
         size: ((if (.content | type) == "string" then .content
                 else [.content[]? | .text // tojson] | join("") end) | length / 4 | floor)}]
   | sort_by(-.size) | .[:10][]
-  | ($calls[.id] // {name: "?", input: ""}) as $c
-  | "  \(.size)  \($c.name)  \($c.input | tostring | gsub("\\s+"; " ") | .[:80])"
+  | ($calls[.id] // {name: "?", input: ""}) as $call
+  | "  \(.size)  \($call.name)  \($call.input | tostring | gsub("\\s+"; " ") | .[:80])"
 ' "$log"
 
 echo

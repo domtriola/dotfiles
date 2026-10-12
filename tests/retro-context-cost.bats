@@ -54,7 +54,7 @@ given_session() {
   assistant a5 1 0 400 1
 }
 
-@test "the context size at the first turn, the quartiles, the end, and the peak" {
+@test "the report gives the context size at the first turn, the quartiles, the end, and the peak" {
   run "$context_cost" "$session"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Turns: 5"* ]]
@@ -68,16 +68,17 @@ given_session() {
   [[ "$output" == *"Output: 17"* ]]
 }
 
-@test "the largest tool results come first, with their tool and input" {
+@test "the report lists the largest tool results first, with their tool and input" {
   run "$context_cost" "$session"
   local results="${output#*Largest tool results}"
   [[ "$results" == *"1000  Bash  cat big.txt"*"100  Read  /x/small.txt"* ]]
 }
 
-@test "the attachments are grouped by type, largest first" {
+@test "the report groups the attachments by type, largest first" {
   run "$context_cost" "$session"
   local attachments="${output#*Attachments by type}"
-  [[ "$attachments" =~ edited_text_file\ +2\ +[0-9]+ ]]
+  # Each size is the attachment JSON in characters / 4: (800 + 40) / 4 + (200 + 40) / 4.
+  [[ "$attachments" == *"edited_text_file  2  270"* ]]
   [[ "$attachments" == *"edited_text_file"*"date"* ]]
 }
 
@@ -89,6 +90,12 @@ given_session() {
 
 @test "an unknown session is an error" {
   run "$context_cost" no-such-session
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no session log"* ]]
+}
+
+@test "a wildcard in a session id matches only a log of that literal name" {
+  run "$context_cost" '*'
   [ "$status" -ne 0 ]
   [[ "$output" == *"no session log"* ]]
 }

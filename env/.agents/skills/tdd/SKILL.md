@@ -33,5 +33,5 @@ Ask: "What's the public interface, and which seams should we test?"
 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Run only the test file of the slice.** Run the full suite once, at the end, and never two suites at the same time.
+- **Run only the test file of the slice**, once its edits are made, not after each small edit. Run the full suite once, at the end. Run one suite at a time: two suites at once in a sandbox slow each other past their time-outs.
 - **Refactoring is not part of the loop.** It belongs to the review stage (the `code-review` skill), not the red → green implementation cycle.
