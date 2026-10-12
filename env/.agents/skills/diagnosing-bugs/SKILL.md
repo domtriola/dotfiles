@@ -3,7 +3,7 @@ name: diagnosing-bugs
 description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
 ---
 
-A discipline for hard bugs. Skip a phase only with an explicit reason. Use the vocabulary in `GLOSSARY.md`, and check the ADRs in the area.
+A discipline for hard bugs. Skip a phase only with an explicit reason. Use the vocabulary in `GLOSSARY.md`, and check the ADRs in the area. Read and edit code the way the `context-economy` skill describes.
 
 **Redact every secret** in the commands, outputs, and artifacts that you show: write `<REDACTED>` in its place. Build loops against env vars, so that credentials stay in the environment, and quote only the lines of an artifact that carry the signal. If the redacted output is not enough, say so and ask the user.
 

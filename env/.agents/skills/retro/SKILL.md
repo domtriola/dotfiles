@@ -10,7 +10,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
 1. Read the `writing-for-agents` skill. It is the style guide for every change you suggest.
 
-2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. A retro in the same session as the work reads the whole work context again on every turn, so when the session is long, tell the user to start a new session for the retro, with the session id as its input.
+2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one.
 
 3. For a Claude Code session, run [`scripts/context-cost`](scripts/context-cost) with the session id. It prints the context size over the session, the total cache reads and output, the largest tool results, and the attachments by type (`edited_text_file` is a file that the harness pasted back after it changed on disk). Start the **Tool economy** candidates from these numbers.
 
