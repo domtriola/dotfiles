@@ -112,4 +112,5 @@ runs in this repo.
 - [docs/design.md](docs/design.md): the design priorities and color rules for command output.
 - [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md): where specs and tickets live (GitHub issues).
 - [docs/research/](docs/research/): cited findings behind past decisions.
+- [docs/threat-model/product.md](docs/threat-model/product.md): the threat model for the dev-mac machine and its sandboxes.
 - [sbx/README.md](sbx/README.md): the Docker Sandboxes kits and the sandbox commands.
