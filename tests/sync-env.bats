@@ -291,3 +291,21 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" != *"Dotfiles"* ]]
 }
+
+@test "a destination that climbs out of \$HOME with .. is refused, and nothing is copied" {
+  echo 'file .testrc $HOME/../escaped' >>"$checkout/profiles/$DOTFILES_PROFILE/env.manifest"
+  run "$sync_env"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"must not leave"* ]]
+  [ ! -e "$HOME/.testrc" ]
+  [ ! -e "$BATS_TEST_TMPDIR/escaped" ]
+}
+
+@test "an empty or root \$HOME is refused, and nothing is copied" {
+  HOME="" run "$sync_env"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"HOME"* ]]
+  HOME=/ run "$sync_env"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"HOME"* ]]
+}
