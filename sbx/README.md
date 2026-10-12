@@ -107,8 +107,11 @@ Only `pi-ailo` takes arguments today. Its README says what they mean.
 
 ## Pulling changes from a `--clone` sandbox
 
-A `--clone` sandbox is a standalone git clone, so commits made inside it do not
-reach the host until they are fetched. Run `sbx-pull` from the same project root
+`sbx-up` gives a project in git its own clone unless its `.sbx.json` sets
+`"clone": false`, because a sandbox that mounts the host worktree can write
+files that the host runs later, such as `.git/hooks`. A `--clone` sandbox is a
+standalone git clone, so commits made inside it do not reach the host until
+they are fetched. Run `sbx-pull` from the same project root
 and branch that started the sandbox: it fetches from the sandbox's
 `sandbox-<name>` remote and fast-forwards the current branch. Pass `--rebase`
 when the branch has moved on the host as well.

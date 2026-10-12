@@ -64,7 +64,9 @@ optional:
   memory    the memory limit passed to `sbx run`.
             Default: 4g
   clone     give the sandbox its own clone instead of the host worktree.
-            Default: false
+            A sandbox that mounts the worktree can write files that the
+            host runs later, such as .git/hooks.
+            Default: true, or false outside git
   repos     the repositories the GitHub token reaches, as owner/name. They
             must have one owner.
             Default: the repository of the origin remote
