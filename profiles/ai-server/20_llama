@@ -269,6 +269,14 @@ model_count=0
 while IFS= read -r gguf; do
   base="$(basename "$gguf" .gguf)"
 
+  # The name goes unquoted into the YAML below and into the server's command
+  # line, so a file name that could change either is left out. A file from
+  # Hugging Face, or one copied in by hand, can be named anything.
+  if [[ ! "$base" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "  skipping $gguf: a model file name may hold only letters, digits, '.', '_' and '-'" >&2
+    continue
+  fi
+
   # A split model is several files that the loader treats as one: given any
   # shard it finds the rest in the same directory. So only the first shard
   # gets an entry, named for the prefix rather than the shard. Without this a
