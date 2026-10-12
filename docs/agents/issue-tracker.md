@@ -13,7 +13,16 @@ Specs, tickets, and maps for this repo are GitHub issues. Use the `gh` CLI, whic
 
 - **Publish**: `gh issue create --label ready-for-agent --title "..." --body-file <file>`, then make it a sub-issue of its spec with `gh issue edit <spec> --add-sub-issue <ticket>` (`gh` 2.94 or later). If sub-issues are not available, put `Part of #<spec>` at the top of the body.
 - **Blocking**: GitHub's native issue dependencies, which show in the GitHub UI. Add an edge with `gh api --method POST repos/{owner}/{repo}/issues/<ticket>/dependencies/blocked_by -F issue_id=<blocker-id>`. `<blocker-id>` is the database id from `gh api repos/{owner}/{repo}/issues/<number> --jq .id`, not the issue number. If dependencies are not available, put `Blocked by: #<n>, #<n>` at the top of the body.
-- **Frontier**: the open sub-issues of the parent (`gh api repos/{owner}/{repo}/issues/<parent>/sub_issues`) that have no open blocker (`issue_dependencies_summary.blocked_by` is 0). A frontier ticket is claimed when it has the `in-progress` label, an assignee, or an open PR that closes it. List the issues that open PRs close with `gh pr list --state open --limit 1000 --json closingIssuesReferences --jq '[.[].closingIssuesReferences[].number]'`. Take the first unclaimed one, in order.
+- **Claimed**: a ticket that has the `in-progress` label, an assignee, or an open PR that closes it. List the issues that open PRs close with `gh pr list --state open --limit 1000 --json closingIssuesReferences --jq '[.[].closingIssuesReferences[].number]'`.
+- **Frontier**: the open sub-issues of the parent (`gh api repos/{owner}/{repo}/issues/<parent>/sub_issues`) that have no open blocker (`issue_dependencies_summary.blocked_by` is 0). Take the first unclaimed one, in order.
+- **Ready**: the open `ready-for-agent` issues in the repo that have no open blocker and are not claimed. This command drops the blocked, assigned, and `in-progress` issues. Then drop the issues that open PRs close.
+
+  ```sh
+  gh api --paginate 'repos/{owner}/{repo}/issues?state=open&labels=ready-for-agent&per_page=100' \
+    --jq '.[] | select(.pull_request | not) | select(.assignees == [])
+          | select(any(.labels[]; .name == "in-progress") | not)
+          | select(.issue_dependencies_summary.blocked_by == 0) | "#\(.number)\t\(.title)"'
+  ```
 - **Claim**: `gh issue edit <number> --add-label in-progress`, before any other work. Create the label with `gh label create in-progress` if it is missing. Do not assign the issue to yourself: a GitHub App token cannot assign `@me`, and an assignee means who owns the issue, not that work started.
 - **Release**: `gh issue edit <number> --remove-label in-progress`, if you stop before the work is done.
 - **Close**: put `Closes #<number>` in the PR body, as for a spec.

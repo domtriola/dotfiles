@@ -28,7 +28,8 @@ approval. `implement` stops to ask only when the spec contradicts the code, or
 before a one-way door.
 
 Two skills work at any stage: `diagnosing-bugs` for a hard bug, and
-`author-prototype` for a design question. Run `retro` after a session to find
+`author-prototype` for a design question. `ready-tickets` lists the tickets
+that an agent can pick up now. Run `retro` after a session to find
 improvements to the agent's environment.
 
 `context-economy` owns the rules that keep a long session's context small. The
