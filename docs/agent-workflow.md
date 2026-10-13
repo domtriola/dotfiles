@@ -29,8 +29,9 @@ before a one-way door.
 
 Two skills work at any stage: `diagnosing-bugs` for a hard bug, and
 `author-prototype` for a design question. `ready-tickets` lists the tickets
-that an agent can pick up now. Run `retro` after a session to find
-improvements to the agent's environment.
+that an agent can pick up now. `backlog` gives the maintainer an overview
+of the open issues and an order for the work that waits on them. Run `retro`
+after a session to find improvements to the agent's environment.
 
 `context-economy` owns the rules that keep a long session's context small. The
 skills that explore or edit code link to it.
