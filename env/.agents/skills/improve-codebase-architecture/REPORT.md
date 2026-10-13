@@ -1,10 +1,8 @@
 # Report format
 
-One Markdown file. The diagrams carry the weight; prose is sparse and plain.
+One GitHub issue body. The issue title is `Architecture review: <repo name>`, so the body starts with the date line. The diagrams carry the weight; prose is sparse and plain.
 
 ```markdown
-# Architecture review: <repo name>
-
 <date> · Legend: box = module, dotted edge = seam, red edge = leakage, thick box = deep module
 
 ## 1. <Candidate title>
