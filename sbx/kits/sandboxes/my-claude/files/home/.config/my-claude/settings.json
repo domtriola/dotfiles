@@ -11,12 +11,5 @@
     "command": "bash $HOME/.local/bin/statusline.sh"
   },
   "tui": "fullscreen",
-  "remoteControlAtStartup": false,
-  "permissions": {
-    "deny": [
-      "Bash(git branch -m *)",
-      "Bash(git branch -M *)",
-      "Bash(git branch --move *)"
-    ]
-  }
+  "remoteControlAtStartup": false
 }
