@@ -1,6 +1,6 @@
 ---
 name: improve-codebase-architecture
-description: Scan a codebase for deepening opportunities, present them as a Markdown report, then grill through the one you pick.
+description: Scan a codebase for deepening opportunities, present them as a GitHub issue, then grill through the one you pick.
 disable-model-invocation: true
 ---
 
@@ -29,11 +29,11 @@ Apply the **deletion test** to each suspected shallow module: would deleting it 
 
 ## 2. Report the candidates
 
-Write the report to `<tmpdir>/architecture-review-<timestamp>.md`, where `<tmpdir>` is `$TMPDIR` or `/tmp`, so nothing lands in the repo. Use the format in [REPORT.md](REPORT.md). Tell the user the absolute path.
+Write the report body to `<tmpdir>/architecture-review-<timestamp>.md`, where `<tmpdir>` is `$TMPDIR` or `/tmp`, so nothing lands in the repo. Use the format in [REPORT.md](REPORT.md). Then open it as a new issue with `gh issue create --title "Architecture review: <repo name>" --body-file <file>`, and give the user the issue URL. If `gh` cannot create the issue, give the user the absolute path of the file and the `gh` error.
 
 If a candidate contradicts an ADR, include it only when the friction is real enough to reopen the ADR, and mark the conflict in its card.
 
-Propose no interfaces yet. When the file is written, ask the user: "Which of these would you like to explore?"
+Propose no interfaces yet. When the issue is open, ask the user: "Which of these would you like to explore?"
 
 ## 3. Grill the chosen candidate
 
