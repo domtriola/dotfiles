@@ -116,3 +116,11 @@ other
 
 4 pending. Answer with sbx-policy approve or dismiss." ]
 }
+
+@test "pending reads a table with a byte that is not valid UTF-8" {
+  export FAKE_SBX_DETAIL=$'DNS resolution requires approval \xe2\x80'
+  LC_ALL=en_US.UTF-8 run "$sbx_policy" pending app
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"api.example.com:443"* ]]
+  [[ "$output" == *"2 pending"* ]]
+}

@@ -9,10 +9,12 @@
 # `sbx policy approval ls` has no --json, so this reads its table. The columns
 # are cut at the offsets of the header words, because a destination that an
 # HTTP rule matched holds spaces (for example `GET api.example.com:443/v1`).
+# awk reads bytes (LC_ALL=C), because a UTF-8 awk, such as the one in macOS,
+# stops at a byte that is not valid UTF-8, and sbx can print one in DETAIL.
 approvals() {
   local table
   table="$(sbx policy approval ls)" || die "sbx could not list the approvals"
-  awk '
+  LC_ALL=C awk '
     NR == 1 {
       sandbox = index($0, "SANDBOX")
       title = index($0, "TITLE")

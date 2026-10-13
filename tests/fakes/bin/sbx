@@ -30,13 +30,14 @@ case "$1 ${2:-}" in
 "policy approval")
   # The table that `sbx policy approval ls` prints: a header, then one row per
   # pending approval, from FAKE_SBX_APPROVALS ("<id> <sandbox> <title>" lines).
+  # FAKE_SBX_DETAIL replaces the DETAIL of every row.
   case "$3" in
   ls)
     # Each column is as wide as its longest value, as in the real table.
     rows=("APPROVAL"$'\t'"SANDBOX"$'\t'"TITLE"$'\t'"DETAIL"$'\t'"OPTIONS")
     while read -r id sandbox title; do
       [[ -n "$id" ]] || continue
-      rows+=("$id"$'\t'"$sandbox"$'\t'"$title"$'\t'"Protocol: TCP Resource type: domain"$'\t'"allow (Allow), dismiss (Dismiss)")
+      rows+=("$id"$'\t'"$sandbox"$'\t'"$title"$'\t'"${FAKE_SBX_DETAIL:-Protocol: TCP Resource type: domain}"$'\t'"allow (Allow), dismiss (Dismiss)")
     done <<<"${FAKE_SBX_APPROVALS:-}"
     widths=(0 0 0 0)
     for row in "${rows[@]}"; do
