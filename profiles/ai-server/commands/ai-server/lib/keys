@@ -10,7 +10,7 @@
 #   int     a whole number
 #   port    1 to 65535
 #   pct     1 to 100
-#   text    anything, including empty
+#   text    anything without a |, &, \ or line break, including empty
 
 knob_order=(
   iommu
@@ -92,7 +92,10 @@ knob_validate() {
     echo "$key takes a percentage from 1 to 100, not '$value'." >&2
     ;;
   text)
-    return 0
+    # config_write puts the value into a sed replacement, where these
+    # characters would change the command or add a line to the file.
+    [[ "$value" != *[\|\&\\]* && "$value" != *$'\n'* ]] && return 0
+    echo "$key takes text without a |, &, \\ or line break, not '$value'." >&2
     ;;
   *)
     # Unquoted: the list of permitted words is meant to split here.

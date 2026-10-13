@@ -103,3 +103,26 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   grep -qx 'sbx-main' "$FAKE_STATE/tmux.log"
   ! grep -q 'shell' "$FAKE_STATE/tmux.log"
 }
+
+@test "by default, the sandbox gets its own clone instead of the host worktree" {
+  run sbx_up --no-gh
+  [ "$status" -eq 0 ]
+  grep -q '^run .* --clone' "$FAKE_STATE/sbx.log"
+}
+
+@test "clone false in .sbx.json mounts the host worktree" {
+  echo '{"clone": false}' >.sbx.json
+  run sbx_up --no-gh
+  [ "$status" -eq 0 ]
+  grep -q '^run ' "$FAKE_STATE/sbx.log"
+  ! grep -q -- '--clone' "$FAKE_STATE/sbx.log"
+}
+
+@test "a directory outside git is mounted, because there is nothing to clone" {
+  mkdir "$BATS_TEST_TMPDIR/plain"
+  cd "$BATS_TEST_TMPDIR/plain"
+  run sbx_up --no-gh
+  [ "$status" -eq 0 ]
+  grep -q '^run ' "$FAKE_STATE/sbx.log"
+  ! grep -q -- '--clone' "$FAKE_STATE/sbx.log"
+}

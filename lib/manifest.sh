@@ -22,6 +22,13 @@ read_manifest() {
 
   actions=()
 
+  # Every destination is bounded by $HOME, so an empty or root $HOME bounds
+  # nothing.
+  if [[ "$HOME" != /?* || "$HOME" == */ ]]; then
+    _manifest_error "\$HOME must be an absolute path other than /, not '$HOME'"
+    return 1
+  fi
+
   # Set by the `none` directive. A profile that copies nothing is legitimate,
   # but so is a manifest whose every line was commented out by mistake, and the
   # two look the same. `none` tells them apart.
@@ -88,6 +95,10 @@ read_manifest() {
     fi
     if [[ "$dest" != "$HOME" && "$dest" != "$HOME"/* ]]; then
       _manifest_error "$where: destination '$dest' is outside \$HOME"
+      return 1
+    fi
+    if [[ "$dest/" == */../* ]]; then
+      _manifest_error "$where: destination '$dest' must not leave \$HOME"
       return 1
     fi
 
