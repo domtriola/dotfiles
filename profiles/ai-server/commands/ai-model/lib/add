@@ -69,6 +69,13 @@ for f in d.get("siblings", []):
   while IFS=$'\t' read -r _ want path; do
     local name="${path##*/}"
 
+    # The configuration that 20_llama writes leaves out any other name, so
+    # such a file is not downloaded at all.
+    if [[ ! "$name" =~ ^[A-Za-z0-9._-]+\.gguf$ ]]; then
+      echo "  skipping $name: a model file name may hold only letters, digits, '.', '_' and '-'" >&2
+      continue
+    fi
+
     if [[ -e "$models_dir/$name" ]]; then
       echo "  have $name already"
       continue

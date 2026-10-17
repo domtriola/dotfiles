@@ -3,7 +3,10 @@
 # What the sandbox is made of: the defaults here, the project's .sbx.json over
 # them, and the agent named on the command line over both.
 
-sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g", "clone": false}'
+# A clone is the default because a sandbox that mounts the host worktree can
+# write files that the host runs later, such as .git/hooks. A project outside
+# git has nothing to clone, so it is mounted.
+sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g"}'
 
 # config_load resolves the settings for one sandbox and sets three globals:
 #
@@ -12,9 +15,11 @@ sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "m
 #   gh_perms   the "permissions" setting, as name=level, one per line
 config_load() {
   local root="$1" name="$2" agent="$3"
-  local config="$root/.sbx.json" given override plan arg spec
+  local config="$root/.sbx.json" given override plan arg spec in_git=false
 
   given="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
+
+  [[ -e "$root/.git" ]] && in_git=true
 
   override='{}'
   if [[ -n "$agent" ]]; then
@@ -28,11 +33,12 @@ config_load() {
     --arg dotfiles "$sbx_up_dotfiles" \
     --arg name "$name" \
     --argjson defaults "$sbx_up_defaults" \
+    --argjson in_git "$in_git" \
     --argjson override "$override" '
     def kit($kind):
       if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
 
-    ($defaults * . * $override)
+    ($defaults * {clone: $in_git} * . * $override)
     | {
         args: (
           ["run", (.agent | kit("sandboxes")), "--name", $name, "--memory", .memory]
