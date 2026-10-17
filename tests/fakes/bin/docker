@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# A fake docker. It logs each call to $FAKE_STATE/docker.log, one line per
+# call. Like Compose, it prints container lines on stderr unless the call has
+# --progress quiet. Then it runs $FAKE_DOCKER_RUN in the current directory, as
+# the container's command, and exits with that command's status.
+printf '%s\n' "$*" >>"$FAKE_STATE/docker.log"
+if [[ " $* " != *" --progress quiet "* ]]; then
+  echo " Container app-run-1 Creating" >&2
+  echo " Container app-run-1 Created" >&2
+fi
+bash -c "${FAKE_DOCKER_RUN:-true}"

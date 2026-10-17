@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# A fake sudo. It logs each call to $FAKE_STATE/sudo.log, one line per call,
+# then runs the command as the current user.
+printf '%s\n' "$*" >>"$FAKE_STATE/sudo.log"
+exec "$@"

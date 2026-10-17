@@ -37,6 +37,13 @@ agentInstructions:
 
     Then use `gh pr create` to open a pull request.
 
+    ## Docker Compose
+    When a project runs its tooling in Docker Compose, run each command
+    with `sbx-compose-run <service> <command...>` (see
+    `sbx-compose-run --help`), not with `docker compose run`. It prints
+    only the command's output, exits with the command's exit code, and
+    gives the files that the root container wrote back to you.
+
     ## Implementing
     When I say to implement something, finish the work: commit, push the
     branch, and open a PR, without asking first. Never merge.

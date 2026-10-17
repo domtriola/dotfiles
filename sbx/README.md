@@ -27,6 +27,17 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 `sbx-shell` has a `libexec/` holding `sbx-wait`, which the shell window runs
 rather than sources. `sbx-pull` is a single file in `env/.local/bin`.
 
+### Inside a sandbox
+
+The `sbx-linux` profile installs this command in every sandbox.
+
+| Command           | What it does                                                              | Reference                |
+| ----------------- | ------------------------------------------------------------------------- | ------------------------ |
+| `sbx-compose-run` | Runs one command in a Compose service, quietly, and gives back the files. | `sbx-compose-run --help` |
+
+It is a single file in `env/.local/bin`. The `my-claude` kit's agent instructions
+name it, for projects that run their tooling in Docker Compose.
+
 ## Starting a sandbox
 
 Run `sbx-up` anywhere inside a project. The sandbox is named after the project
