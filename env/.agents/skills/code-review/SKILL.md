@@ -30,7 +30,11 @@ Look for the originating spec, in this order:
 
 1. A spec or issue the user passed as an argument.
 2. A spec referenced by the commit messages or the branch name, fetched the way `docs/agents/issue-tracker.md` describes.
-3. If nothing is found, ask the user where the spec is. If there is none, the **Spec** review is skipped and reports "no spec available".
+3. If nothing is found, ask the user where the spec is. If there is none, the **Spec** review reports "no spec available", and checks only the standing requirements (step 2b).
+
+### 2b. Identify the standing requirements
+
+Some requirements hold for every change, not only for this branch's spec: promises that the product makes to its users, such as a privacy policy or terms of service, or a non-functional requirement. Look for a document that lists them in the repo's agent instructions (`AGENTS.md`, `CLAUDE.md`) and the docs that they point to. If there is none, the Spec review reports "no standing requirements".
 
 ### 3. Identify the standards sources
 
@@ -60,9 +64,10 @@ If you can dispatch sub-agents, run the reviews as parallel sub-agents, each giv
 
 - The diff command and commit list.
 - The path or fetched contents of the spec.
-- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
+- The paths of the standing requirements from step 2b, or "no standing requirements".
+- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Then report (d) every standing requirement that the diff breaks, or makes untrue: for example a new kind of data, use, or service provider that the requirement says must be disclosed first. Quote the requirement for each. Under 400 words."
 
-If the spec is missing, skip the Spec review and note this in the final report.
+If the spec is missing, the Spec review checks only the standing requirements, and the final report notes that no spec was available. If both are missing, skip the Spec review.
 
 **Security review** input:
 
