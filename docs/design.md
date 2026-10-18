@@ -43,7 +43,7 @@ When two laws of UX conflict, the higher law wins.
   | `STYLE_INFO`  | information, with no verdict | `tunable`, `info`, `copy` (dry run)     |
 
 - **Sections.** A group starts with a blank line and its name in bold. Do not use lines of dashes.
-- **Summary.** Every command ends with a blank line, then a table of results if it has one (for `setup`, every step with its status and time), then one verdict line. The verdict line gives the counts, in the color of the worst status.
+- **Summary.** Every command ends with a blank line, then a table of results if it has one (for `setup`, every step with its status and time), then one verdict line. The verdict line gives the counts, in the color of the worst status. A command that only wraps another command, such as `sbx-compose-run`, is the exception: it prints only the output of the wrapped command, and no summary.
 - **Dry runs.** Print one header line, `Dry run: nothing changes`, then the normal status lines. The raw commands are muted and indented under their status line.
 - **Errors.** Usage and fatal errors go to stderr as `<command>: <message>`, without color.
 - **Progress.** A spinner is allowed only on a terminal, and only while work runs. When the work ends, a status line replaces the spinner.

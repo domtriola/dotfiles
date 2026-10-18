@@ -31,9 +31,9 @@ rather than sources. `sbx-pull` is a single file in `env/.local/bin`.
 
 The `sbx-linux` profile installs this command in every sandbox.
 
-| Command           | What it does                                                              | Reference                |
-| ----------------- | ------------------------------------------------------------------------- | ------------------------ |
-| `sbx-compose-run` | Runs one command in a Compose service, quietly, and gives back the files. | `sbx-compose-run --help` |
+| Command           | What it does                                                                    | Reference                |
+| ----------------- | ------------------------------------------------------------------------------- | ------------------------ |
+| `sbx-compose-run` | Runs one command in a Compose service, quietly, and gives its files to `agent`. | `sbx-compose-run --help` |
 
 It is a single file in `env/.local/bin`. The `my-claude` kit's agent instructions
 name it, for projects that run their tooling in Docker Compose.

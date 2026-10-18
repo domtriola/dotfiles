@@ -38,11 +38,13 @@ agentInstructions:
     Then use `gh pr create` to open a pull request.
 
     ## Docker Compose
-    When a project runs its tooling in Docker Compose, run each command
-    with `sbx-compose-run <service> <command...>` (see
-    `sbx-compose-run --help`), not with `docker compose run`. It prints
-    only the command's output, exits with the command's exit code, and
-    gives the files that the root container wrote back to you.
+    When a project runs its tooling in Docker Compose, use
+    `sbx-compose-run <service> <command...>`, not `docker compose run`.
+    It prints only the command's output and exits with the command's exit
+    code. After the run, it gives back to you the files that the root
+    container wrote, if `git status` shows them. Files that git ignores stay
+    owned by root. Add `--deps` when the command needs the service's
+    dependencies, such as a database. See `sbx-compose-run --help`.
 
     ## Implementing
     When I say to implement something, finish the work: commit, push the
