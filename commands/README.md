@@ -60,6 +60,6 @@ color.
 ## Tests
 
 The tests in `tests/` run each command through its command line, with fakes
-for `sbx`, `tmux`, the GitHub API, the OS secret stores and `gh` first on
-PATH. Run them with `./test` from the checkout root. Arguments go to bats,
-for example `./test tests/sbx-token.bats` or `./test --filter mint`.
+for `sbx`, `tmux`, the GitHub API, the OS secret stores, `gh`, `docker` and
+`sudo` first on PATH. Run them with `./test` from the checkout root. Arguments
+go to bats, for example `./test tests/sbx-token.bats` or `./test --filter mint`.

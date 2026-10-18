@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+#
+# Runs one command in a Docker Compose service, quietly, and gives the files
+# that it wrote back to the sandbox user. `sbx-compose-run --help` is the
+# reference.
+
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  sbx-compose-run [--deps] <service> <command...>
+  sbx-compose-run [--deps] <run flags...> <service> -- <command...>
+
+Runs one command in a Docker Compose service, from the project root:
+
+  docker compose --progress quiet run --rm --no-deps <service> <command...>
+
+The project root is the nearest directory with a Compose file (compose.yaml,
+compose.yml, docker-compose.yaml, docker-compose.yml, or a .env file that sets
+COMPOSE_FILE). The search starts in the current directory and stops at the
+top of the git working tree. When COMPOSE_FILE is set, the command runs from
+the current directory.
+
+It prints only the command's output, with no Compose progress or container
+lines. It exits with the command's exit code.
+
+The containers run as root, so the files that they write belong to root.
+After the run, `sudo chown` gives back to the current user every file that
+`git status` shows as new or changed. Files outside the working tree do not
+change. Files that git ignores (such as node_modules or build output) also do
+not change.
+
+Options:
+  --deps      Start the service's dependencies too (no --no-deps), for a
+              command that needs a database.
+  -h, --help  Show this help.
+
+Other flags for `docker compose run` go before the service. Then put a `--`
+after the service:
+
+  sbx-compose-run -e FOO=1 test -- npm test
+
+Without such flags, a `--` in the command stays in the command:
+
+  sbx-compose-run test npm test -- --grep login
+USAGE
+}
+
+die() {
+  printf 'sbx-compose-run: %s\n' "$1" >&2
+  exit 1
+}
+
+no_deps=(--no-deps)
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  --deps)
+    no_deps=()
+    shift
+    ;;
+  --)
+    shift
+    break
+    ;;
+  *) break ;;
+  esac
+done
+
+# args is what goes to `docker compose run` after its own flags: any extra
+# flags, the service, and the command.
+args=()
+if [[ "${1:-}" == -* ]]; then
+  # Flags come first, so only a -- shows where the service ends.
+  while [[ $# -gt 0 && "$1" != "--" ]]; do
+    if [[ "$1" == "--deps" ]]; then
+      no_deps=()
+    else
+      args+=("$1")
+    fi
+    shift
+  done
+  [[ $# -gt 0 ]] || die "put -- between the service and the command when flags come first. Run sbx-compose-run --help."
+  shift
+else
+  [[ $# -gt 0 ]] && { args+=("$1"); shift; }
+  [[ "${1:-}" == "--" ]] && shift
+fi
+[[ ${#args[@]} -gt 0 && $# -gt 0 ]] || die "name a service and a command. Run sbx-compose-run --help."
+args+=("$@")
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" ||
+  die "not inside a git working tree. Run it inside a project."
+
+# has_compose_file <dir> succeeds when Compose would find its file in dir.
+has_compose_file() {
+  local file
+  for file in compose.yaml compose.yml docker-compose.yaml docker-compose.yml; do
+    [[ -e "$1/$file" ]] && return 0
+  done
+  [[ -f "$1/.env" ]] && grep -q '^COMPOSE_FILE=' "$1/.env"
+}
+
+# The project root is the nearest directory, up to the git root, that has a
+# Compose file. With COMPOSE_FILE set, Compose reads it from here.
+start="$(pwd -P)"
+project="$start"
+if [[ -z "${COMPOSE_FILE:-}" ]]; then
+  until has_compose_file "$project"; do
+    [[ "$project" != "$root" && "$project" == "$root"/* ]] ||
+      die "no Compose file in $start or above it, up to $root. Add compose.yaml there, or set COMPOSE_FILE."
+    project="${project%/*}"
+  done
+fi
+
+# changed_paths prints, NUL-separated, every path in the working tree that
+# git reports as new or changed, and each of its parent directories. Git
+# status lists only files, so a directory that the run created comes from the
+# files in it.
+changed_paths() {
+  local entry code path
+  # A container can write .git/config. Turn off the fsmonitor hook, so that
+  # git status does not run a command that the container set.
+  git -c core.fsmonitor=false status --porcelain -z --untracked-files=all |
+    while IFS= read -r -d '' entry; do
+      code="${entry:0:2}"
+      path="${entry:3}"
+      # A rename or a copy is followed by its source path, which is gone or
+      # unchanged.
+      [[ "$code" == *[RC]* ]] && IFS= read -r -d '' _
+      [[ -e "$path" || -L "$path" ]] || continue
+      while [[ "$path" == */* ]]; do
+        printf '%s\0' "$path"
+        path="${path%/*}"
+      done
+      printf '%s\0' "$path"
+    done | LC_ALL=C sort -zu
+}
+
+status=0
+cd "$project"
+docker compose --progress quiet run --rm "${no_deps[@]}" "${args[@]}" || status=$?
+
+# The containers run as root, so the files that they write in the working
+# tree belong to root. Give them back to the sandbox user. -h changes a
+# symlink itself, never what it points to, so nothing outside the tree
+# changes. -n makes sudo fail at once, rather than wait for a password.
+cd "$root"
+changed_paths | xargs -0 -r sudo -n chown -h "$(id -u):$(id -g)" -- ||
+  printf 'sbx-compose-run: could not give the changed files back to %s. Run sudo chown on the files that git status shows.\n' "$(id -un)" >&2
+
+exit "$status"
