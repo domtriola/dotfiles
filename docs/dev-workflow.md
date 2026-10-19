@@ -50,10 +50,13 @@ Copy mode uses vi keys: `v` starts a selection and `y` copies it. The copy goes
 to the terminal's clipboard through OSC 52, which works over SSH. Where `pbcopy`
 or `wl-copy` is installed, the copy also goes to it.
 
+A program in a pane cannot set or read the clipboard through OSC 52. This
+stops a sandbox agent in a tmux window from changing what you paste.
+
 ## A tmux on another machine
 
-To work in a tmux on a remote machine, open its own terminal window, outside
-the local tmux, and attach to the remote tmux there:
+To work in a tmux on a remote machine, open a new terminal window. Do not
+start the local tmux in it. Then attach to the remote tmux:
 
 ```console
 ssh -t <host> tmux new -A -s main
@@ -61,7 +64,8 @@ ssh -t <host> tmux new -A -s main
 
 Then every key goes to the remote tmux. The remote tmux keeps its sessions when
 the connection closes, so attach again with the same command. Over SSH, the
-status bar shows the hostname before the session name.
+status bar shows the hostname before the session name, for each client that
+attaches over SSH.
 
 When the remote tmux runs inside the local one, the local tmux gets `Ctrl-a`
 first. There are two ways to reach the remote tmux:
@@ -71,6 +75,10 @@ first. There are two ways to reach the remote tmux:
   back on.
 - Press `Ctrl-a Ctrl-a`, then the key. The local tmux sends one `Ctrl-a` to the
   remote tmux.
+
+A copy in the remote tmux does not reach the local clipboard when the remote
+tmux runs inside the local one. The local tmux ignores OSC 52 from its panes.
+To copy, use the remote tmux in its own terminal window.
 
 ## Sandboxes
 

