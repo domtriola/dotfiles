@@ -34,18 +34,43 @@ by underscores.
 
 The prefix is `Ctrl-a`.
 
-| Binding          | Action                                       |
-| ---------------- | -------------------------------------------- |
-| `Ctrl-a f`       | Open tmux-sessionizer (fzf project picker)   |
-| `Ctrl-a r`       | Reload `~/.tmux.conf`                        |
-| `Ctrl-a \|`      | Split pane horizontally (keeps current path) |
-| `Ctrl-a -`       | Split pane vertically (keeps current path)   |
-| `Ctrl-a c`       | New window (keeps current path)              |
-| `Ctrl-a h/j/k/l` | Navigate panes (vim-style)                   |
-| `Ctrl-a H/J/K/L` | Resize panes (vim-style, repeatable)         |
+| Binding          | Action                                        |
+| ---------------- | --------------------------------------------- |
+| `Ctrl-a f`       | Open tmux-sessionizer (fzf project picker)    |
+| `Ctrl-a r`       | Reload `~/.tmux.conf`                         |
+| `Ctrl-a \|`      | Split pane horizontally (keeps current path)  |
+| `Ctrl-a -`       | Split pane vertically (keeps current path)    |
+| `Ctrl-a c`       | New window (keeps current path)               |
+| `Ctrl-a h/j/k/l` | Navigate panes (vim-style)                    |
+| `Ctrl-a H/J/K/L` | Resize panes (vim-style, repeatable)          |
+| `Ctrl-a Ctrl-a`  | Send `Ctrl-a` to the program in the pane      |
+| `F12`            | Turn this tmux's keys off or on (nested tmux) |
 
-Copy mode uses vi keys: `v` starts a selection and `y` copies it to the system
-clipboard, through `pbcopy` on macOS and `wl-copy` on Linux.
+Copy mode uses vi keys: `v` starts a selection and `y` copies it. The copy goes
+to the terminal's clipboard through OSC 52, which works over SSH. Where `pbcopy`
+or `wl-copy` is installed, the copy also goes to it.
+
+## A tmux on another machine
+
+To work in a tmux on a remote machine, open its own terminal window, outside
+the local tmux, and attach to the remote tmux there:
+
+```console
+ssh -t <host> tmux new -A -s main
+```
+
+Then every key goes to the remote tmux. The remote tmux keeps its sessions when
+the connection closes, so attach again with the same command. Over SSH, the
+status bar shows the hostname before the session name.
+
+When the remote tmux runs inside the local one, the local tmux gets `Ctrl-a`
+first. There are two ways to reach the remote tmux:
+
+- Press `F12`. The local tmux turns its keys off and shows `OFF` in the status
+  bar, so every key goes to the remote tmux. Press `F12` again to turn them
+  back on.
+- Press `Ctrl-a Ctrl-a`, then the key. The local tmux sends one `Ctrl-a` to the
+  remote tmux.
 
 ## Sandboxes
 
