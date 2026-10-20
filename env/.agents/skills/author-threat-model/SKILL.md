@@ -14,8 +14,6 @@ docs/threat-model/
 └── <feature>.md        ← one feature, in the context of product.md
 ```
 
-A repo can also split a product by deployment, such as one machine type of a dotfiles repo. Then `product.md` holds only what every deployment shares, and each deployment gets a feature model (for example, `profile-<name>.md`).
-
 Use the format in [THREAT-MODEL-FORMAT.md](THREAT-MODEL-FORMAT.md) for both. A feature model records only what the feature adds or changes, and refers to the product model's IDs for the rest.
 
 ## Process

@@ -2,7 +2,7 @@
 
 **Kind**: feature
 **Product model**: [product.md](product.md)
-**Origin**: the split of the product model into profile models, #109
+**Origin**: #109
 **Last reviewed**: 2026-10-19
 
 ## Scope
