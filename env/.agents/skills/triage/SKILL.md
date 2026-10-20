@@ -20,7 +20,7 @@ Start every comment and issue that you post with this line:
 
 - **Category**: `bug` (something is broken) or `enhancement` (a new feature or an improvement).
 - **State**: `needs-triage` (the maintainer must evaluate it), `needs-info` (waiting on the reporter), `ready-for-agent` (fully specified for an AFK agent), `ready-for-human` (needs a human to implement), or `wontfix`.
-- **Phase**: `phase: <name>`, in this order: `pre-alpha`, `alpha`, `pre-beta`, `beta`, `pre-ga`, or `ga`. A `pre-X` phase means that the issue must be done before X starts.
+- **Phase**: `phase: <name>`, in this order: `pre-alpha`, `alpha`, `beta`, or `ga`. `pre-alpha` means that the issue must be done before the alpha starts. Each other phase means that the issue is done while that phase is live.
 
 A triaged issue has exactly one category, one state, and one phase. If the repo has no `phase:` labels (`gh label list --search "phase:"`), skip the phase role and its bucket below. For a PR, `ready-for-agent` means that a brief is attached and an agent does the next step on the diff, and `ready-for-human` means that it is ready for a human to merge.
 

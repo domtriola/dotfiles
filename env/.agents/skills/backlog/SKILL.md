@@ -8,7 +8,7 @@ Give the maintainer a bird's-eye view of the open issues, and an order to work t
 
 1. **Ask** the maintainer what their biggest priority is now, for example "ship the alpha" or "keep the agents busy". Wait for the answer.
 2. **Gather.** Read `docs/agents/issue-tracker.md`. If it is missing, stop and tell the user to run the `skills-init` skill. Fetch every open issue with its labels, assignees, and blockers, and every open PR with the issues it closes.
-3. **Find the current phase.** Phase labels are `phase: <name>`, in this order: pre-alpha, alpha, pre-beta, beta, pre-ga, ga. The current phase is the earliest phase that has open issues. Tell the maintainer which phase you use, so that they can correct it. If the repo has no phase labels, use all issues.
+3. **Find the current phase.** Phase labels are `phase: <name>`, in this order: pre-alpha, alpha, beta, ga. The current phase is the earliest phase that has open issues. Tell the maintainer which phase you use, so that they can correct it. If the repo has no phase labels, use all issues.
 4. **Sort** each issue of the current phase into the first bucket that fits, in this order. Use the tracker's rules for **Claimed**, **Blocking**, and **Ready**.
    - **Waiting on review**: claimed, with an open PR. Name the PR.
    - **In progress**: claimed, with no PR.
