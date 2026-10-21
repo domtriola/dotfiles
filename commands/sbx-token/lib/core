@@ -42,13 +42,18 @@ config_load() {
   [[ -n "$app_slug" ]] || die "$sbx_token_config has no slug"
 }
 
-# config_save keeps the expected accounts of an earlier config.
+# config_save keeps the expected accounts of an earlier config. It saves the
+# store only when it is not the platform's default, so that a later run with
+# no SBX_TOKEN_STORE (such as the sbx daemon's renewal) finds the key.
 config_save() {
-  local id="$1" slug="$2" accounts="[]"
+  local id="$1" slug="$2" store="$3" accounts="[]"
+  [[ "$store" != "$(store_default)" ]] || store=""
   mkdir -p "$sbx_token_config_dir"
   [[ ! -f "$sbx_token_config" ]] || accounts="$(jq -c '.expected_accounts // []' "$sbx_token_config")"
-  jq -n --argjson id "$id" --arg slug "$slug" --argjson accounts "$accounts" \
-    '{app_id: $id, slug: $slug} + (if $accounts == [] then {} else {expected_accounts: $accounts} end)' >"$sbx_token_config"
+  jq -n --argjson id "$id" --arg slug "$slug" --arg store "$store" --argjson accounts "$accounts" \
+    '{app_id: $id, slug: $slug}
+      + (if $store == "" then {} else {store: $store} end)
+      + (if $accounts == [] then {} else {expected_accounts: $accounts} end)' >"$sbx_token_config"
 }
 
 # The page where the App is installed on an account.

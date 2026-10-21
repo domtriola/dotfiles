@@ -227,6 +227,47 @@ setup() {
   [ "$output" = "ghs_fake" ]
 }
 
+@test "the file store writes the key with mode 600, and mint reads it back" {
+  export SBX_TOKEN_STORE=file
+  run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
+  [ "$status" -eq 0 ]
+  key_file="$XDG_CONFIG_HOME/sbx-token/private-key"
+  [ "$(stat -c %a "$key_file")" = "600" ]
+  [ "$(openssl base64 -d -A <"$key_file")" = "$(cat "$FAKE_PEM")" ]
+  [ -z "$(find "$XDG_CONFIG_HOME/sbx-token" -name '*.tmp*')" ]
+
+  run "$sbx_token" mint --repo me/app
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_fake" ]
+  [ ! -e "$FAKE_STATE/secret-tool.argv" ]
+  [ ! -e "$FAKE_STATE/security.argv" ]
+}
+
+@test "mint uses the store that import-key saved, when SBX_TOKEN_STORE is not set" {
+  SBX_TOKEN_STORE=file run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
+  [ "$status" -eq 0 ]
+
+  # The sbx daemon runs mint for each renewal, without the operator's shell.
+  unset SBX_TOKEN_STORE
+  run "$sbx_token" mint --repo me/app
+  [ "$status" -eq 0 ]
+  [ "$output" = "ghs_fake" ]
+  [ ! -e "$FAKE_STATE/secret-tool.argv" ]
+}
+
+@test "the file store refuses a key file that other users can read" {
+  export SBX_TOKEN_STORE=file
+  run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
+  [ "$status" -eq 0 ]
+  chmod 640 "$XDG_CONFIG_HOME/sbx-token/private-key"
+
+  run "$sbx_token" mint --repo me/app
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"mode 640"* ]]
+  [[ "$output" == *"chmod 600"* ]]
+  [ ! -s "$FAKE_STATE/curl.log" ] || ! grep -q access_tokens "$FAKE_STATE/curl.log"
+}
+
 @test "no verb asks gh for its token" {
   given_app
   "$sbx_token" mint --repo me/app >/dev/null
