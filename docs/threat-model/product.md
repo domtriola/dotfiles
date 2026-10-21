@@ -17,7 +17,7 @@ Each profile has its own model, `profile-<name>.md`, for what only that profile 
 
 Out of scope:
 
-- **What one profile installs and does**: its setup steps, its downloads, its doctor checks, and its machine. These are in the profile's model. [profile-dev-mac.md](profile-dev-mac.md) covers `dev-mac`. `dev-linux`, `infosec-qubes`, and `ai-server` have no model yet. `sbx-linux` is in scope here only as what the `dotfiles` mixin runs inside a sandbox.
+- **What one profile installs and does**: its setup steps, its downloads, its doctor checks, and its machine. These are in the profile's model. [profile-dev-mac.md](profile-dev-mac.md) covers `dev-mac`. [profile-agent-server.md](profile-agent-server.md) covers `agent-server`. `dev-linux`, `infosec-qubes`, and `ai-server` have no model yet. `sbx-linux` is in scope here only as what the `dotfiles` mixin runs inside a sandbox.
 - **The internals of Docker Sandboxes** (the daemon, the proxy, the firewall, the VM) and of the upstream `claude` kit that `my-claude` extends. The model relies on them. See [Assumptions](#assumptions).
 - **A hostile repository that the operator clones and opens** (for example, an executable `.ready-tmux` that `tmux-sessionizer` runs). The operator chose to keep this adversary out of scope. A file of this kind that a *sandbox* writes is in scope as T10.
 - **Physical access** to a host, and other local users: every host has a single user.
