@@ -268,6 +268,12 @@ setup() {
   [ ! -s "$FAKE_STATE/curl.log" ] || ! grep -q access_tokens "$FAKE_STATE/curl.log"
 }
 
+@test "an unknown store names the stores that exist" {
+  SBX_TOKEN_STORE=files run "$sbx_token" import-key --app-id 99 "$FAKE_PEM"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"unknown secret store 'files'. Use security, secret-tool, or file."* ]]
+}
+
 @test "no verb asks gh for its token" {
   given_app
   "$sbx_token" mint --repo me/app >/dev/null

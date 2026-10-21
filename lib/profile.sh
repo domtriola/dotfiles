@@ -123,6 +123,11 @@ resolve_profile() {
     profile="$(tr -d '[:space:]' <"$PROFILE_FILE")"
   else
     profile="$(detect_profile)"
+    if [[ -z "$profile" ]] && is_ubuntu; then
+      printf 'Cannot detect a profile for this machine: Ubuntu can be ai-server or agent-server.\n' >&2
+      printf 'Pass --profile ai-server or --profile agent-server.\n' >&2
+      return 1
+    fi
     if [[ -z "$profile" ]]; then
       printf 'Cannot detect a profile for this machine (OSTYPE=%s).\n' "$OSTYPE" >&2
       printf 'Pass --profile <name>. Known profiles: %s\n' "$(profile_list)" >&2

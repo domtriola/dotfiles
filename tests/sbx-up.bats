@@ -125,7 +125,24 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   unset DOTFILES_PROFILE
   run sbx_up --no-gh
   [ "$status" -eq 1 ]
-  [[ "$output" == *'"clone": false'*"agent-server"* ]]
+  [[ "$output" == *"turns off the clone"*"agent-server"* ]]
+  [ ! -s "$FAKE_STATE/sbx.log" ]
+}
+
+@test "on agent-server, sbx-up stops for any sandbox that would not be a clone" {
+  mkdir -p "$XDG_CONFIG_HOME/dotfiles"
+  echo agent-server >"$XDG_CONFIG_HOME/dotfiles/profile"
+  unset DOTFILES_PROFILE
+
+  echo '{"clone": null}' >.sbx.json
+  run sbx_up --no-gh
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"agent-server"* ]]
+
+  mkdir "$BATS_TEST_TMPDIR/plain"
+  cd "$BATS_TEST_TMPDIR/plain"
+  run sbx_up --no-gh
+  [ "$status" -eq 1 ]
   [ ! -s "$FAKE_STATE/sbx.log" ]
 }
 

@@ -23,13 +23,15 @@ store_default() {
 # store_backend is $SBX_TOKEN_STORE, then the store that import-key saved in
 # the config, then the platform's default.
 store_backend() {
-  local saved=""
-  if [[ -n "${SBX_TOKEN_STORE:-}" ]]; then
-    printf '%s' "$SBX_TOKEN_STORE"
-    return
+  local backend="${SBX_TOKEN_STORE:-}"
+  if [[ -z "$backend" && -f "$sbx_token_config" ]]; then
+    backend="$(jq -r '.store // empty' "$sbx_token_config" 2>/dev/null)"
   fi
-  [[ ! -f "$sbx_token_config" ]] || saved="$(jq -r '.store // empty' "$sbx_token_config" 2>/dev/null)"
-  printf '%s' "${saved:-$(store_default)}"
+  backend="${backend:-$(store_default)}"
+  case "$backend" in
+  security | secret-tool | file) printf '%s' "$backend" ;;
+  *) die "unknown secret store '$backend'. Use security, secret-tool, or file." ;;
+  esac
 }
 
 # store_file_mode prints the permission bits of the key file, in octal.

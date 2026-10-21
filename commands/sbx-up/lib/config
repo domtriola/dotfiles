@@ -9,7 +9,9 @@
 sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g"}'
 
 # sbx_up_profile prints this machine's profile, read the way lib/profile.sh
-# saves it, or nothing when no profile is set.
+# saves it, or nothing when no profile is set. It does not call
+# resolve_profile, which can ask a question and save the answer: sbx-up only
+# reads the profile.
 sbx_up_profile() {
   local file="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
   if [[ -n "${DOTFILES_PROFILE:-}" ]]; then
@@ -31,13 +33,6 @@ config_load() {
   given="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
 
   [[ -e "$root/.git" ]] && in_git=true
-
-  # Agents on agent-server run for hours with no one watching. A mounted
-  # worktree would let one write files that the box runs later
-  # (agent-server-I13 in docs/threat-model/profile-agent-server.md).
-  if [[ "$(sbx_up_profile)" == "agent-server" ]] && jq -e '.clone == false' <<<"$given" >/dev/null 2>&1; then
-    die "$config sets \"clone\": false, which the agent-server profile does not allow. Remove it, so that the sandbox gets its own clone."
-  fi
 
   override='{}'
   if [[ -n "$agent" ]]; then
@@ -70,6 +65,18 @@ config_load() {
       }
   ' <<<"$given")"; then
     die "could not read $config"
+  fi
+
+  # Agents on agent-server run for hours with no one watching. A mounted
+  # worktree would let one write files that the box runs later, so every
+  # sandbox there is a clone (agent-server-I13 in
+  # docs/threat-model/profile-agent-server.md). The resolved plan is checked,
+  # not the file, so that any value that turns the clone off is caught.
+  if [[ "$(sbx_up_profile)" == "agent-server" ]] && ! jq -e '.args | index("--clone")' <<<"$plan" >/dev/null; then
+    if [[ "$in_git" == true ]]; then
+      die "$config turns off the clone, which the agent-server profile does not allow. Remove \"clone\" from it."
+    fi
+    die "$root is not in git, so it cannot be cloned, and the agent-server profile does not mount a directory. Run sbx-up in a git clone."
   fi
 
   run=(sbx)

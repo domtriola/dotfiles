@@ -16,16 +16,18 @@ hardening_conf="/etc/ssh/sshd_config.d/01-hardening.conf"
 authorized_keys="$HOME/.ssh/authorized_keys"
 
 if [[ -f "$hardening_conf" ]]; then
-  ok "drop-in present" "$hardening_conf"
+  ok "drop-in" "$hardening_conf"
 else
-  fail "drop-in missing" "expected $hardening_conf, run setup 05_hardening"
+  fail "drop-in" "$hardening_conf is missing, run setup 05_hardening"
 fi
 
 # agent-server-I1 and I3. sshd keeps the FIRST value of each directive, so the
 # file proves nothing. sshd -T is the merged result.
 if sshd_effective="$(sudo sshd -T 2>/dev/null)"; then
   for pair in passwordauthentication=no kbdinteractiveauthentication=no permitrootlogin=no \
-    pubkeyauthoptions=verify-required allowagentforwarding=no; do
+    pubkeyauthoptions=verify-required \
+    pubkeyacceptedalgorithms=sk-ssh-ed25519@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com \
+    authorizedkeysfile=.ssh/authorized_keys allowagentforwarding=no; do
     directive="${pair%%=*}"
     want="${pair#*=}"
     value="$(awk -v d="$directive" 'tolower($1) == d { print $2; exit }' <<<"$sshd_effective")"
@@ -39,19 +41,29 @@ else
   warn "effective config unreadable" "sudo sshd -T failed"
 fi
 
-# agent-server-I1: only security keys can log in.
+# agent-server-I1: only security keys can log in. The key type is the first
+# field that looks like one, because options can come before it. A comment
+# that holds "sk-" must not count.
 if [[ -s "$authorized_keys" ]]; then
-  keys="$(grep -vE '^\s*(#|$)' "$authorized_keys" || true)"
-  other_keys="$(grep -cvE '(^| )sk-' <<<"$keys" || true)"
-  if [[ -z "$keys" ]]; then
+  key_types="$(awk '!/^[[:space:]]*(#|$)/ {
+    for (i = 1; i <= NF; i++) if ($i ~ /^(sk-|ssh-|ecdsa-)/) { print $i; next }
+    print "unknown"
+  }' "$authorized_keys")"
+  total="$(grep -c . <<<"$key_types" || true)"
+  other_keys="$(grep -cvx 'sk-ssh-ed25519@openssh.com' <<<"$key_types" || true)"
+  if [[ -z "$key_types" ]]; then
     fail "authorized_keys" "no keys, password login is off"
   elif [[ "$other_keys" -gt 0 ]]; then
-    fail "authorized_keys" "$other_keys key(s) that are not security keys, remove them"
+    fail "authorized_keys" "$other_keys key(s) that are not YubiKey keys (sk-ssh-ed25519), remove them"
   else
-    ok "authorized_keys" "$(grep -c . <<<"$keys") security key(s)"
+    ok "authorized_keys" "$total YubiKey key(s)"
   fi
 else
   fail "authorized_keys" "missing or empty, password login is off"
+fi
+
+if [[ -e "$HOME/.ssh/authorized_keys2" ]]; then
+  fail "authorized_keys2" "present, remove it"
 fi
 
 # ---------------------------------------------------------------------------
@@ -134,12 +146,12 @@ if have netbird; then
     else
       fail "netbird" "the management service is not connected, so SSH may not answer"
     fi
-    ok "address" "$(jq -r '.netbirdIp // "unknown"' <<<"$nb_json")"
+    status info "address" "$(jq -r '.netbirdIp // "unknown"' <<<"$nb_json")"
   else
     warn "netbird" "status unreadable"
   fi
 else
-  pending "netbird" "not installed, run setup 25_network"
+  fail "netbird" "not installed, run setup 25_network"
 fi
 
 # ---------------------------------------------------------------------------
@@ -260,12 +272,13 @@ key_file="$token_dir/private-key"
 if [[ ! -f "$token_config" ]]; then
   pending "App key" "not imported, see profiles/agent-server/bootstrap.md"
 elif [[ "$(jq -r '.store // empty' "$token_config" 2>/dev/null)" != "file" ]]; then
-  fail "App key" "the config does not name the file store, so renewals fail. Run SBX_TOKEN_STORE=file sbx-token import-key again"
+  fail "App key" "not in the file store, renewals fail, import it again with SBX_TOKEN_STORE=file"
 elif [[ ! -f "$key_file" ]]; then
   fail "App key" "$key_file is missing"
 else
+  # The same test as sbx-token: no bit for the group or others.
   key_mode="$(stat -c '%a' "$key_file" 2>/dev/null)"
-  if [[ "$key_mode" == "600" || "$key_mode" == "400" ]]; then
+  if [[ "$key_mode" =~ ^[0-7]+$ ]] && (((8#$key_mode & 8#177) == 0)); then
     ok "App key" "$key_file, mode $key_mode"
   else
     fail "App key" "$key_file has mode $key_mode, run chmod 600 $key_file"

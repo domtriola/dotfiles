@@ -8,13 +8,18 @@
 # NetBird's own SSH server stays off, so every login goes through sshd and the
 # YubiKey (agent-server-I9).
 #
-# The setup key is a secret, so it is never stored. Give it for the first run:
+# The setup key is a secret, so it is never stored. Give it for the first run,
+# as profiles/agent-server/bootstrap.md says:
 #
-#   NETBIRD_SETUP_KEY='<key>' setup 25_network
+#   read -rs NETBIRD_SETUP_KEY && export NETBIRD_SETUP_KEY && setup 25_network
 #
 # Take a one-off key from the dashboard. A run after that needs no key.
 
 set -eo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/style.sh
+source "$root_dir/lib/style.sh"
 
 iface="wt0" # the default WireGuard interface of the NetBird client
 keyring="/usr/share/keyrings/netbird-archive-keyring.asc"
@@ -41,7 +46,7 @@ fi
 if [[ -f "$keyring" ]] && [[ "$(sha256sum "$keyring" | cut -d' ' -f1)" == "$key_sha256" ]]; then
   echo "$keyring is already correct."
 else
-  echo "--- the netbird repository key ---"
+  section "The NetBird repository key"
   tmp_key="$(mktemp)"
   curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp_key" "$key_url"
   got="$(sha256sum "$tmp_key" | cut -d' ' -f1)"
@@ -71,7 +76,7 @@ fi
 if command -v netbird >/dev/null 2>&1; then
   echo "netbird is already installed: $(netbird version 2>/dev/null || echo 'version unknown')"
 else
-  echo "--- installing the netbird client ---"
+  section "Installing the NetBird client"
   sudo apt-get update -qq
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends netbird
 fi
@@ -98,7 +103,7 @@ overlay_connected() {
 if overlay_connected; then
   echo "Already registered: the management service is connected."
 elif [[ -n "${NETBIRD_SETUP_KEY:-}" ]]; then
-  echo "--- registering this machine ---"
+  section "Registering this machine"
   # The key goes through a file of mode 600, not on the command line.
   key_file="$(umask 077 && mktemp)"
   trap 'rm -f "$key_file"' EXIT
@@ -114,7 +119,7 @@ Not registered, and \$NETBIRD_SETUP_KEY is empty. Skipping.
 
 Take a one-off setup key from the dashboard, then:
 
-  NETBIRD_SETUP_KEY='<key>' setup 25_network
+  read -rs NETBIRD_SETUP_KEY && export NETBIRD_SETUP_KEY && setup 25_network
 
 SSH stays on the general rule from 05_hardening until this step runs again.
 EOF
@@ -138,7 +143,7 @@ echo "Overlay address: $overlay_ip on $iface"
 # ---------------------------------------------------------------------------
 # SSH on the overlay only
 # ---------------------------------------------------------------------------
-echo "--- ssh over the overlay ---"
+section "SSH over the overlay"
 peers_connected="$(netbird status --json 2>/dev/null | jq -r '.peers.connected // 0')"
 if [[ ! "$peers_connected" =~ ^[0-9]+$ ]] || [[ "$peers_connected" -lt 1 ]]; then
   cat >&2 <<EOF
@@ -179,7 +184,7 @@ keeps working, because the rules apply to new connections:
 The doms-agents entry in ~/.ssh/config.d/hosts on the Mac must use the
 overlay address $overlay_ip, or the NetBird name of this machine.
 
-In the dashboard, delete the "Default" policy, which lets every peer reach
-every other peer. Replace it with one policy: source the operator's client
-group, destination this machine, TCP port 22, one way.
+In the dashboard, the "Default" policy must be gone (it lets every peer reach
+every other peer), and one policy must let only your client group reach this
+machine, on TCP port 22, one way.
 EOF

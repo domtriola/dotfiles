@@ -25,7 +25,8 @@ These work together. `sync-env` copies the commands into `~/.local/bin`;
 | `.ready-tmux`      | Per-project or global. Defines the windows and panes to set up.                   |
 
 `tmux-sessionizer` searches a fixed list of directories, set in the script. It runs `ready-tmux` only for a session it creates, so switching back to
-an open session leaves its windows alone.
+an open session leaves its windows alone. On a machine without `ready-tmux`
+(the `agent-server` profile), a new session is one plain shell.
 
 The session name is the directory name, with `:`, `,`, `.` and spaces replaced
 by underscores.

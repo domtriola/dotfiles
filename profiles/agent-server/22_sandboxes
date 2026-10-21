@@ -11,6 +11,10 @@
 
 set -eo pipefail
 
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/style.sh
+source "$root_dir/lib/style.sh"
+
 keyring="/etc/apt/keyrings/docker.asc"
 sources="/etc/apt/sources.list.d/docker.list"
 key_url="https://download.docker.com/linux/ubuntu/gpg"
@@ -43,7 +47,7 @@ deb [arch=$arch signed-by=$keyring] $repo_url $codename stable"
 if [[ -f "$keyring" ]] && [[ "$(sha256sum "$keyring" | cut -d' ' -f1)" == "$key_sha256" ]]; then
   echo "$keyring is already correct."
 else
-  echo "--- the docker repository key ---"
+  section "The Docker repository key"
   tmp_key="$(mktemp)"
   curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp_key" "$key_url"
   got="$(sha256sum "$tmp_key" | cut -d' ' -f1)"
@@ -81,7 +85,7 @@ if command -v sbx >/dev/null 2>&1; then
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade docker-sbx
   fi
 else
-  echo "--- installing sbx ---"
+  section "Installing sbx"
   sudo apt-get update -qq
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-sbx
 fi

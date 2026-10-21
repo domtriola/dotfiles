@@ -66,11 +66,11 @@ mkdir -p ~/src/personal && cd ~/src/personal
 git clone https://github.com/domtriola/dotfiles.git
 cd dotfiles
 ./commands/setup/setup --profile agent-server --dry
-./commands/setup/setup
+./commands/setup/setup --profile agent-server
 ./commands/sync-env/sync-env
 ```
 
-Name the profile once. It is saved, and later runs reuse it. Ubuntu detects no profile, so that neither drive gets the other's profile by a wrong guess.
+The real run saves the profile, and later runs reuse it. A dry run saves nothing. Ubuntu detects no profile, so that neither drive gets the other's profile by a wrong guess.
 
 `25_network` skips the NetBird registration on this run, because it needs a setup key. Log out and in again, so that the `kvm` group applies.
 
@@ -79,8 +79,12 @@ Name the profile once. It is saved, and later runs reuse it. Ubuntu detects no p
 Take a one-off setup key from the NetBird dashboard. In the dashboard, delete the "Default" policy, and make one policy: source your client group, destination this machine, TCP port 22, one way. Connect the Mac to NetBird. Then, on the box:
 
 ```console
-NETBIRD_SETUP_KEY='<key>' setup 25_network
+read -rs -p 'Setup key: ' NETBIRD_SETUP_KEY && export NETBIRD_SETUP_KEY
+setup 25_network
+unset NETBIRD_SETUP_KEY
 ```
+
+`read -s` keeps the key out of the screen and the shell history.
 
 When a peer is connected, SSH moves to the NetBird interface `wt0`, and the LAN cannot reach it. Before you close the session, change `HostName` of the `doms-agents` entry to the address that the step prints, and check that `ssh doms-agents` works. If it does not, use the box's keyboard.
 

@@ -93,7 +93,7 @@ PLATFORM
 
   run "$setup_cmd" </dev/null
   [ "$status" -eq 1 ]
-  [[ "$output" == *"Cannot detect a profile"*"Pass --profile"* ]]
+  [[ "$output" == *"Cannot detect a profile"*"ai-server or agent-server"*"Pass --profile"* ]]
   [[ "$output" == *"agent-server"* ]]
   [ ! -e "$XDG_CONFIG_HOME/dotfiles/profile" ]
 }

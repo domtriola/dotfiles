@@ -137,13 +137,13 @@ flowchart LR
 | agent-server-T11 | I, T | A device on a USB4 port reads or writes the memory of the running box (DMA). | agent-server-B3 | low | high | mitigated | agent-server-I6 |
 | agent-server-T12 | I | A thief reads the disk of a stolen box or drive. | agent-server-B3 | medium | high | mitigated | agent-server-I7 |
 | agent-server-T13 | T, I, E | A person at the operator's home attacks the running box: the console, the memory, boot from USB, or the firmware settings. No firmware password is set. | agent-server-B3 | low | high | accepted | agent-server-I4 and agent-server-I6 cover part of it. |
-| agent-server-T14 | T | The NetBird repository key is replaced, and the next install runs code as root. | B1 | low | high | mitigated | agent-server-I8 |
+| agent-server-T14 | T | The NetBird repository key is replaced, and the next install runs code as root. | B1 | low | high | planned (#109) | agent-server-I8 |
 | agent-server-T15 | E | A kernel or service bug that a security update fixes stays live, because the box does not reboot by itself. | B1 | medium | medium | accepted | agent-server-I11 tells the operator. |
 | agent-server-T16 | D | An unattended reboot after an update stops the box at the LUKS prompt until the operator is home. | B1 | medium | medium | mitigated | agent-server-I11 |
 | agent-server-T17 | D | The box suspends while the operator is away, and the agents stop. | none | medium | medium | mitigated | agent-server-I12 |
 | agent-server-T18 | D | A token renewal fails with no sign while the operator is away, so the agents cannot push for hours. | B7 | medium | low | accepted | None. |
 | agent-server-T19 | T | A sandbox agent sets the laptop's clipboard through OSC 52 in its output, and the operator pastes it into a laptop shell. | agent-server-B4 | medium | high | mitigated | agent-server-I10 |
-| agent-server-T20 | E | A `.sbx.json` with `"clone": false` mounts a box clone into a sandbox, which can then write `.git/hooks`, `.git/config`, or `.sbx.json` that the box runs or reads (product T10 on the box). | B3 | low | high | mitigated | agent-server-I13 |
+| agent-server-T20 | E | A `.sbx.json` that turns off the clone (for example `"clone": false` or `null`) mounts a box clone into a sandbox, which can then write `.git/hooks`, `.git/config`, or `.sbx.json` that the box runs or reads (product T10 on the box). | B3 | low | high | mitigated | agent-server-I13 |
 
 STRIDE categories that have no threat above:
 
@@ -159,7 +159,7 @@ STRIDE categories that have no threat above:
 
 | ID  | Invariant | Enforced in | Mitigates |
 | --- | --------- | ----------- | --------- |
-| agent-server-I1 | `sshd` sets `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin no`, and `PubkeyAuthOptions verify-required`, as `sshd -T` reads them. Every key in `authorized_keys` is an `sk-` key. Doctor fails when one of these is not true. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T1, agent-server-T3 |
+| agent-server-I1 | `sshd` sets `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin no`, `PubkeyAuthOptions verify-required`, `PubkeyAcceptedAlgorithms` with only the `sk-ssh-ed25519` types, and `AuthorizedKeysFile .ssh/authorized_keys`, as `sshd -T` reads them. Every key in `authorized_keys` is an `sk-` key. Doctor fails when one of these is not true. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T1, agent-server-T3 |
 | agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. Doctor fails when ufw is off, or when it has a rule for 22/tcp that is not on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2 |
 | agent-server-I3 | `sshd` sets `AllowAgentForwarding no`, as `sshd -T` reads it. | `profiles/agent-server/05_hardening` | agent-server-T7 |
 | agent-server-I4 | No file in `/etc/sudoers` or `/etc/sudoers.d/` gives the operator a `NOPASSWD` rule. No step adds one. Doctor fails when `sudo -n -l` lists a `NOPASSWD` rule. | `profiles/agent-server/*`, `profiles/agent-server/lib/doctor.sh` | agent-server-T5 |
@@ -171,7 +171,7 @@ STRIDE categories that have no threat above:
 | agent-server-I10 | `.tmux.conf` sets `set-clipboard external`, never `on`, so a program in a pane cannot set or read the laptop's clipboard. | `env/.tmux.conf` | agent-server-T19 |
 | agent-server-I11 | Unattended upgrades install security updates and never reboot (`Unattended-Upgrade::Automatic-Reboot "false"`, as `apt-config dump` reads it). Doctor reports when a reboot is necessary. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T15, agent-server-T16 |
 | agent-server-I12 | The sleep, suspend, and hibernate targets are masked. Doctor fails when one is not. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T17 |
-| agent-server-I13 | On the `agent-server` profile, `sbx-up` stops when a project's `.sbx.json` sets `"clone": false`. | `sbx-up` (`config_load`) | agent-server-T20 |
+| agent-server-I13 | On the `agent-server` profile, `sbx-up` stops when the resolved sandbox is not a clone: a `.sbx.json` with any value of `"clone"` that turns it off, or a project outside git. | `sbx-up` (`config_load`) | agent-server-T20 |
 
 ## Accepted risks
 
