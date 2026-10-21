@@ -11,5 +11,6 @@
     "command": "bash $HOME/.local/bin/statusline.sh"
   },
   "tui": "fullscreen",
-  "remoteControlAtStartup": false
+  "remoteControlAtStartup": false,
+  "skipDangerousModePermissionPrompt": true
 }

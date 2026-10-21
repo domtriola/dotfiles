@@ -12,8 +12,8 @@ sbx run ./sbx/kits/sandboxes/my-claude
 ## What it changes
 
 - `files/home/.config/my-claude/settings.json` holds the settings: the model,
-  the status line, a full-screen TUI, the telemetry and auto-update switches,
-  and a small permission denylist.
+  the status line, a full-screen TUI, no bypass-permissions prompt at startup,
+  the telemetry and auto-update switches, and a small permission denylist.
 - `files/home/.local/bin/statusline.sh` draws the status line.
 - `agentInstructions` in `spec.yaml` adds the language preferences.
 - `setup.install` in `spec.yaml` installs a pinned `gh` release over the old
