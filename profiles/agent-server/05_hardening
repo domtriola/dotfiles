@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+#
+# SSH with the YubiKey only, the firewall, updates that never reboot, and no
+# sleep.
+#
+# This runs first because it closes the door the machine is reached through.
+# The invariants that it keeps are in docs/threat-model/profile-agent-server.md
+# (agent-server-I1 to I3, I11 and I12).
+
+set -eo pipefail
+
+hardening_conf="/etc/ssh/sshd_config.d/01-hardening.conf"
+authorized_keys="$HOME/.ssh/authorized_keys"
+
+# ---------------------------------------------------------------------------
+# Guard: refuse to require the YubiKey before its key can log in.
+# ---------------------------------------------------------------------------
+#
+# verify-required refuses every key that does not ask for a PIN and a touch,
+# which includes the Mac's Secure Enclave key. So the YubiKey key must be in
+# authorized_keys first, or this step locks the machine out.
+if ! grep -qE '^[^#]*sk-ssh-ed25519@openssh\.com ' "$authorized_keys" 2>/dev/null; then
+  cat >&2 <<EOF
+05_hardening: $authorized_keys has no YubiKey key (sk-ssh-ed25519).
+
+This step makes sshd refuse every key without a PIN and a touch, so it would
+lock this machine out. Add the YubiKey key first, from the Mac, while the
+current key still works (profiles/agent-server/bootstrap.md, "SSH with the
+YubiKey"):
+
+  ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub doms-agents
+
+Then run this again.
+EOF
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# SSH
+# ---------------------------------------------------------------------------
+echo "--- sshd ---"
+echo "Writing $hardening_conf"
+sudo tee "$hardening_conf" >/dev/null <<'EOF'
+# Managed by dotfiles: profiles/agent-server/05_hardening
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+PubkeyAuthOptions verify-required
+AllowAgentForwarding no
+EOF
+sudo chmod 644 "$hardening_conf"
+
+# sshd -t rejects a broken file. The && keeps a bad config away from a restart.
+sudo sshd -t && sudo systemctl restart ssh.service
+
+# sshd -T prints the merged configuration. It is the only output that shows
+# which file won, so it is what this checks rather than the file just written.
+echo "Effective settings:"
+effective="$(sudo sshd -T)"
+for pair in passwordauthentication=no kbdinteractiveauthentication=no permitrootlogin=no \
+  pubkeyauthoptions=verify-required allowagentforwarding=no; do
+  directive="${pair%%=*}"
+  want="${pair#*=}"
+  value="$(awk -v d="$directive" 'tolower($1) == d { print $2; exit }' <<<"$effective")"
+  printf '  %-32s %s\n' "$directive" "${value:-<unset>}"
+
+  if [[ "$value" != "$want" ]]; then
+    cat >&2 <<EOF
+
+05_hardening: $directive is "${value:-<unset>}", not "$want".
+
+Another file in /etc/ssh/sshd_config.d/ sets it first. Find it, and either
+remove its setting or give this drop-in a lower number:
+
+  grep -ri '$directive' /etc/ssh/sshd_config.d/ /etc/ssh/sshd_config
+EOF
+    exit 1
+  fi
+done
+
+if other_keys="$(grep -vE '^\s*(#|$)' "$authorized_keys" | grep -vE '(^| )sk-' || true)" &&
+  [[ -n "$other_keys" ]]; then
+  echo "WARNING: $authorized_keys has keys that are not security keys." >&2
+  echo "  sshd refuses them now, but remove them: doctor fails while they are there." >&2
+fi
+
+# ---------------------------------------------------------------------------
+# Firewall
+# ---------------------------------------------------------------------------
+echo "--- ufw ---"
+
+# SSH answers only on the NetBird interface (agent-server-I2). Until
+# 25_network has added that rule, a rate-limited general rule keeps the
+# operator in. 25_network removes it, and this step never adds it back.
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+if sudo ufw status | grep -qE '^22/tcp on wt0 +ALLOW'; then
+  echo "SSH answers on wt0 only, so there is no general rule for 22/tcp."
+else
+  sudo ufw limit 22/tcp
+fi
+
+# --force skips the "may disrupt existing ssh connections" prompt, which would
+# hang an unattended run. The rule above is what makes skipping it safe.
+sudo ufw --force enable
+sudo ufw status verbose
+
+if ! grep -q '^IPV6=yes' /etc/default/ufw; then
+  echo "WARNING: IPV6 is not enabled in /etc/default/ufw." >&2
+  echo "  Inbound IPv6 is unfiltered." >&2
+fi
+
+# ---------------------------------------------------------------------------
+# Updates: install security updates, never reboot
+# ---------------------------------------------------------------------------
+#
+# A reboot stops the box at the LUKS prompt until the operator is home, so
+# updates never reboot it. doctor reports when a reboot is necessary.
+echo "--- unattended-upgrades ---"
+
+if ! dpkg-query -W -f='${Status}' unattended-upgrades 2>/dev/null | grep -q 'ok installed'; then
+  echo "Installing unattended-upgrades."
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends unattended-upgrades
+fi
+
+no_reboot_conf="/etc/apt/apt.conf.d/99-agent-server-no-reboot"
+no_reboot_desired='// Managed by dotfiles: profiles/agent-server/05_hardening
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Automatic-Reboot "false";'
+
+if [[ -f "$no_reboot_conf" ]] && [[ "$(cat "$no_reboot_conf")" == "$no_reboot_desired" ]]; then
+  echo "$no_reboot_conf is already correct."
+else
+  echo "Writing $no_reboot_conf"
+  printf '%s\n' "$no_reboot_desired" | sudo tee "$no_reboot_conf" >/dev/null
+  sudo chmod 644 "$no_reboot_conf"
+fi
+
+# apt reads the files in lexical order, and the last value wins. A later file
+# could turn the reboot back on, so this checks what apt reads.
+reboot_value="$(apt-config dump 2>/dev/null |
+  sed -n 's/^Unattended-Upgrade::Automatic-Reboot "\(.*\)";$/\1/p' | tail -1)"
+echo "  Unattended-Upgrade::Automatic-Reboot: ${reboot_value:-<unset>}"
+if [[ "$reboot_value" != "false" ]]; then
+  echo "05_hardening: apt reads Automatic-Reboot as '${reboot_value:-<unset>}'." >&2
+  echo "  Find what sets it: grep -r Automatic-Reboot /etc/apt/apt.conf.d/" >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Sleep
+# ---------------------------------------------------------------------------
+#
+# The agents run while the operator is away. A server install rarely suspends,
+# but a masked target cannot start, whatever asks for it.
+echo "--- sleep ---"
+for target in sleep.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target; do
+  if [[ "$(systemctl is-enabled "$target" 2>/dev/null)" == "masked" ]]; then
+    echo "$target is already masked."
+  else
+    echo "Masking $target"
+    sudo systemctl mask "$target" >/dev/null
+  fi
+done

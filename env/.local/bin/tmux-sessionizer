@@ -39,5 +39,8 @@ tmux new-session -ds "$session_name" -c "$selected_dir"
 switch_to
 
 # Send ready command to the new tmux session (rather than having it execute in
-# source location)
-tmux send-keys -t "$session_name" "ready-tmux" ^M
+# source location). A machine without ready-tmux (agent-server) gets a plain
+# shell, so that no .ready-tmux from a repository runs there.
+if command -v ready-tmux >/dev/null 2>&1; then
+  tmux send-keys -t "$session_name" "ready-tmux" ^M
+fi

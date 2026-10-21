@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# The packages this machine needs to run sandboxes, and nothing more.
+#
+# Everything comes from apt. There is no editor and no language runtime: the
+# operator does not edit code on this machine. sbx comes in 22_sandboxes.
+#
+# Each package names a command that proves it is present, so a rerun does
+# nothing and only touches the package lists when there is work to do.
+
+set -eo pipefail
+
+# <package>:<command that proves the package is present>
+packages=(
+  git:git
+  curl:curl
+  jq:jq
+  fzf:fzf
+  tmux:tmux
+  # sbx-token signs the App's JWT with it.
+  openssl:openssl
+  ufw:ufw
+  # 12_storage and doctor read the volume group with it.
+  lvm2:vgs
+)
+
+missing=()
+for entry in "${packages[@]}"; do
+  command -v "${entry#*:}" >/dev/null 2>&1 || missing+=("${entry%%:*}")
+done
+
+if [[ ${#missing[@]} -eq 0 ]]; then
+  echo "All packages are already installed."
+else
+  echo "Installing: ${missing[*]}"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi

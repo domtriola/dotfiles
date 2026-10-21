@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+#
+# NetBird, and SSH through NetBird only.
+#
+# The operator reaches this machine only over the NetBird overlay, also at
+# home. When a peer is connected, SSH moves to the overlay interface, and the
+# general rule for 22/tcp that 05_hardening added goes (agent-server-I2).
+# NetBird's own SSH server stays off, so every login goes through sshd and the
+# YubiKey (agent-server-I9).
+#
+# The setup key is a secret, so it is never stored. Give it for the first run:
+#
+#   NETBIRD_SETUP_KEY='<key>' setup 25_network
+#
+# Take a one-off key from the dashboard. A run after that needs no key.
+
+set -eo pipefail
+
+iface="wt0" # the default WireGuard interface of the NetBird client
+keyring="/usr/share/keyrings/netbird-archive-keyring.asc"
+sources="/etc/apt/sources.list.d/netbird.list"
+key_url="https://pkgs.netbird.io/debian/public.key"
+repo_url="https://pkgs.netbird.io/debian"
+
+# The SHA-256 of the repository's signing key (agent-server-I8). Move it only
+# after a check of why the key changed.
+key_sha256="NETBIRD_KEY_SHA256_PLACEHOLDER"
+
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "25_network: no apt-get. This profile targets Ubuntu Server." >&2
+  exit 1
+fi
+if ! command -v jq >/dev/null 2>&1; then
+  echo "25_network: jq is missing. Run 10_packages first." >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# The client
+# ---------------------------------------------------------------------------
+if [[ -f "$keyring" ]] && [[ "$(sha256sum "$keyring" | cut -d' ' -f1)" == "$key_sha256" ]]; then
+  echo "$keyring is already correct."
+else
+  echo "--- the netbird repository key ---"
+  tmp_key="$(mktemp)"
+  curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp_key" "$key_url"
+  got="$(sha256sum "$tmp_key" | cut -d' ' -f1)"
+  if [[ "$got" != "$key_sha256" ]]; then
+    rm -f "$tmp_key"
+    echo "25_network: the repository key does not match its pinned digest." >&2
+    echo "  expected $key_sha256" >&2
+    echo "  got      $got" >&2
+    echo "Nothing was installed. Find out why it changed before moving the pin." >&2
+    exit 1
+  fi
+  echo "  digest ok"
+  sudo install -m 644 "$tmp_key" "$keyring"
+  rm -f "$tmp_key"
+fi
+
+desired_list="# Managed by dotfiles: profiles/agent-server/25_network
+deb [signed-by=$keyring] $repo_url stable main"
+if [[ -f "$sources" ]] && [[ "$(cat "$sources")" == "$desired_list" ]]; then
+  echo "$sources is already correct."
+else
+  echo "Writing $sources"
+  printf '%s\n' "$desired_list" | sudo tee "$sources" >/dev/null
+  sudo chmod 644 "$sources"
+fi
+
+if command -v netbird >/dev/null 2>&1; then
+  echo "netbird is already installed: $(netbird version 2>/dev/null || echo 'version unknown')"
+else
+  echo "--- installing the netbird client ---"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends netbird
+fi
+
+if ! systemctl cat netbird.service >/dev/null 2>&1; then
+  echo "Installing the netbird service unit."
+  sudo netbird service install
+fi
+systemctl is-enabled --quiet netbird 2>/dev/null || sudo systemctl enable netbird >/dev/null
+if ! systemctl is-active --quiet netbird; then
+  echo "Starting the netbird service."
+  sudo systemctl start netbird
+fi
+
+# ---------------------------------------------------------------------------
+# Registration
+# ---------------------------------------------------------------------------
+overlay_connected() {
+  local json
+  json="$(netbird status --json 2>/dev/null)" || return 1
+  [[ "$(jq -r '.management.connected // false' <<<"$json")" == "true" ]]
+}
+
+if overlay_connected; then
+  echo "Already registered: the management service is connected."
+elif [[ -n "${NETBIRD_SETUP_KEY:-}" ]]; then
+  echo "--- registering this machine ---"
+  # The key goes through a file of mode 600, not on the command line.
+  key_file="$(umask 077 && mktemp)"
+  trap 'rm -f "$key_file"' EXIT
+  printf '%s' "$NETBIRD_SETUP_KEY" >"$key_file"
+  echo "netbird up can take minutes on a first registration. Watch it with: journalctl -u netbird -f"
+  # No --allow-server-ssh: NetBird's own SSH server stays off (agent-server-I9).
+  sudo timeout 900 netbird up --setup-key-file "$key_file" --hostname "$(hostname)"
+  rm -f "$key_file"
+  trap - EXIT
+else
+  cat <<EOF
+Not registered, and \$NETBIRD_SETUP_KEY is empty. Skipping.
+
+Take a one-off setup key from the dashboard, then:
+
+  NETBIRD_SETUP_KEY='<key>' setup 25_network
+
+SSH stays on the general rule from 05_hardening until this step runs again.
+EOF
+  exit 0
+fi
+
+overlay_ip=""
+for attempt in $(seq 1 30); do
+  overlay_ip="$(ip -4 -br addr show "$iface" 2>/dev/null | awk '{print $3}' | cut -d/ -f1)"
+  [[ -n "$overlay_ip" ]] && break
+  [[ "$attempt" -eq 1 ]] && echo "Waiting up to 30 seconds for $iface to get an address."
+  sleep 1
+done
+if [[ -z "$overlay_ip" ]]; then
+  echo "25_network: $iface has no IPv4 address after 30 seconds." >&2
+  echo "  netbird status --detail; journalctl -u netbird -n 50" >&2
+  exit 1
+fi
+echo "Overlay address: $overlay_ip on $iface"
+
+# ---------------------------------------------------------------------------
+# SSH on the overlay only
+# ---------------------------------------------------------------------------
+echo "--- ssh over the overlay ---"
+peers_connected="$(netbird status --json 2>/dev/null | jq -r '.peers.connected // 0')"
+if [[ ! "$peers_connected" =~ ^[0-9]+$ ]] || [[ "$peers_connected" -lt 1 ]]; then
+  cat >&2 <<EOF
+25_network: no peer is connected, so SSH was left as it is.
+
+Removing the general rule for 22/tcp now could lock you out, because nothing
+is proven to reach this machine over $iface. Connect the Mac to NetBird, check
+it here, and run this again:
+
+  netbird status --detail
+EOF
+  exit 1
+fi
+echo "Peers connected: $peers_connected"
+
+sudo ufw allow in on "$iface" to any port 22 proto tcp
+# A general rule shows as "22/tcp" (or "22/tcp (v6)") and then spaces. An
+# interface rule shows as "22/tcp on wt0", so the patterns cannot match it.
+# One delete removes the IPv4 and the IPv6 rule.
+status="$(sudo ufw status)"
+if grep -qE '^22/tcp( \(v6\))? +LIMIT' <<<"$status"; then
+  echo "Removing the general rule: limit 22/tcp"
+  sudo ufw delete limit 22/tcp
+fi
+if grep -qE '^22/tcp( \(v6\))? +ALLOW' <<<"$status"; then
+  echo "Removing the general rule: allow 22/tcp"
+  sudo ufw delete allow 22/tcp
+fi
+
+cat <<EOF
+SSH now answers on $iface only.
+
+Test it from the Mac BEFORE you close this session. A session that is open
+keeps working, because the rules apply to new connections:
+
+  ssh doms-agents
+
+The doms-agents entry in ~/.ssh/config.d/hosts on the Mac must use the
+overlay address $overlay_ip, or the NetBird name of this machine.
+
+In the dashboard, delete the "Default" policy, which lets every peer reach
+every other peer. Replace it with one policy: source the operator's client
+group, destination this machine, TCP port 22, one way.
+EOF

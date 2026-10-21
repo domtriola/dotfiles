@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# Give the root volume the disk that the installer left unallocated.
+#
+# The Ubuntu Server installer builds an LVM volume group across the whole drive
+# (inside LUKS), and then gives the root volume about 100 GB. The sandboxes,
+# their images, and the clones need the rest.
+#
+# Growing is online: no unmount, no reboot. It is also the only easy direction,
+# because shrinking an ext4 root filesystem needs a rescue boot. So it asks
+# first when a terminal is there.
+
+set -eo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/prompt.sh
+source "$root_dir/lib/prompt.sh"
+
+# Below this, the leftover is not worth a disk operation.
+min_free_gib=10
+
+if ! command -v vgs >/dev/null 2>&1; then
+  echo "No LVM tools, so nothing to extend."
+  exit 0
+fi
+
+vg_free_gib="$(sudo vgs --noheadings --units g -o vg_free 2>/dev/null |
+  tr -dc '0-9.' | cut -d. -f1)"
+if [[ -z "$vg_free_gib" ]]; then
+  echo "Could not read the volume group. Skipping."
+  exit 0
+fi
+if [[ "$vg_free_gib" -lt "$min_free_gib" ]]; then
+  echo "The volume group has ${vg_free_gib} GiB free, which is not worth claiming."
+  exit 0
+fi
+
+lv_path="$(df --output=source / 2>/dev/null | tail -1)"
+if [[ "$lv_path" != /dev/* ]] || ! sudo lvs "$lv_path" >/dev/null 2>&1; then
+  echo "12_storage: / is on '$lv_path', which is not a logical volume. Skipping." >&2
+  exit 0
+fi
+
+echo "Root volume:  $lv_path ($(df -h --output=size / | tail -1 | tr -d ' '))"
+echo "Unallocated:  ${vg_free_gib} GiB in the volume group"
+
+if ! confirm "Give all of it to the root volume?"; then
+  echo "Not extending."
+  exit 0
+fi
+
+sudo lvextend -l "+100%FREE" -r "$lv_path"
+echo
+df -h /
