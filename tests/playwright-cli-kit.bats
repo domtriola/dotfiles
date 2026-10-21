@@ -17,6 +17,7 @@ setup() {
   mkdir -p "$workspace"
   : >"$FAKE_STATE/npm.log"
   : >"$FAKE_STATE/playwright-cli.log"
+  export PLAYWRIGHT_CLI_VERSION=0.1.22
 
   # The fake curl answers only like the GitHub API, so this file uses the real
   # one, ahead of the fakes on PATH.
@@ -103,7 +104,7 @@ run_install() {
   echo '{"name": "app"}' >"$workspace/package.json"
   run_install
   [ "$(cat "$status_file")" = "ready" ]
-  [ "$(cat "$FAKE_STATE/npm.log")" = "install -g --prefix $HOME/.local/share/playwright-cli-kit/node @playwright/cli@latest" ]
+  [ "$(cat "$FAKE_STATE/npm.log")" = "install -g --ignore-scripts --prefix $HOME/.local/share/playwright-cli-kit/node @playwright/cli@0.1.22" ]
   [ "$(ls "$workspace")" = "package.json" ]
 }
 
@@ -141,6 +142,12 @@ installed_node() {
   echo '{"name": "app", "engines": {"node": ">=20"}}' >"$workspace/package.json"
   run_install
   [ "$(installed_node)" = "v24.11.0" ]
+}
+
+@test "a range with an upper bound in engines gets the newest release of its lower major" {
+  echo '{"engines": {"node": ">=20 <22"}}' >"$workspace/package.json"
+  run_install
+  [ "$(installed_node)" = "v20.19.0" ]
 }
 
 @test ".nvmrc wins over engines" {

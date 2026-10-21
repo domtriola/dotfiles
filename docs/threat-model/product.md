@@ -12,7 +12,7 @@ Each profile has its own model, `profile-<name>.md`, for what only that profile 
 - **Commands**: `sync-env`, `setup`, `doctor`, `pull-nvim`, `sync-skills`, `sbx-up`, `sbx-shell`, `sbx-pull`, `sbx-policy`, `sbx-token`, and the scripts in `env/.local/bin`. Also the shared `lib/` that they source.
 - **The profile mechanism**: `lib/profile.sh`, and how `setup`, `sync-env`, and `doctor` read a profile's steps, manifest, and doctor checks. The content of each profile is in its own model.
 - **The dotfiles** in `env/` that a manifest copies into `$HOME`, which include the agent skills in `env/.agents/`.
-- **The sandbox kits** in `sbx/kits/` (`my-claude`, `pi-ailo`, and the `dotfiles` and `agent-skills` mixins), and what they run inside a sandbox.
+- **The sandbox kits** in `sbx/kits/` (`my-claude`, `pi-ailo`, and the `dotfiles`, `agent-skills`, and `playwright-cli` mixins), and what they run inside a sandbox.
 - **The GitHub side**: the `domtriola/dotfiles` repository with its `main` ruleset, and the GitHub App that `sbx-token` mints tokens from.
 
 Out of scope:
@@ -66,6 +66,8 @@ Out of scope:
   - The `gh` release (`my-claude`).
   - The `pi-image` container and the npm extensions (`pi-ailo`).
   - The dotfiles clone at `main`, and apt packages (`dotfiles` mixin).
+  - Node from nodejs.org, at the version that the project asks for, `@playwright/cli` at a pinned version from npm, Chromium from the Playwright CDN, and apt packages with sudo (`playwright-cli` mixin).
+- **Workspace files that a kit reads**: the `playwright-cli` startup hook reads `.nvmrc`, `.node-version`, and `package.json` to choose the Node version. The version that it downloads always comes from the Node release index, not from the file.
 - **Output from a sandbox to the host**:
   - Pending network approvals (`sbx policy approval ls`), which `sbx-policy` reads.
   - The kit status and log files, which `sbx-shell` reads.
@@ -122,7 +124,7 @@ flowchart LR
   app -- installation token --> sbxup
   sbxup -- token through the proxy secret, kits, skills --> agent
   main -- dotfiles clone at main --> agent
-  image -- binaries, image, extensions --> agent
+  image -- binaries, image, extensions, Node, npm packages, Chromium --> agent
   issues -- untrusted text --> agent
   web -- untrusted text --> agent
   agent -- pushes, PRs, comments --> GitHub
@@ -161,6 +163,8 @@ flowchart LR
 | T27 | T | A manifest destination of `$HOME/..`, or an empty `$HOME`, makes `sync-env` delete or write files outside `$HOME`. | B2 | low | medium | mitigated | I13 |
 | T28 | T | With no TTY, or with `--yes`, `sync-env` overwrites drift with only a warning, and it deletes the operator's own files inside the trees that it replaces. | B2 | low | low | accepted | A drift prompt when a TTY is present. |
 | T29 | T | The `gh` release that `my-claude` downloads is replaced. | B1 | low | high | mitigated | I14 |
+| T31 | T | The Node release that the `playwright-cli` mixin downloads is replaced, together with its `SHASUMS256.txt` on the same host. The project chooses the version, so the kit cannot pin it (I14 does not hold for it). | B1 | low | medium | open | It runs only inside a sandbox that opts in to the kit. |
+| T32 | I | A hijacked agent publishes project source to the npm registry, which the `playwright-cli` mixin allows for the life of the sandbox. | B5 | low | medium | open | The agent has no npm token unless it gets one from untrusted text. |
 
 STRIDE categories that have no threat above:
 

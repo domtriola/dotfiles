@@ -2,8 +2,8 @@
 
 A mixin kit that installs [`playwright-cli`](https://github.com/microsoft/playwright-cli)
 and Chromium in the sandbox, so the agent can open the app in a browser and
-take screenshots. It is for projects that run their commands in Docker Compose:
-the app's published port is reachable on `localhost` from the sandbox.
+take screenshots. It is for projects that run their commands in Docker Compose.
+The app's published port is reachable on `localhost` from the sandbox.
 
 ## Quick start
 
@@ -28,7 +28,7 @@ It installs these, all for the agent user:
 | What           | Where                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
 | Node           | `~/.local/share/playwright-cli-kit/node`, from nodejs.org, checksummed.  |
-| playwright-cli | The latest `@playwright/cli`, into that Node.                            |
+| playwright-cli | `@playwright/cli`, at the version that `spec.yaml` pins, into that Node. |
 | Chromium       | `~/.cache/ms-playwright`, with its system packages from apt (with sudo). |
 | The wrapper    | `~/.local/bin/playwright-cli`, written last.                             |
 
@@ -50,8 +50,8 @@ the script lists every form.
 ## Knowing when it has finished
 
 The startup hook returns at once, so the agent starts without a wait. The
-install runs in the background and takes a minute or two on a cold start, most
-of it the Chromium download and its apt packages.
+install runs in the background and takes a minute or two on a cold start. Most
+of this time is for the Chromium download and its apt packages.
 
 These files under `$HOME` report the state:
 
@@ -63,7 +63,7 @@ These files under `$HOME` report the state:
 The agent instructions tell the agent to wait for `ready`. Until then,
 `playwright-cli` is not on `PATH`.
 
-To check by hand, use the absolute path, since a `~` in an `sbx exec` command
+To check by hand, use the absolute path, because a `~` in an `sbx exec` command
 is expanded by the host shell:
 
 ```console
@@ -74,9 +74,13 @@ sbx exec <name> -- cat /home/agent/.playwright-cli-kit.log
 
 - **A failure does not stop the sandbox.** The status file reads `failed`, and
   the log holds the reason.
-- **Every start installs again.** A restart replaces Node and reinstalls
-  `@playwright/cli`, which takes a few seconds. Chromium and its packages are
-  already there, so they cost nothing.
+- **Every start installs again.** A restart replaces Node and installs
+  `@playwright/cli` again, which takes a few seconds. Chromium and its packages
+  are already there, so the install skips them.
+- **The `@playwright/cli` version is pinned** in the startup hook, and Renovate
+  bumps it after a 7-day release age. The Node version is not pinned, because
+  the project chooses it. Its checksum comes from nodejs.org, the same host as
+  the tarball.
 - **The network allow list** has only the install's hosts: nodejs.org, the npm
   registry, the Playwright browser CDN and its mirror, and the Ubuntu apt
   mirrors.

@@ -46,12 +46,26 @@ setup:
           echo "starting the playwright-cli kit" >"$HOME/.playwright-cli-kit.status"
           rm -f "$HOME/.local/bin/playwright-cli"
 
+          # The script comes from files/home. Without it, nothing else would
+          # ever write failed, so say so here.
+          script="$HOME/.local/libexec/playwright-cli-kit/install"
+          if [ ! -f "$script" ]; then
+            echo "playwright-cli kit: $script is missing" >"$log"
+            echo failed >"$HOME/.playwright-cli-kit.status"
+            exit 0
+          fi
+
+          # Renovate bumps this pin (see renovate.json at the repository root),
+          # after a 7-day release age.
+          # renovate: datasource=npm depName=@playwright/cli
+          cli_version=0.1.22
+
           # The install takes a minute or two, and the engine starts the agent
           # only after every startup hook returns. So the hook starts it
           # detached (setsid, so it outlives the hook) and returns at once.
-          # The script comes from files/home. It reads the workspace only for
-          # the Node version the project asks for.
-          setsid nohup sh "$HOME/.local/libexec/playwright-cli-kit/install" \
+          # The script reads the workspace only for the Node version the
+          # project asks for.
+          PLAYWRIGHT_CLI_VERSION="$cli_version" setsid nohup sh "$script" \
             "${WORKSPACE_DIR:-$PWD}" >>"$log" 2>&1 </dev/null &
       description: "Start the Node, playwright-cli, and Chromium install in the background"
       user: "1000"
@@ -70,5 +84,5 @@ agentInstructions:
       published ports.
     - It writes its snapshots to `.playwright-cli/` in the current directory.
       Do not commit them.
-    - It has its own Node, in ~/.local/share/playwright-cli-kit. It does not
+    - It has its own Node, in `~/.local/share/playwright-cli-kit`. It does not
       change the `node` on PATH, and it installs nothing in the project.
