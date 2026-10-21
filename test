@@ -10,6 +10,15 @@ set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
+# The same check as tests/setup_suite.bash, which guards a direct bats run.
+# Here it stops before bats starts, so the reason is the only output.
+# shellcheck source=/dev/null
+source "$root/lib/platform.sh"
+if ! is_sandbox; then
+  echo "test: the tests run only in a Docker Sandbox. Start one with sbx-up, and run ./test there." >&2
+  exit 1
+fi
+
 if ! command -v bats >/dev/null 2>&1; then
   echo "test: bats is not installed. Run setup 20_packages, or install bats-core." >&2
   exit 1
