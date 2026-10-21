@@ -1,9 +1,7 @@
 # playwright-cli
 
 A mixin kit that installs [`playwright-cli`](https://github.com/microsoft/playwright-cli)
-and Chromium in the sandbox, so the agent can open the app in a browser and
-take screenshots. It is for projects that run their commands in Docker Compose.
-The app's published port is reachable on `localhost` from the sandbox.
+and Chromium in the sandbox.
 
 ## Quick start
 

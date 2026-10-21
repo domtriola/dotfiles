@@ -4,8 +4,7 @@ name: playwright-cli
 displayName: Playwright CLI
 description: >-
   Installs playwright-cli and Chromium in the background after the sandbox
-  starts, so the agent can open the app in a browser. Read this before you use
-  playwright-cli.
+  starts. Read this before you use playwright-cli.
 sourceURL: https://github.com/domtriola/dotfiles
 
 permissions:
@@ -72,8 +71,7 @@ setup:
 
 agentInstructions:
   content: |
-    `playwright-cli` drives a headless Chromium. Use it to check the app in a
-    browser. See `playwright-cli --help`.
+    `playwright-cli` drives a headless Chromium. See `playwright-cli --help`.
 
     - It is installed in the background after the sandbox starts, which takes
       a minute or two. Before your first `playwright-cli` command, wait until
