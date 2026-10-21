@@ -32,6 +32,7 @@ if [[ -z "$codename" ]]; then
   exit 1
 fi
 arch="$(dpkg --print-architecture)"
+user="$(id -un)"
 
 desired_list="# Managed by dotfiles: profiles/agent-server/22_sandboxes
 deb [arch=$arch signed-by=$keyring] $repo_url $codename stable"
@@ -88,18 +89,18 @@ fi
 # ---------------------------------------------------------------------------
 # KVM, and linger
 # ---------------------------------------------------------------------------
-if id -nG "$USER" | tr ' ' '\n' | grep -qx kvm; then
-  echo "$USER is already in the kvm group."
+if id -nG "$user" | tr ' ' '\n' | grep -qx kvm; then
+  echo "$user is already in the kvm group."
 else
-  echo "Adding $USER to the kvm group. Log out and in again for it to apply."
-  sudo usermod -aG kvm "$USER"
+  echo "Adding $user to the kvm group. Log out and in again for it to apply."
+  sudo usermod -aG kvm "$user"
 fi
 
-if [[ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" == "yes" ]]; then
-  echo "Linger is already on for $USER."
+if [[ "$(loginctl show-user "$user" -p Linger --value 2>/dev/null)" == "yes" ]]; then
+  echo "Linger is already on for $user."
 else
-  echo "Turning on linger for $USER."
-  sudo loginctl enable-linger "$USER"
+  echo "Turning on linger for $user."
+  sudo loginctl enable-linger "$user"
 fi
 
 cat <<EOF
