@@ -12,8 +12,11 @@ sbx run ./sbx/kits/sandboxes/my-claude
 ## What it changes
 
 - `files/home/.config/my-claude/settings.json` holds the settings: the model,
-  the status line, a full-screen TUI, no bypass-permissions prompt at startup,
-  the telemetry and auto-update switches, and a small permission denylist.
+  the status line, a full-screen TUI, bypass permissions mode with no prompt
+  at startup, the telemetry and auto-update switches, and a small permission
+  denylist. The kit sets `defaultMode` itself: if only the sandbox's
+  `~/.claude/settings.json` sets it, Claude Code asks at each start if auto
+  mode is to be the default.
 - `files/home/.local/bin/statusline.sh` draws the status line.
 - `agentInstructions` in `spec.yaml` adds the language preferences.
 - `setup.install` in `spec.yaml` installs a pinned `gh` release over the old
