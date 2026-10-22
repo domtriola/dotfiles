@@ -83,7 +83,9 @@ The real run saves the profile, and later runs reuse it. A dry run saves nothing
 
 ## 5. Join NetBird, and move SSH to it
 
-Take a one-off setup key from the NetBird dashboard. In the dashboard, delete the "Default" policy, and make one policy: source your client group, destination this machine, TCP port 22, one way. Connect the Mac to NetBird. Then, on the box:
+In the NetBird dashboard, add the box as a **Server**, not as a user device. A user device logs in through SSO, and its login can expire. Then the box leaves NetBird, and SSH, which listens only on `wt0`, is reachable only from the box's keyboard. A server joins with a setup key and has no login expiry.
+
+Make a one-off setup key with an auto-assigned group for the box, for example `agent-servers`. Delete the "Default" policy, and make one policy: source your user group, destination `agent-servers`, TCP port 22, one way. Connect the Mac to NetBird as a user device. Then, on the box:
 
 ```console
 read -rs -p 'Setup key: ' NETBIRD_SETUP_KEY && export NETBIRD_SETUP_KEY
