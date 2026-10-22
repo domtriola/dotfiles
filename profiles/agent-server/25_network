@@ -27,9 +27,10 @@ sources="/etc/apt/sources.list.d/netbird.list"
 key_url="https://pkgs.netbird.io/debian/public.key"
 repo_url="https://pkgs.netbird.io/debian"
 
-# The SHA-256 of the repository's signing key (agent-server-I8). Move it only
-# after a check of why the key changed.
-key_sha256="NETBIRD_KEY_SHA256_PLACEHOLDER"
+# The SHA-256 of the repository's signing key, with fingerprint
+# EFE3 7DF0 47DF 7CCD F1FC 54FA 83F7 9AD0 2977 8355 (agent-server-I8). Move it
+# only after a check of why the key changed.
+key_sha256="6bd434c07e7c3a71211de79ca287e93b45deadedc4b74f1a2e83e11abe6e0bf5"
 
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "25_network: no apt-get. This profile targets Ubuntu Server." >&2

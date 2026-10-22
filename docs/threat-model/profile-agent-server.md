@@ -137,7 +137,7 @@ flowchart LR
 | agent-server-T11 | I, T | A device on a USB4 port reads or writes the memory of the running box (DMA). | agent-server-B3 | low | high | mitigated | agent-server-I6 |
 | agent-server-T12 | I | A thief reads the disk of a stolen box or drive. | agent-server-B3 | medium | high | mitigated | agent-server-I7 |
 | agent-server-T13 | T, I, E | A person at the operator's home attacks the running box: the console, the memory, boot from USB, or the firmware settings. No firmware password is set. | agent-server-B3 | low | high | accepted | agent-server-I4 and agent-server-I6 cover part of it. |
-| agent-server-T14 | T | The NetBird repository key is replaced, and the next install runs code as root. | B1 | low | high | planned (#109) | agent-server-I8 |
+| agent-server-T14 | T | The NetBird repository key is replaced, and the next install runs code as root. | B1 | low | high | mitigated | agent-server-I8 |
 | agent-server-T15 | E | A kernel or service bug that a security update fixes stays live, because the box does not reboot by itself. | B1 | medium | medium | accepted | agent-server-I11 tells the operator. |
 | agent-server-T16 | D | An unattended reboot after an update stops the box at the LUKS prompt until the operator is home. | B1 | medium | medium | mitigated | agent-server-I11 |
 | agent-server-T17 | D | The box suspends while the operator is away, and the agents stop. | none | medium | medium | mitigated | agent-server-I12 |
