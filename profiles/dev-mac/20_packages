@@ -89,6 +89,7 @@ brew_install --cask netbirdio/tap/netbird-ui
 # #######################################################
 
 brew_install openssh
+brew_install ykman
 
 # Privacy Guard
 # https://gnupg.org/documentation/manuals/gnupg/
