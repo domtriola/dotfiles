@@ -46,11 +46,13 @@ The YubiKey key is not specific to this box. You can also use it on the Mac for 
 
 `-O verify-required` needs a FIDO2 PIN on the YubiKey. `ykman fido info` shows if one is set. `-w internal` is necessary because `.zshrc` sets `SSH_SK_PROVIDER` to the Secure Enclave provider, which cannot make an ed25519 key. Without it, `ssh-keygen` fails with "requested feature not supported".
 
+Leave the passphrase empty: the YubiKey, its PIN, and a touch protect the key. Homebrew's OpenSSH has no `ssh-copy-id`, so use the Mac's. It logs in with the Secure Enclave key, and `-f` skips its test login with the new key, which the Mac's `ssh` cannot use.
+
 ```console
 brew install openssh ykman
 ykman fido access change-pin   # only when no PIN is set
 $(brew --prefix)/bin/ssh-keygen -w internal -t ed25519-sk -O verify-required -f ~/.ssh/id_ed25519_sk -C "yubikey"
-$(brew --prefix)/bin/ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub doms-agents
+ssh-copy-id -f -i ~/.ssh/id_ed25519_sk.pub doms-agents
 ```
 
 Add these lines to the `doms-agents` entry. The `Host *` block of `~/.ssh/config` sets the Secure Enclave provider, and the entry comes first, so it wins:

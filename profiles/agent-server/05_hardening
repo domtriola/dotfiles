@@ -32,7 +32,7 @@ lock this machine out. Add the YubiKey key first, from the Mac, while the
 current key still works (profiles/agent-server/bootstrap.md, "SSH with the
 YubiKey"):
 
-  ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub doms-agents
+  ssh-copy-id -f -i ~/.ssh/id_ed25519_sk.pub doms-agents
 
 Then run this again.
 EOF
