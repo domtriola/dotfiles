@@ -40,11 +40,13 @@ If `ssh` says "No route to host", turn on the terminal app in **System Settings 
 
 ## 3. SSH with the YubiKey
 
-The box accepts only a key that asks for a PIN and a touch. The Mac's own `ssh` cannot use a FIDO key, so use Homebrew's OpenSSH for this key:
+The box accepts only a key that asks for a PIN and a touch. The Mac's own `ssh` cannot use a FIDO key, so use Homebrew's OpenSSH for this key.
+
+The YubiKey key is not specific to this box. You can also use it on the Mac for other hosts, for example GitHub. If `~/.ssh/id_ed25519_sk` exists, do not run `ssh-keygen`. A new key replaces the old one, and the old key then stops working on each host that has it.
 
 ```console
 brew install openssh
-$(brew --prefix)/bin/ssh-keygen -t ed25519-sk -O verify-required -f ~/.ssh/id_ed25519_sk -C "yubikey doms-agents"
+$(brew --prefix)/bin/ssh-keygen -t ed25519-sk -O verify-required -f ~/.ssh/id_ed25519_sk -C "yubikey"
 $(brew --prefix)/bin/ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub doms-agents
 ```
 
