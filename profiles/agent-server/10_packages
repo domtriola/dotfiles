@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# The packages this machine needs to run sandboxes, and nothing more.
+# The packages this machine needs to run sandboxes, and nothing more, except
+# starship, so that the prompt is the same as on the other machines.
 #
 # Everything comes from apt. There is no editor and no language runtime: the
 # operator does not edit code on this machine. sbx comes in 22_sandboxes.
@@ -22,6 +23,8 @@ packages=(
   ufw:ufw
   # 12_storage and doctor read the volume group with it.
   lvm2:vgs
+  # .bash_profile starts it when it is installed.
+  starship:starship
 )
 
 missing=()
