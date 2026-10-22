@@ -309,3 +309,19 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *"HOME"* ]]
 }
+
+@test "the agent-server manifest resolves, and holds no ready-tmux and no nvim" {
+  unset DOTFILES_PROFILE
+  DOTFILES_DIR="$repo_root" run "$sync_env" --dry --profile agent-server
+  [ "$status" -eq 0 ]
+  for dest in "~/.tmux.conf" "~/.local/bin/tmux-sessionizer" "~/.local/bin/troot" \
+    "~/.local/bin/git-prune-branches" "~/.local/bin/sbx-up" "~/.local/bin/sbx-shell" \
+    "~/.local/bin/sbx-token" "~/.local/bin/sbx-policy" "~/.local/bin/setup" \
+    "~/.local/bin/sync-env" "~/.local/bin/doctor" "~/.local/bin/sync-skills" \
+    "~/.bashrc" "~/.bashrc.d/sbx-token.bashrc"; do
+    [[ "$output" == *"copy    $dest"* ]] || { echo "missing: $dest"; false; }
+  done
+  [[ "$output" != *"ready-tmux"* ]]
+  [[ "$output" != *"nvim"* ]]
+  [ ! -e "$XDG_CONFIG_HOME/dotfiles/profile" ]
+}

@@ -22,7 +22,7 @@ import_key() {
   out="$(api GET "/app" "$jwt")" || status=$?
   [[ "$status" -eq 0 ]] || api_die "the key does not authenticate as App $id" "$status" "$out"
   slug="$(jq -r '.slug' <<<"$out")"
-  config_save "$id" "$slug"
+  config_save "$id" "$slug" "$(store_backend)"
 
   printf 'sbx-token: this machine now uses the %s App. Delete %s, then run sbx-token check.\n' "$slug" "$file" >&2
 }

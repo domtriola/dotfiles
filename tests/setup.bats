@@ -74,3 +74,35 @@ given_step() {
   [[ "$output" == *"info    10_first"*"would run"* ]]
   [ "$(tail -1 <<<"$output")" = "setup: 3 to run" ]
 }
+
+@test "with no profile on Ubuntu, setup detects none and asks for --profile" {
+  unset DOTFILES_PROFILE
+  # A checkout whose platform library says Ubuntu, outside a sandbox.
+  rm "$checkout/lib"
+  mkdir "$checkout/lib"
+  ln -s "$repo_root/lib/profile.sh" "$repo_root/lib/style.sh" "$checkout/lib/"
+  cat >"$checkout/lib/platform.sh" <<PLATFORM
+source "$repo_root/lib/platform.sh"
+is_mac() { false; }
+is_linux() { true; }
+is_sandbox() { false; }
+is_qubes() { false; }
+is_fedora() { false; }
+is_ubuntu() { true; }
+PLATFORM
+
+  run "$setup_cmd" </dev/null
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Cannot detect a profile"*"ai-server or agent-server"*"Pass --profile"* ]]
+  [[ "$output" == *"agent-server"* ]]
+  [ ! -e "$XDG_CONFIG_HOME/dotfiles/profile" ]
+}
+
+@test "setup --profile agent-server --dry lists the profile's steps in order, and runs none" {
+  unset DOTFILES_PROFILE
+  DOTFILES_DIR="$repo_root" run "$setup_cmd" --profile agent-server --dry
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"info    05_hardening"*"info    10_packages"*"info    12_storage"*"info    22_sandboxes"*"info    25_network"* ]]
+  [ "$(tail -1 <<<"$output")" = "setup: 5 to run" ]
+  [ ! -e "$XDG_CONFIG_HOME/dotfiles/profile" ]
+}

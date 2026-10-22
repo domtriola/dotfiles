@@ -51,14 +51,14 @@ Out of scope:
 - **CLI arguments** of every command in scope. The profile name is checked against a fixed list (`lib/profile.sh`).
 - **Files that the commands read**:
   - `profiles/<profile>/env.manifest`
-  - `~/.config/dotfiles/checkout` and `~/.config/dotfiles/profile`, which pick the code that the installed commands source
+  - `~/.config/dotfiles/checkout` and `~/.config/dotfiles/profile`, which pick the code that the installed commands source. `sbx-up` also reads the profile, to decide whether a sandbox may mount the worktree (agent-server-I13)
   - the sync record in `~/.local/state/dotfiles/synced`
   - `.sbx.json` at a project root
   - `~/.config/sbx/kit.args`
-  - `~/.config/sbx-token/config.json`
+  - `~/.config/sbx-token/config.json`, whose `store` picks the secret store of the App key when `SBX_TOKEN_STORE` is not set
   - `env/.agents/skills-local/`
   - `.ready-tmux` in the current directory (`env/.local/bin/ready-tmux`)
-- **Environment**: `DOTFILES_DIR`, `DOTFILES_PROFILE`, `SBX_UP_DOTFILES`, `SBX_KIT_ARGS_FILE`, `SBX_TOKEN_BIN`, `SBX_TOKEN_STORE`, `PROMPT_TTY`, `SSH_KEY_PROT`.
+- **Environment**: `DOTFILES_DIR`, `DOTFILES_PROFILE`, `SBX_UP_DOTFILES`, `SBX_KIT_ARGS_FILE`, `SBX_TOKEN_BIN`, `SBX_TOKEN_STORE`, `DOTFILES_PROFILE_FILE`, `PROMPT_TTY`, `SSH_KEY_PROT`.
 - **Downloads during setup**: each profile's model lists its own. The dotfiles add these on every profile that copies them:
   - lazy.nvim and its plugins (`env/.config/nvim`).
   - The Claude Code plugin marketplaces (`env/.claude/settings.json`).

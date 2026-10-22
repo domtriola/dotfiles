@@ -16,7 +16,7 @@
 
 PROFILE_FILE="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
 
-PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux ai-server)
+PROFILES=(dev-mac dev-linux infosec-qubes sbx-linux ai-server agent-server)
 
 # profile_list prints the known profiles on one line, for error messages.
 profile_list() { echo "${PROFILES[*]}"; }
@@ -33,7 +33,7 @@ is_profile() {
 profile_os() {
   case "$1" in
   dev-mac) echo "mac" ;;
-  dev-linux | infosec-qubes | sbx-linux | ai-server) echo "linux" ;;
+  dev-linux | infosec-qubes | sbx-linux | ai-server | agent-server) echo "linux" ;;
   esac
 }
 
@@ -41,10 +41,12 @@ profile_os() {
 # cannot tell. A sandbox is checked before the other Linux profiles because it
 # is the most specific.
 #
-# The order of the last three tests carries meaning. A sandbox runs on Ubuntu
-# too, so is_sandbox has to be asked before is_ubuntu, or every sandbox would
-# detect as ai-server. The final is_linux puts a distribution that matches none
-# of the tests on the dev-linux profile.
+# Ubuntu detects nothing. The two drives of the Framework Desktop both run
+# Ubuntu Server (ai-server on one, agent-server on the other), so a guess could
+# install the wrong profile. The first setup on either drive needs --profile.
+# A sandbox runs on Ubuntu too, so is_sandbox has to be asked before is_ubuntu.
+# The final is_linux puts a distribution that matches none of the tests on the
+# dev-linux profile.
 detect_profile() {
   if is_mac; then
     echo "dev-mac"
@@ -55,7 +57,7 @@ detect_profile() {
   elif is_fedora; then
     echo "dev-linux"
   elif is_ubuntu; then
-    echo "ai-server"
+    :
   elif is_linux; then
     echo "dev-linux"
   fi
@@ -121,6 +123,11 @@ resolve_profile() {
     profile="$(tr -d '[:space:]' <"$PROFILE_FILE")"
   else
     profile="$(detect_profile)"
+    if [[ -z "$profile" ]] && is_ubuntu; then
+      printf 'Cannot detect a profile for this machine: Ubuntu can be ai-server or agent-server.\n' >&2
+      printf 'Pass --profile ai-server or --profile agent-server.\n' >&2
+      return 1
+    fi
     if [[ -z "$profile" ]]; then
       printf 'Cannot detect a profile for this machine (OSTYPE=%s).\n' "$OSTYPE" >&2
       printf 'Pass --profile <name>. Known profiles: %s\n' "$(profile_list)" >&2

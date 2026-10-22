@@ -49,17 +49,12 @@ step 5 has to repair by hand.
      threat model for this machine and its use-case.
 5. On the "installation complete" screen, remove the USB drive, then restart.
 
-## 3. Set the boot order
+## 3. Check the firmware settings
 
-The machine should start as the server by default, so that an unattended
-restart returns a server rather than something else.
-
-Set the order in the Framework firmware setup, or from the installed system:
-
-```console
-sudo efibootmgr                     # note the entry numbers
-sudo efibootmgr -o <ubuntu>,<other> # ubuntu first
-```
+Drive 1 (`agent-server`) is the default boot, so do not move this drive
+first. The firmware settings and the identity of each drive are in
+[the Framework Desktop document](../../docs/framework-desktop.md). To start this
+drive, tap **F12** while the Framework logo shows, and select its boot entry.
 
 ## 4. Claim the rest of the disk
 

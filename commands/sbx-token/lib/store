@@ -2,22 +2,41 @@
 #
 # The App's private key in the OS secret store: the Keychain on macOS, and
 # Secret Service on Linux. These are the stores that sbx keeps its own secrets
-# in.
+# in. A machine with no Secret Service (a headless server) uses the file store:
+# a file of mode 600 in the config directory.
 #
 # The key is stored base64-encoded, as one line, so that neither store has to
 # keep newlines. It never goes on a command line, where `ps` could read it.
 
 store_service="sbx-token"
 store_account="private-key"
+store_file="$sbx_token_config_dir/private-key"
 
-store_backend() {
-  if [[ -n "${SBX_TOKEN_STORE:-}" ]]; then
-    printf '%s' "$SBX_TOKEN_STORE"
-  elif [[ "$(uname -s)" == "Darwin" ]]; then
+store_default() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
     printf 'security'
   else
     printf 'secret-tool'
   fi
+}
+
+# store_backend is $SBX_TOKEN_STORE, then the store that import-key saved in
+# the config, then the platform's default.
+store_backend() {
+  local backend="${SBX_TOKEN_STORE:-}"
+  if [[ -z "$backend" && -f "$sbx_token_config" ]]; then
+    backend="$(jq -r '.store // empty' "$sbx_token_config" 2>/dev/null)"
+  fi
+  backend="${backend:-$(store_default)}"
+  case "$backend" in
+  security | secret-tool | file) printf '%s' "$backend" ;;
+  *) die "unknown secret store '$backend'. Use security, secret-tool, or file." ;;
+  esac
+}
+
+# store_file_mode prints the permission bits of the key file, in octal.
+store_file_mode() {
+  stat -c '%a' "$store_file" 2>/dev/null || stat -f '%Lp' "$store_file"
 }
 
 # store_put reads a PEM on stdin.
@@ -25,9 +44,22 @@ store_put() {
   local encoded backend
   encoded="$(openssl base64 -A)"
   backend="$(store_backend)"
-  command -v "$backend" >/dev/null 2>&1 || die "$backend is not installed"
+  [[ "$backend" == "file" ]] || command -v "$backend" >/dev/null 2>&1 || die "$backend is not installed"
 
   case "$backend" in
+  file)
+    # The temporary file is made with mode 600 before the key goes in, so the
+    # key is never readable by another user, even for a moment. The rename
+    # replaces the old key in one step.
+    local tmp
+    mkdir -p "$sbx_token_config_dir"
+    tmp="$(umask 077 && mktemp "$store_file.tmp.XXXXXX")" || die "could not make a file in $sbx_token_config_dir"
+    chmod 600 "$tmp"
+    { printf '%s' "$encoded" >"$tmp" && mv -f "$tmp" "$store_file"; } || {
+      rm -f "$tmp"
+      die "could not write the key to $store_file"
+    }
+    ;;
   security)
     # `security -i` reads its commands on stdin, which keeps the key off argv.
     printf 'add-generic-password -U -s %s -a %s -l %s -w %s\n' \
@@ -49,6 +81,9 @@ store_put() {
 
 store_get_encoded() {
   case "$(store_backend)" in
+  file)
+    [[ -f "$store_file" ]] && cat "$store_file"
+    ;;
   security)
     security find-generic-password -s "$store_service" -a "$store_account" -w 2>/dev/null
     ;;
@@ -60,7 +95,13 @@ store_get_encoded() {
 
 # store_get prints the PEM, or fails when this machine has no key.
 store_get() {
-  local encoded
+  local encoded mode
+  if [[ "$(store_backend)" == "file" && -f "$store_file" ]]; then
+    mode="$(store_file_mode)"
+    if [[ ! "$mode" =~ ^[0-7]+$ ]] || (((8#$mode & 8#177) != 0)); then
+      die "$store_file has mode $mode, so other users can read the key. Run: chmod 600 $store_file"
+    fi
+  fi
   encoded="$(store_get_encoded)" && [[ -n "$encoded" ]] ||
     die "no App private key in the $(store_backend) store on this machine. Run sbx-token import-key."
   printf '%s' "$encoded" | openssl base64 -d -A

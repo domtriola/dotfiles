@@ -75,7 +75,9 @@ Defaults:
 Environment:
   SBX_TOKEN_BIN    the sbx-token that the secret runs. It must be outside
                    every sandbox workspace. Default: ~/.local/bin/sbx-token
-  SBX_TOKEN_STORE  security or secret-tool. Default: by platform
+  SBX_TOKEN_STORE  security, secret-tool, or file (mode 600, beside
+                   config.json). Default: the store that import-key
+                   saved, else by platform
 EOF
 }
 

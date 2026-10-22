@@ -8,6 +8,19 @@
 # git has nothing to clone, so it is mounted.
 sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g"}'
 
+# sbx_up_profile prints this machine's profile, read the way lib/profile.sh
+# saves it, or nothing when no profile is set. It does not call
+# resolve_profile, which can ask a question and save the answer: sbx-up only
+# reads the profile.
+sbx_up_profile() {
+  local file="${DOTFILES_PROFILE_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/profile}"
+  if [[ -n "${DOTFILES_PROFILE:-}" ]]; then
+    printf '%s' "$DOTFILES_PROFILE"
+  elif [[ -f "$file" ]]; then
+    tr -d '[:space:]' <"$file"
+  fi
+}
+
 # config_load resolves the settings for one sandbox and sets three globals:
 #
 #   run        the `sbx` command line, as an array
@@ -52,6 +65,18 @@ config_load() {
       }
   ' <<<"$given")"; then
     die "could not read $config"
+  fi
+
+  # Agents on agent-server run for hours with no one watching. A mounted
+  # worktree would let one write files that the box runs later, so every
+  # sandbox there is a clone (agent-server-I13 in
+  # docs/threat-model/profile-agent-server.md). The resolved plan is checked,
+  # not the file, so that any value that turns the clone off is caught.
+  if [[ "$(sbx_up_profile)" == "agent-server" ]] && ! jq -e '.args | index("--clone")' <<<"$plan" >/dev/null; then
+    if [[ "$in_git" == true ]]; then
+      die "$config turns off the clone, which the agent-server profile does not allow. Remove \"clone\" from it."
+    fi
+    die "$root is not in git, so it cannot be cloned, and the agent-server profile does not mount a directory. Run sbx-up in a git clone."
   fi
 
   run=(sbx)

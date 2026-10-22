@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# Docker Sandboxes (sbx), from Docker's apt repository.
+#
+# Only docker-sbx is installed, not Docker Engine: sbx runs each sandbox in its
+# own VM through KVM. The repository key is checked against a pinned digest
+# before apt trusts it (agent-server-I8).
+#
+# Linger keeps the operator's user services running with no SSH session, so
+# the sandboxes keep running after the operator disconnects.
+
+set -eo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/style.sh
+source "$root_dir/lib/style.sh"
+
+keyring="/etc/apt/keyrings/docker.asc"
+sources="/etc/apt/sources.list.d/docker.list"
+key_url="https://download.docker.com/linux/ubuntu/gpg"
+repo_url="https://download.docker.com/linux/ubuntu"
+
+# The SHA-256 of the key with fingerprint
+# 9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88. Move it only after a
+# check of why the key changed.
+key_sha256="1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570"
+
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "22_sandboxes: no apt-get. This profile targets Ubuntu Server." >&2
+  exit 1
+fi
+
+codename="$(. /etc/os-release && printf '%s' "${VERSION_CODENAME:-}")"
+if [[ -z "$codename" ]]; then
+  echo "22_sandboxes: /etc/os-release has no VERSION_CODENAME." >&2
+  exit 1
+fi
+arch="$(dpkg --print-architecture)"
+user="$(id -un)"
+
+desired_list="# Managed by dotfiles: profiles/agent-server/22_sandboxes
+deb [arch=$arch signed-by=$keyring] $repo_url $codename stable"
+
+# ---------------------------------------------------------------------------
+# The repository key
+# ---------------------------------------------------------------------------
+if [[ -f "$keyring" ]] && [[ "$(sha256sum "$keyring" | cut -d' ' -f1)" == "$key_sha256" ]]; then
+  echo "$keyring is already correct."
+else
+  section "The Docker repository key"
+  tmp_key="$(mktemp)"
+  curl -fsSL --retry 3 --proto '=https' --tlsv1.2 -o "$tmp_key" "$key_url"
+  got="$(sha256sum "$tmp_key" | cut -d' ' -f1)"
+  if [[ "$got" != "$key_sha256" ]]; then
+    rm -f "$tmp_key"
+    echo "22_sandboxes: the repository key does not match its pinned digest." >&2
+    echo "  expected $key_sha256" >&2
+    echo "  got      $got" >&2
+    echo "Nothing was installed. Find out why it changed before moving the pin." >&2
+    exit 1
+  fi
+  echo "  digest ok"
+  sudo install -d -m 755 "$(dirname "$keyring")"
+  sudo install -m 644 "$tmp_key" "$keyring"
+  rm -f "$tmp_key"
+fi
+
+# ---------------------------------------------------------------------------
+# The repository, and sbx
+# ---------------------------------------------------------------------------
+repo_changed=0
+if [[ -f "$sources" ]] && [[ "$(cat "$sources")" == "$desired_list" ]]; then
+  echo "$sources is already correct."
+else
+  echo "Writing $sources ($codename)"
+  printf '%s\n' "$desired_list" | sudo tee "$sources" >/dev/null
+  sudo chmod 644 "$sources"
+  repo_changed=1
+fi
+
+if command -v sbx >/dev/null 2>&1; then
+  echo "sbx is already installed: $(sbx version 2>/dev/null | head -1 || echo 'version unknown')"
+  if [[ "$repo_changed" -eq 1 ]]; then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade docker-sbx
+  fi
+else
+  section "Installing sbx"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-sbx
+fi
+
+# ---------------------------------------------------------------------------
+# KVM, and linger
+# ---------------------------------------------------------------------------
+if id -nG "$user" | tr ' ' '\n' | grep -qx kvm; then
+  echo "$user is already in the kvm group."
+else
+  echo "Adding $user to the kvm group. Log out and in again for it to apply."
+  sudo usermod -aG kvm "$user"
+fi
+
+if [[ "$(loginctl show-user "$user" -p Linger --value 2>/dev/null)" == "yes" ]]; then
+  echo "Linger is already on for $user."
+else
+  echo "Turning on linger for $user."
+  sudo loginctl enable-linger "$user"
+fi
+
+cat <<EOF
+
+sbx is installed. The steps that stay by hand are in
+profiles/agent-server/bootstrap.md:
+
+  sbx login
+  SBX_TOKEN_STORE=file sbx-token import-key --app-id <id> <the box's .pem>
+
+Then start agents inside tmux, so that they keep running after you disconnect.
+EOF

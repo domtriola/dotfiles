@@ -50,6 +50,7 @@ runs and which dotfiles `sync-env` copies.
 | `infosec-qubes` | Qubes appVM, minimal setup                   |
 | `sbx-linux`     | Docker Sandbox, set up by the `dotfiles` kit |
 | `ai-server`     | Headless model server, Ubuntu                |
+| `agent-server`  | Headless sandbox server, Ubuntu              |
 
 Each profile owns a directory under `profiles/`:
 
@@ -109,6 +110,7 @@ runs in this repo.
 
 - [docs/dev-workflow.md](docs/dev-workflow.md): the tmux project workflow.
 - [docs/agent-workflow.md](docs/agent-workflow.md): how the agent skills fit together.
+- [docs/framework-desktop.md](docs/framework-desktop.md): the firmware settings and the two drives of the Framework Desktop.
 - [docs/design.md](docs/design.md): the design priorities and color rules for command output.
 - [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md): where specs and tickets live (GitHub issues).
 - [docs/research/](docs/research/): cited findings behind past decisions.
