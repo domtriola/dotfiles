@@ -44,9 +44,12 @@ The box accepts only a key that asks for a PIN and a touch. The Mac's own `ssh` 
 
 The YubiKey key is not specific to this box. You can also use it on the Mac for other hosts, for example GitHub. If `~/.ssh/id_ed25519_sk` exists, do not run `ssh-keygen`. A new key replaces the old one, and the old key then stops working on each host that has it.
 
+`-O verify-required` needs a FIDO2 PIN on the YubiKey. `ykman fido info` shows if one is set. `-w internal` is necessary because `.zshrc` sets `SSH_SK_PROVIDER` to the Secure Enclave provider, which cannot make an ed25519 key. Without it, `ssh-keygen` fails with "requested feature not supported".
+
 ```console
-brew install openssh
-$(brew --prefix)/bin/ssh-keygen -t ed25519-sk -O verify-required -f ~/.ssh/id_ed25519_sk -C "yubikey"
+brew install openssh ykman
+ykman fido access change-pin   # only when no PIN is set
+$(brew --prefix)/bin/ssh-keygen -w internal -t ed25519-sk -O verify-required -f ~/.ssh/id_ed25519_sk -C "yubikey"
 $(brew --prefix)/bin/ssh-copy-id -i ~/.ssh/id_ed25519_sk.pub doms-agents
 ```
 
