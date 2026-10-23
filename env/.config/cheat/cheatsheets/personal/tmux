@@ -3,26 +3,36 @@
 # List all keybindings
 Ctrl-a ?
 
-# List sessions
-tmux ls
-
-# View windows
-Ctrl-a w
-
 # Enter tmux copy mode
 Ctrl-a [
-
-# To create a new session from within tmux, spawn as a detached session
-tmux new-session -d
-
-# Create a new window
-tmux neww -n name
 
 # To detach from tmux
 Ctrl-a d
 
+# Windows
+# ######################################################
+
+# View windows
+Ctrl-a w
+
+# Create a new window
+tmux neww -n name
+
+# Close a window
+tmux kill-window -t name
+
 # To close a tmux window (from the window to close):
 exit
+
+
+# Sessions
+# ######################################################
+
+# List sessions
+tmux ls
+
+# To create a new session from within tmux, spawn as a detached session
+tmux new-session -d
 
 # To close a session:
 tmux kill-session -t <session-name>
