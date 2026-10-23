@@ -166,6 +166,13 @@ if have sbx-token; then
   4) warn "sandbox token App" "$token_out" ;;
   *) fail "sandbox token App" "$token_out" ;;
   esac
+  # The accounts that the App is installed on, for the kamaji section. Only an
+  # online check names them.
+  token_installs=""
+  if [[ "$token_status" == "0" && "$token_out" == *", installed on "* ]]; then
+    token_installs="${token_out#*, installed on }"
+    token_installs="${token_installs%% (*}"
+  fi
   unset token_args token_status token_out
 else
   fail "sbx-token" "not installed, run sync-env"
@@ -187,6 +194,56 @@ if have sbx; then
     warn "remote control" "off, /remote-control disconnects, run setup 30_tools"
   fi
 fi
+
+# ---------------------------------------------------------------------------
+section "kamaji"
+# ---------------------------------------------------------------------------
+
+# kamaji reads the backlogs of every project in its list. It runs here, not in
+# a sandbox, because a token reaches the repositories of one owner only, and
+# kamaji needs both. Its checkout is cloned by hand, so until it is, nothing
+# else here applies.
+kamaji_dir="$HOME/src/personal/kamaji"
+kamaji_job="com.domtriola.kamaji-refresh"
+if [[ ! -d "$kamaji_dir" ]]; then
+  pending "kamaji" "not cloned, see bootstrap.md"
+else
+  ok "kamaji" "~/src/personal/kamaji"
+
+  if have kamaji; then
+    ok "kamaji command" "$(command -v kamaji)"
+  else
+    pending "kamaji command" "not installed, run pnpm link --global in ~/src/personal/kamaji"
+  fi
+
+  if [[ -n "${token_installs:-}" ]]; then
+    missing=""
+    for owner in domtriola Fernata-Studio; do
+      [[ ", $token_installs, " == *", $owner, "* ]] || missing="${missing:+$missing, }$owner"
+    done
+    if [[ -z "$missing" ]]; then
+      ok "kamaji owners" "domtriola, Fernata-Studio"
+    else
+      warn "kamaji owners" "the App is not installed on $missing, so kamaji cannot read its repositories"
+    fi
+    unset missing owner
+  fi
+
+  if have launchctl; then
+    job_status=0
+    job_out="$(launchctl print "gui/$(id -u)/$kamaji_job" 2>/dev/null)" || job_status=$?
+    last_exit="$(sed -n 's/^[[:space:]]*last exit code = //p' <<<"$job_out" | head -1)"
+    if [[ "$job_status" -ne 0 ]]; then
+      warn "kamaji refresh job" "not loaded, run launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$kamaji_job.plist"
+    elif [[ -z "$last_exit" || "$last_exit" == "0" || "$last_exit" == "(never exited)" ]]; then
+      ok "kamaji refresh job" "loaded, refreshes every 15 minutes"
+    else
+      warn "kamaji refresh job" "last refresh exited $last_exit, see ~/Library/Logs/kamaji-refresh.log"
+    fi
+    unset job_status job_out last_exit
+  fi
+fi
+unset kamaji_dir kamaji_job token_installs
 
 # ---------------------------------------------------------------------------
 section "Environment"

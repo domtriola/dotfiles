@@ -140,3 +140,26 @@ Each machine gets its own key, so that you can revoke the key of a lost machine 
 To revoke a machine, delete its key pair under **Credentials**. To change the App's permissions, edit them on the settings page, then accept the change on the installation (https://github.com/settings/installations), and run `sbx-token check` again.
 
 If `sbx-token check` reports an installation on an account that is not expected, and you did not install the App there, delete that installation with `sbx-token uninstall <account>`. Only the API can do this, because GitHub does not show you the installations on other accounts.
+
+## Set up kamaji
+
+kamaji shows the backlogs of all your projects on one board. It runs here, not in a sandbox, because it needs a token for each owner, and a sandbox token reaches the repositories of one owner only. Do this after the sandbox GitHub tokens.
+
+1. [ ] Install the App on Fernata-Studio, if it is not there yet, and run `sbx-token expect Fernata-Studio`. Then `sbx-token check` names domtriola and Fernata-Studio.
+1. [ ] Clone kamaji, then link its command:
+
+   ```sh
+   git clone git@github.com:domtriola/kamaji.git ~/src/personal/kamaji
+   cd ~/src/personal/kamaji && pnpm install && pnpm link --global
+   ```
+
+1. [ ] Load the refresh job that `sync-env` installed. It runs `kamaji refresh` now and every 15 minutes, and writes to `~/Library/Logs/kamaji-refresh.log`:
+
+   ```sh
+   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.domtriola.kamaji-refresh.plist
+   ```
+
+1. [ ] If macOS asks whether `sbx-token` can use the App's key in the Keychain, select **Always Allow**. Otherwise each refresh waits for the prompt and fails.
+1. [ ] Test it: `doctor` shows each check in the kamaji section as `ok`, and `Ctrl-a B` in tmux opens the board.
+
+`launchd` reads the job only when it loads it. After `sync-env` changes the job, load it again: `launchctl bootout gui/$(id -u)/com.domtriola.kamaji-refresh`, then the `bootstrap` command above.

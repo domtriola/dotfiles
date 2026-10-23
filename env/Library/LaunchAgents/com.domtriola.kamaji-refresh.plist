@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Refreshes the kamaji snapshot every 15 minutes, so that the kamaji sandbox
+  reads current data. launchd expands no variables and gives a minimal PATH,
+  so bash finds HOME, Node 24 (nvm) and the kamaji command itself. The
+  program exits with the status of kamaji refresh, which launchctl print shows
+  as the last exit code.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.domtriola.kamaji-refresh</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-c</string>
+    <string>mkdir -p "$HOME/Library/Logs"
+exec &gt;&gt;"$HOME/Library/Logs/kamaji-refresh.log" 2&gt;&amp;1
+echo "$(date '+%Y-%m-%d %H:%M:%S') kamaji refresh"
+PATH="$HOME/Library/pnpm/bin:$HOME/.local/bin:$PATH"
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh" --no-use
+nvm use --silent 24 || exit
+cd "$HOME/src/personal/kamaji" || exit
+exec kamaji refresh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>900</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

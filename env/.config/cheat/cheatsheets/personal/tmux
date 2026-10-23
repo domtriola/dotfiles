@@ -9,6 +9,9 @@ Ctrl-a [
 # To detach from tmux
 Ctrl-a d
 
+# Open the kamaji board of the backlogs across projects
+Ctrl-a B
+
 # Windows
 # ######################################################
 
