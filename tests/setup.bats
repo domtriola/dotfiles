@@ -102,7 +102,7 @@ PLATFORM
   unset DOTFILES_PROFILE
   DOTFILES_DIR="$repo_root" run "$setup_cmd" --profile agent-server --dry
   [ "$status" -eq 0 ]
-  [[ "$output" == *"info    05_hardening"*"info    10_packages"*"info    12_storage"*"info    22_sandboxes"*"info    25_network"* ]]
-  [ "$(tail -1 <<<"$output")" = "setup: 5 to run" ]
+  [[ "$output" == *"info    05_hardening"*"info    10_packages"*"info    12_storage"*"info    22_sandboxes"*"info    25_network"*"info    30_git"* ]]
+  [ "$(tail -1 <<<"$output")" = "setup: 6 to run" ]
   [ ! -e "$XDG_CONFIG_HOME/dotfiles/profile" ]
 }

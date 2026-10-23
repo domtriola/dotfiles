@@ -12,7 +12,7 @@ here when it works on this checkout, or when it outgrows one file.
 | `pull-nvim`   | Copies `~/.config/nvim` back into `env/.config/nvim`.                       |
 | `sbx-up`      | Starts a Docker sandbox for the current project. See `sbx-up --help`.       |
 | `sbx-shell`   | Opens a shell into a sandbox. See `sbx-shell --help`.                       |
-| `sbx-token`   | Gives a sandbox a GitHub token for its repositories only. See `--help`.     |
+| `sbx-token`   | Mints scoped GitHub tokens for sandboxes, and for git. See `--help`.        |
 | `sbx-policy`  | Answers sandbox approvals and manages local network rules. See `--help`.    |
 
 ## Layout

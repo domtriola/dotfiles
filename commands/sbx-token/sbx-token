@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # Gives a Docker sandbox a GitHub token that reaches only the repositories it
-# works on, through a GitHub App that this machine holds the key of.
+# works on, through a GitHub App that this machine holds the key of. It also
+# gives git on this machine a read-only token for each repository it clones.
 #
 # The verbs live in lib/ beside this file, and `sbx-token --help` is the
 # reference.
@@ -29,6 +30,7 @@ usage() {
 Usage:
   sbx-token register <sandbox> [--repo owner/name]... [--perm name=level]...
   sbx-token mint [--repo owner/name]... [--perm name=level]...
+  sbx-token credential <get|store|erase>
   sbx-token check [--offline]
   sbx-token expect <account>
   sbx-token uninstall <account>
@@ -47,6 +49,10 @@ Verbs:
               daemon runs it again before each token expires. `sbx rm` deletes
               the secret with the sandbox.
   mint        Print a new token. This is the command that register stores.
+  credential  A git credential helper, for the machine's own clones. git
+              runs it and names the repository (credential.useHttpPath must
+              be true). It answers only for https://github.com, with a token
+              that can only read that one repository.
   check       Report whether this machine can mint tokens. Exits 3 when no
               App is set up yet, and 4 when the App is also installed on an
               account that is not expected. --offline only checks that the config and
@@ -91,6 +97,7 @@ account=""
 id=""
 file=""
 offline="false"
+action=""
 
 need_value() {
   [[ $# -ge 2 && -n "$2" ]] || die "$1 needs a value. Run sbx-token --help."
@@ -133,6 +140,10 @@ while [[ $# -gt 0 ]]; do
       [[ -z "$file" ]] || die "only one key file can be named"
       file="$1"
       ;;
+    credential)
+      [[ -z "$action" ]] || die "only one action can be named"
+      action="$1"
+      ;;
     expect | uninstall)
       [[ -z "$account" ]] || die "only one account can be named"
       account="$1"
@@ -151,6 +162,11 @@ case "$verb" in
 mint)
   require_deps
   mint_token
+  ;;
+credential)
+  [[ -n "$action" ]] || die "credential needs an action (get, store or erase). Run sbx-token --help."
+  require_deps
+  credential "$action"
   ;;
 register)
   [[ -n "$sandbox" ]] || die "name the sandbox. Run sbx-token --help."
