@@ -213,7 +213,7 @@ else
   if have kamaji; then
     ok "kamaji command" "$(command -v kamaji)"
   else
-    pending "kamaji command" "not installed, run pnpm link --global in ~/src/personal/kamaji"
+    warn "kamaji command" "not installed, run pnpm link --global in ~/src/personal/kamaji"
   fi
 
   if [[ -n "${token_installs:-}" ]]; then
@@ -224,9 +224,11 @@ else
     if [[ -z "$missing" ]]; then
       ok "kamaji owners" "domtriola, Fernata-Studio"
     else
-      warn "kamaji owners" "the App is not installed on $missing, so kamaji cannot read its repositories"
+      warn "kamaji owners" "the App is not installed on $missing, install it there, then run sbx-token expect <owner>"
     fi
     unset missing owner
+  else
+    pending "kamaji owners" "needs an online sbx-token check"
   fi
 
   if have launchctl; then

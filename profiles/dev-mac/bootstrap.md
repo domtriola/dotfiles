@@ -145,7 +145,7 @@ If `sbx-token check` reports an installation on an account that is not expected,
 
 kamaji shows the backlogs of all your projects on one board. It runs here, not in a sandbox, because it needs a token for each owner, and a sandbox token reaches the repositories of one owner only. Do this after the sandbox GitHub tokens.
 
-1. [ ] Install the App on Fernata-Studio, if it is not there yet, and run `sbx-token expect Fernata-Studio`. Then `sbx-token check` names domtriola and Fernata-Studio.
+1. [ ] Install the App on Fernata-Studio, if it is not there yet, at `https://github.com/apps/<your login>-sbx/installations/new`. Then run `sbx-token expect Fernata-Studio`, and check that `sbx-token check` names domtriola and Fernata-Studio.
 1. [ ] Clone kamaji, then link its command:
 
    ```sh
@@ -159,7 +159,6 @@ kamaji shows the backlogs of all your projects on one board. It runs here, not i
    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.domtriola.kamaji-refresh.plist
    ```
 
-1. [ ] If macOS asks whether `sbx-token` can use the App's key in the Keychain, select **Always Allow**. Otherwise each refresh waits for the prompt and fails.
 1. [ ] Test it: `doctor` shows each check in the kamaji section as `ok`, and `Ctrl-a B` in tmux opens the board.
 
 `launchd` reads the job only when it loads it. After `sync-env` changes the job, load it again: `launchctl bootout gui/$(id -u)/com.domtriola.kamaji-refresh`, then the `bootstrap` command above.

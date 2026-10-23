@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 #
-# doctor, through its command line, with the real agent-server checks.
+# doctor, through its command line, with the real agent-server and dev-mac
+# checks.
 #
 # A check that reads the system finds the sandbox, not the box, so these tests
 # look only at the lines that they are about.
@@ -76,25 +77,25 @@ given_kamaji() {
   [[ "$output" =~ ok\ +kamaji\ refresh\ job ]]
 }
 
-@test "dev-mac doctor reports the kamaji command as pending when it is not linked" {
+@test "dev-mac doctor warns when the kamaji command is not linked" {
   given_kamaji
   rm "$BATS_TEST_TMPDIR/bin/kamaji"
   run "$doctor" --profile dev-mac
-  [[ "$output" =~ pending\ +kamaji\ command\ +not\ installed,\ run\ pnpm\ link\ --global ]]
+  [[ "$output" =~ warn\ +kamaji\ command\ +not\ installed,\ run\ pnpm\ link\ --global ]]
 }
 
 @test "dev-mac doctor warns when the App is not installed on a kamaji owner" {
   given_kamaji
   fake_command sbx-token 'echo "sbx-token: me-sbx, installed on domtriola (only selected repositories on domtriola)"'
   run "$doctor" --profile dev-mac
-  [[ "$output" =~ warn\ +kamaji\ owners\ +the\ App\ is\ not\ installed\ on\ Fernata-Studio ]]
+  [[ "$output" =~ warn\ +kamaji\ owners\ +the\ App\ is\ not\ installed\ on\ Fernata-Studio,\ install\ it\ there,\ then\ run\ sbx-token\ expect ]]
 }
 
-@test "dev-mac doctor does not check the kamaji owners offline" {
+@test "dev-mac doctor reports the kamaji owners as pending offline" {
   given_kamaji
   fake_command sbx-token 'echo "sbx-token: me-sbx, key stored (not checked with GitHub)"'
   run "$doctor" --profile dev-mac --offline
-  [[ "$output" != *"kamaji owners"* ]]
+  [[ "$output" =~ pending\ +kamaji\ owners\ +needs\ an\ online\ sbx-token\ check ]]
 }
 
 @test "dev-mac doctor warns, with the command that loads it, when the refresh job is not loaded" {
