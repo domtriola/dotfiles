@@ -50,20 +50,27 @@ fake_command() {
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
 }
 
-# given_kamaji sets this machine up as if kamaji were cloned and linked, the
-# App were installed on both owners, and the refresh job had run once.
+# given_kamaji sets this machine up as if kamaji-update had made the runtime
+# clone, the development checkout were cloned, sync-env had installed the
+# wrapper, the App were installed on both owners, and the refresh job had run
+# once.
 given_kamaji() {
-  mkdir -p "$HOME/src/personal/kamaji"
-  fake_command kamaji 'exit 0'
+  runtime="$HOME/.local/share/kamaji"
+  git init --quiet "$runtime"
+  git -C "$runtime" -c user.name=t -c user.email=t@example.com commit --quiet --allow-empty -m "Add the CLI"
+  mkdir -p "$HOME/src/personal/kamaji" "$HOME/.local/bin"
+  printf '#!/bin/sh\n' >"$HOME/.local/bin/kamaji"
+  chmod +x "$HOME/.local/bin/kamaji"
+  export PATH="$HOME/.local/bin:$PATH"
   fake_command sbx-token 'echo "sbx-token: me-sbx, installed on Fernata-Studio, domtriola"'
   fake_command launchctl 'echo "state = not running"; echo "last exit code = 0"'
 }
 
-@test "dev-mac doctor reports kamaji as pending, and checks nothing else, when it is not cloned" {
+@test "dev-mac doctor reports kamaji as pending, and checks nothing else, when it is not installed" {
   given_kamaji
-  rm -r "$HOME/src/personal/kamaji"
+  rm -rf "$runtime"
   run "$doctor" --profile dev-mac
-  [[ "$output" =~ pending\ +kamaji\ +not\ cloned ]]
+  [[ "$output" =~ pending\ +kamaji\ +not\ installed,\ see\ bootstrap.md ]]
   [[ "$output" != *"kamaji command"* ]]
   [[ "$output" != *"kamaji refresh job"* ]]
 }
@@ -71,17 +78,39 @@ given_kamaji() {
 @test "dev-mac doctor reports each kamaji check as ok when all is set up" {
   given_kamaji
   run "$doctor" --profile dev-mac
-  [[ "$output" =~ ok\ +kamaji\ +~/src/personal/kamaji ]]
-  [[ "$output" =~ ok\ +kamaji\ command ]]
+  [[ "$output" =~ ok\ +kamaji\ runtime\ +[0-9a-f]+\ [0-9-]+,\ update\ with\ kamaji-update ]]
+  [[ "$output" =~ ok\ +kamaji\ checkout\ +~/src/personal/kamaji ]]
+  [[ "$output" =~ ok\ +kamaji\ command\ +runs\ the\ runtime\ clone ]]
   [[ "$output" =~ ok\ +kamaji\ owners\ +domtriola,\ Fernata-Studio ]]
   [[ "$output" =~ ok\ +kamaji\ refresh\ job ]]
 }
 
-@test "dev-mac doctor warns when the kamaji command is not linked" {
+@test "dev-mac doctor warns when the runtime clone has local changes, because the host runs them" {
   given_kamaji
-  rm "$BATS_TEST_TMPDIR/bin/kamaji"
+  echo "edited" >"$runtime/cli.js"
   run "$doctor" --profile dev-mac
-  [[ "$output" =~ warn\ +kamaji\ command\ +not\ installed,\ run\ pnpm\ link\ --global ]]
+  [[ "$output" =~ warn\ +kamaji\ runtime\ +has\ local\ changes ]]
+}
+
+@test "dev-mac doctor warns when the development checkout is missing, because the sandbox gets no snapshot" {
+  given_kamaji
+  rm -r "$HOME/src/personal/kamaji"
+  run "$doctor" --profile dev-mac
+  [[ "$output" =~ warn\ +kamaji\ checkout\ +not\ cloned ]]
+}
+
+@test "dev-mac doctor fails when another kamaji comes first on PATH, such as a linked development checkout" {
+  given_kamaji
+  fake_command kamaji 'exit 0'
+  run "$doctor" --profile dev-mac
+  [[ "$output" =~ FAIL\ +kamaji\ command\ +[^$'\n']*/bin/kamaji\ comes\ first\ on\ PATH ]]
+}
+
+@test "dev-mac doctor fails when the kamaji wrapper is not installed" {
+  given_kamaji
+  rm "$HOME/.local/bin/kamaji"
+  run "$doctor" --profile dev-mac
+  [[ "$output" =~ FAIL\ +kamaji\ command\ +not\ installed,\ run\ sync-env ]]
 }
 
 @test "dev-mac doctor warns when the App is not installed on a kamaji owner" {

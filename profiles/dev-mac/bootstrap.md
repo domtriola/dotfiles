@@ -145,13 +145,20 @@ If `sbx-token check` reports an installation on an account that is not expected,
 
 kamaji shows the backlogs of all your projects on one board. It runs here, not in a sandbox, because it needs a token for each owner, and a sandbox token reaches the repositories of one owner only. Do this after the sandbox GitHub tokens.
 
+kamaji has two copies on this machine:
+
+- The **development checkout** at `~/src/personal/kamaji`. The kamaji sandbox works in it, and reads the snapshot from its `.kamaji/` directory. The host never runs its code, because the sandbox can write to it.
+- The **runtime clone** at `~/.local/share/kamaji`. The `kamaji` command, the refresh job, and `Ctrl-a B` run this copy. `kamaji-update` keeps it at `main` on GitHub, which holds only what you reviewed and merged.
+
 1. [ ] Install the App on Fernata-Studio, if it is not there yet, at `https://github.com/apps/<your login>-sbx/installations/new`. Then run `sbx-token expect Fernata-Studio`, and check that `sbx-token check` names domtriola and Fernata-Studio.
-1. [ ] Clone kamaji, then link its command:
+1. [ ] Clone the development checkout, and make the runtime clone:
 
    ```sh
    git clone git@github.com:domtriola/kamaji.git ~/src/personal/kamaji
-   cd ~/src/personal/kamaji && pnpm install && pnpm link --global
+   kamaji-update
    ```
+
+   Do not run `pnpm link --global` in the development checkout. That puts its code on the host's PATH.
 
 1. [ ] Load the refresh job that `sync-env` installed. It runs `kamaji refresh` now and every 15 minutes, and writes to `~/Library/Logs/kamaji-refresh.log`:
 
@@ -160,5 +167,7 @@ kamaji shows the backlogs of all your projects on one board. It runs here, not i
    ```
 
 1. [ ] Test it: `doctor` shows each check in the kamaji section as `ok`, and `Ctrl-a B` in tmux opens the board.
+
+After you merge a kamaji PR, run `kamaji-update`. It lists the commits that it adds. `doctor` shows the commit that the host runs.
 
 `launchd` reads the job only when it loads it. After `sync-env` changes the job, load it again: `launchctl bootout gui/$(id -u)/com.domtriola.kamaji-refresh`, then the `bootstrap` command above.

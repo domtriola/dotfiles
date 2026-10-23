@@ -2,7 +2,7 @@
 #
 # The launchd job that refreshes the kamaji snapshot on dev-mac. launchd runs
 # it with no terminal and a minimal PATH, so these tests run its program the
-# same way, with a fake nvm and a fake kamaji.
+# same way, with a fake nvm and a fake kamaji wrapper.
 
 load helpers
 
@@ -10,18 +10,18 @@ plist="$repo_root/env/Library/LaunchAgents/com.domtriola.kamaji-refresh.plist"
 
 setup() {
   common_setup
-  mkdir -p "$HOME/src/personal/kamaji" "$HOME/.nvm" "$HOME/Library/pnpm/bin"
+  mkdir -p "$HOME/.nvm" "$HOME/.local/bin"
   # nvm puts the node it selects first on PATH, as the real one does.
   cat >"$HOME/.nvm/nvm.sh" <<'NVM'
 nvm() { echo "nvm $*" >>"$FAKE_STATE/nvm.log"; PATH="$HOME/.nvm/versions/node/v24/bin:$PATH"; }
 NVM
-  cat >"$HOME/Library/pnpm/bin/kamaji" <<'KAMAJI'
+  cat >"$HOME/.local/bin/kamaji" <<'KAMAJI'
 #!/bin/sh
-echo "$PWD $* $PATH" >>"$FAKE_STATE/kamaji.log"
+echo "$* $PATH" >>"$FAKE_STATE/kamaji.log"
 echo "refreshed"
 exit "${KAMAJI_EXIT:-0}"
 KAMAJI
-  chmod +x "$HOME/Library/pnpm/bin/kamaji"
+  chmod +x "$HOME/.local/bin/kamaji"
 }
 
 # value prints a top-level key of the plist as JSON.
@@ -43,12 +43,12 @@ run_job() {
   [ "$(value StartInterval)" = "900" ]
 }
 
-@test "the job runs kamaji refresh in the checkout, with Node 24 from nvm first on PATH" {
+@test "the job runs kamaji refresh through the wrapper, with Node 24 from nvm first on PATH" {
   run_job
   [ "$status" -eq 0 ]
   [[ "$(cat "$FAKE_STATE/nvm.log")" == *"use"*"24"* ]]
   log="$(cat "$FAKE_STATE/kamaji.log")"
-  [[ "$log" == "$HOME/src/personal/kamaji refresh $HOME/.nvm/versions/node/v24/bin:"* ]]
+  [[ "$log" == "refresh $HOME/.nvm/versions/node/v24/bin:"* ]]
   [[ "$log" == *":$HOME/.local/bin:"* ]]
 }
 
@@ -61,12 +61,4 @@ run_job() {
 @test "the job exits with the status of kamaji refresh, so launchctl print shows a failure" {
   KAMAJI_EXIT=3 run_job
   [ "$status" -eq 3 ]
-}
-
-@test "the job fails, and says why, when kamaji is not cloned" {
-  rm -r "$HOME/src/personal/kamaji"
-  run_job
-  [ "$status" -ne 0 ]
-  [[ "$(cat "$HOME/Library/Logs/kamaji-refresh.log")" == *"kamaji"* ]]
-  [ ! -e "$FAKE_STATE/kamaji.log" ]
 }

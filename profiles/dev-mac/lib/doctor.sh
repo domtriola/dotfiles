@@ -201,20 +201,36 @@ section "kamaji"
 
 # kamaji reads the backlogs of every project in its list. It runs here, not in
 # a sandbox, because a token reaches the repositories of one owner only, and
-# kamaji needs both. Its checkout is cloned by hand, so until it is, nothing
-# else here applies.
-kamaji_dir="$HOME/src/personal/kamaji"
+# kamaji needs both owners, domtriola and Fernata-Studio. The host runs the
+# runtime clone, which kamaji-update keeps at the reviewed main, and never the
+# development checkout, which the kamaji sandbox can write to. Until the
+# runtime clone exists, nothing else here applies.
+kamaji_runtime="$HOME/.local/share/kamaji"
 kamaji_job="com.domtriola.kamaji-refresh"
-if [[ ! -d "$kamaji_dir" ]]; then
-  pending "kamaji" "not cloned, see bootstrap.md"
+if [[ ! -d "$kamaji_runtime/.git" ]]; then
+  pending "kamaji" "not installed, see bootstrap.md"
 else
-  ok "kamaji" "~/src/personal/kamaji"
-
-  if have kamaji; then
-    ok "kamaji command" "$(command -v kamaji)"
+  if [[ -n "$(git -C "$kamaji_runtime" status --porcelain 2>/dev/null)" ]]; then
+    warn "kamaji runtime" "has local changes, which the host runs, see kamaji-update"
   else
-    warn "kamaji command" "not installed, run pnpm link --global in ~/src/personal/kamaji"
+    ok "kamaji runtime" "$(git -C "$kamaji_runtime" log -1 --format='%h %cs' 2>/dev/null), update with kamaji-update"
   fi
+
+  if [[ -d "$HOME/src/personal/kamaji" ]]; then
+    ok "kamaji checkout" "~/src/personal/kamaji"
+  else
+    warn "kamaji checkout" "not cloned, so the kamaji sandbox gets no snapshot, see bootstrap.md"
+  fi
+
+  kamaji_path="$(command -v kamaji 2>/dev/null || true)"
+  if [[ "$kamaji_path" == "$HOME/.local/bin/kamaji" ]]; then
+    ok "kamaji command" "runs the runtime clone"
+  elif [[ -z "$kamaji_path" ]]; then
+    fail "kamaji command" "not installed, run sync-env"
+  else
+    fail "kamaji command" "$kamaji_path comes first on PATH, so the runtime clone does not run, remove it"
+  fi
+  unset kamaji_path
 
   if [[ -n "${token_installs:-}" ]]; then
     missing=""
@@ -245,7 +261,7 @@ else
     unset job_status job_out last_exit
   fi
 fi
-unset kamaji_dir kamaji_job token_installs
+unset kamaji_runtime kamaji_job token_installs
 
 # ---------------------------------------------------------------------------
 section "Environment"
