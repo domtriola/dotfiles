@@ -99,6 +99,13 @@ given_kamaji() {
   [[ "$output" =~ warn\ +kamaji\ checkout\ +not\ cloned ]]
 }
 
+@test "dev-mac doctor fails when the kamaji sandbox would mount the development checkout read and write" {
+  given_kamaji
+  echo '{"clone": false}' >"$HOME/src/personal/kamaji/.sbx.json"
+  run "$doctor" --profile dev-mac
+  [[ "$output" =~ FAIL\ +kamaji\ checkout\ +[^$'\n']*clone ]]
+}
+
 @test "dev-mac doctor fails when another kamaji comes first on PATH, such as a linked development checkout" {
   given_kamaji
   fake_command kamaji 'exit 0'

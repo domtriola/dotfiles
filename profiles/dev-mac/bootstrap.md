@@ -147,7 +147,7 @@ kamaji shows the backlogs of all your projects on one board. It runs here, not i
 
 kamaji has two copies on this machine:
 
-- The **development checkout** at `~/src/personal/kamaji`. The kamaji sandbox works in it, and reads the snapshot from its `.kamaji/` directory. The host never runs its code, because the sandbox can write to it.
+- The **development checkout** at `~/src/personal/kamaji`. You work in it, and kamaji writes its snapshot to its `.kamaji/` directory. Start the kamaji sandbox from it with `sbx-up`, in the default clone mode. The sandbox then reads the snapshot at `/run/sandbox/source/.kamaji/snapshot.json`, a read-only view of the checkout. Never set `"clone": false` in its `.sbx.json`: a sandbox that can write the checkout can also write `.git/config` or a hook that your git runs. The host never runs this checkout's code, because `sbx-pull` brings sandbox commits into it before you review them.
 - The **runtime clone** at `~/.local/share/kamaji`. The `kamaji` command, the refresh job, and `Ctrl-a B` run this copy. `kamaji-update` keeps it at `main` on GitHub, which holds only what you reviewed and merged.
 
 1. [ ] Install the App on Fernata-Studio, if it is not there yet, at `https://github.com/apps/<your login>-sbx/installations/new`. Then run `sbx-token expect Fernata-Studio`, and check that `sbx-token check` names domtriola and Fernata-Studio.

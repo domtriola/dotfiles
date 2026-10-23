@@ -27,7 +27,7 @@ setup() {
 upstream_commit() {
   local dir="$BATS_TEST_TMPDIR/upstream"
   echo '{"name": "kamaji", "bin": {"kamaji": "cli.js"}}' >"$dir/package.json"
-  echo 'console.log(`args=${process.argv.slice(2).join(" ")} snapshot=${process.env.KAMAJI_SNAPSHOT_DIR ?? ""}`)' >"$dir/cli.js"
+  echo 'console.log(`args=${process.argv.slice(2).join(" ")} cwd=${process.cwd()} snapshot=${process.env.KAMAJI_SNAPSHOT_DIR ?? ""}`)' >"$dir/cli.js"
   echo "$1" >>"$dir/CHANGES"
   git -C "$dir" add -A
   git -C "$dir" -c user.name=t -c user.email=t@example.com commit --quiet -m "$1"
@@ -78,18 +78,18 @@ upstream_commit() {
   [[ "$output" == *"not on main"* ]]
 }
 
-@test "the kamaji wrapper runs the runtime clone, with the snapshot in the development checkout" {
+@test "the kamaji wrapper runs the runtime clone in its own directory, with the snapshot in the development checkout" {
   "$update"
   mkdir -p "$HOME/src/personal/kamaji"
-  run "$wrapper" refresh --verbose
+  run bash -c 'cd "$HOME/src/personal/kamaji" && "$1" refresh --verbose' _ "$wrapper"
   [ "$status" -eq 0 ]
-  [ "$output" = "args=refresh --verbose snapshot=$HOME/src/personal/kamaji/.kamaji" ]
+  [ "$output" = "args=refresh --verbose cwd=$runtime snapshot=$HOME/src/personal/kamaji/.kamaji" ]
 }
 
 @test "the kamaji wrapper sets no snapshot directory when there is no development checkout" {
   "$update"
   run "$wrapper" refresh
-  [ "$output" = "args=refresh snapshot=" ]
+  [ "$output" = "args=refresh cwd=$runtime snapshot=" ]
 }
 
 @test "the kamaji wrapper refuses when the snapshot directory is a symlink" {

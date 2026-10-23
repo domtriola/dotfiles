@@ -216,8 +216,15 @@ else
     ok "kamaji runtime" "$(git -C "$kamaji_runtime" log -1 --format='%h %cs' 2>/dev/null), update with kamaji-update"
   fi
 
+  # In clone mode (product I4), the kamaji sandbox reads the snapshot through
+  # a read-only view of this checkout. Mounted read and write, the sandbox
+  # could write .git/config or a hook that the host's git then runs.
   if [[ -d "$HOME/src/personal/kamaji" ]]; then
-    ok "kamaji checkout" "~/src/personal/kamaji"
+    if jq -e '.clone == false' "$HOME/src/personal/kamaji/.sbx.json" >/dev/null 2>&1; then
+      fail "kamaji checkout" ".sbx.json sets \"clone\": false, so the sandbox can write it, remove that"
+    else
+      ok "kamaji checkout" "~/src/personal/kamaji"
+    fi
   else
     warn "kamaji checkout" "not cloned, so the kamaji sandbox gets no snapshot, see bootstrap.md"
   fi

@@ -188,10 +188,15 @@ open_board() {
   [ "$(key_table)" = "prefix" ]
 }
 
-@test "C-a B keeps the popup open when kamaji board fails, so its error stays readable" {
+@test "C-a B keeps the popup open when kamaji board fails, until Enter closes it" {
   given_kamaji 1
   open_board
   # The open popup takes the keys, so C-a does not reach tmux.
   press C-a
   [ "$(key_table)" = "root" ]
+  # Enter closes it.
+  press Enter
+  sleep 0.3
+  press C-a
+  [ "$(key_table)" = "prefix" ]
 }
