@@ -284,3 +284,12 @@ else
     fail "App key" "$key_file has mode $key_mode, run chmod 600 $key_file"
   fi
 fi
+
+# agent-server-I14. git on the box gets read-only tokens from the App.
+git_helper="$(git config --global --get-all credential.https://github.com.helper 2>/dev/null || true)"
+if [[ "$git_helper" == "$HOME/.local/bin/sbx-token credential" &&
+  "$(git config --global --get credential.https://github.com.useHttpPath 2>/dev/null)" == "true" ]]; then
+  ok "git credentials" "sbx-token, read-only"
+else
+  fail "git credentials" "git cannot clone private repositories, run setup 30_git"
+fi

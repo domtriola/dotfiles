@@ -121,7 +121,13 @@ Also delete the `.pem` file on the Mac. `import-key` saves the file store in its
 doctor
 ```
 
-Every check must be `ok`. Then start agents inside tmux, so that they keep running after you disconnect:
+Every check must be `ok`. Then clone a project with an HTTPS URL. git gets a token from the App, which can only read that repository (`30_git`). So the App must be installed on the repository's owner, and the box cannot push:
+
+```console
+cd ~/src && git clone https://github.com/<owner>/<project>.git
+```
+
+Start agents inside tmux, so that they keep running after you disconnect:
 
 ```console
 tmux new -s agents

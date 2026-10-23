@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# git on the box authenticates to GitHub through the App, so that the operator
+# can clone a private repository with a plain HTTPS URL, and sbx-up can start
+# a sandbox from it.
+#
+# git asks `sbx-token credential` for each request to https://github.com. The
+# helper mints a token that can only read the one repository in the URL, so
+# the box's clones never push (agent-server-I14). There is no SSH key and no
+# personal access token on the box.
+
+set -eo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/style.sh
+source "$root_dir/lib/style.sh"
+
+# The installed copy, as for the sandbox secrets: a path inside a checkout can
+# be a workspace that a sandbox can write to.
+helper="$HOME/.local/bin/sbx-token credential"
+scope="credential.https://github.com"
+
+set_global() {
+  local key="$1" value="$2"
+  if [[ "$(git config --global --get-all "$key" 2>/dev/null)" == "$value" ]]; then
+    echo "$key is already $value."
+  else
+    echo "Setting $key to $value"
+    git config --global --replace-all "$key" "$value"
+  fi
+}
+
+if ! command -v git >/dev/null 2>&1; then
+  echo "30_git: git is not installed." >&2
+  exit 1
+fi
+
+section "The GitHub credential helper"
+set_global "$scope.helper" "$helper"
+# Without the path, git does not name the repository, and the helper cannot
+# limit the token to it.
+set_global "$scope.useHttpPath" "true"
+
+cat <<'MSG'
+
+Clone with an HTTPS URL, for a repository that the App is installed on:
+
+  git clone https://github.com/<owner>/<name>.git
+
+The box can fetch but not push.
+MSG

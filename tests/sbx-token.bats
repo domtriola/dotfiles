@@ -357,3 +357,59 @@ setup() {
   [[ "$output" == *"not installed on nobody"* ]]
   ! requests | grep -q DELETE
 }
+
+@test "credential get answers git with a read-only token for the repository in the path" {
+  given_app
+  run "$sbx_token" credential get <<<$'protocol=https\nhost=github.com\npath=me/app.git\n'
+  [ "$status" -eq 0 ]
+  [ "$output" = $'username=x-access-token\npassword=ghs_fake' ]
+  [ "$(token_request | jq -c .repositories)" = '["app"]' ]
+  [ "$(token_request | jq -cS .permissions)" = '{"contents":"read","metadata":"read"}' ]
+}
+
+@test "credential get takes a path without .git" {
+  given_app
+  run "$sbx_token" credential get <<<$'protocol=https\nhost=github.com\npath=me/app\n'
+  [ "$status" -eq 0 ]
+  [ "$(token_request | jq -c .repositories)" = '["app"]' ]
+}
+
+@test "credential get stays silent for another host, so git asks the next helper" {
+  given_app
+  run "$sbx_token" credential get <<<$'protocol=https\nhost=gitlab.com\npath=me/app.git\n'
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -s "$FAKE_STATE/curl.log" ]
+}
+
+@test "credential get without a path names useHttpPath" {
+  given_app
+  run "$sbx_token" credential get <<<$'protocol=https\nhost=github.com\n'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"useHttpPath"* ]]
+  [ ! -s "$FAKE_STATE/curl.log" ]
+}
+
+@test "credential get refuses a path that is not a repository" {
+  given_app
+  run "$sbx_token" credential get <<<$'protocol=https\nhost=github.com\npath=me/app/extra.git\n'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not a repository"* ]]
+  [ ! -s "$FAKE_STATE/curl.log" ]
+}
+
+@test "credential store and erase do nothing" {
+  given_app
+  for action in store erase; do
+    run "$sbx_token" credential "$action" <<<$'protocol=https\nhost=github.com\npath=me/app.git\nusername=x-access-token\npassword=ghs_fake\n'
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+  done
+  [ ! -s "$FAKE_STATE/curl.log" ]
+}
+
+@test "credential needs an action" {
+  run "$sbx_token" credential
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"credential needs an action"* ]]
+}

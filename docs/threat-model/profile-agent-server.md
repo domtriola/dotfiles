@@ -3,7 +3,7 @@
 **Kind**: feature
 **Product model**: [product.md](product.md)
 **Origin**: #109
-**Last reviewed**: 2026-10-21
+**Last reviewed**: 2026-10-23
 
 ## Scope
 
@@ -13,6 +13,7 @@ This model covers what only the `agent-server` profile installs and does. The pr
 - **The SSH server** on the box, and the operator's SSH sessions from the laptop into the box's tmux.
 - **NetBird** on the box, which is the only network path to the SSH server.
 - **The App key file**: `sbx-token` with `SBX_TOKEN_STORE=file`, which only this profile uses.
+- **git's credentials on the box**: `sbx-token credential`, which `30_git` sets as git's helper for `https://github.com`.
 - **`sudo`** with the operator's password.
 - **The box's clones** in `~/src`, from which the operator starts sandboxes with `sbx-up`.
 - **Unattended work**: security updates without a reboot, no sleep, and agents that run while the operator is away.
@@ -60,6 +61,7 @@ The other actors are in the product model.
   - The NetBird repository key and the `netbird` package (`25_network`).
   - Ubuntu packages, also from unattended upgrades.
 - **The key file** `~/.config/sbx-token/`, which `sbx-token` reads.
+- **git's credential requests**, which `sbx-token credential` reads on stdin.
 - **`.sbx.json`** in a box clone, which `sbx-up` reads.
 - **The output of the box's tmux**, which goes to the laptop's terminal over SSH.
 
@@ -144,6 +146,7 @@ flowchart LR
 | agent-server-T18 | D | A token renewal fails with no sign while the operator is away, so the agents cannot push for hours. | B7 | medium | low | accepted | None. |
 | agent-server-T19 | T | A sandbox agent sets the laptop's clipboard through OSC 52 in its output, and the operator pastes it into a laptop shell. | agent-server-B4 | medium | high | mitigated | agent-server-I10 |
 | agent-server-T20 | E | A `.sbx.json` that turns off the clone (for example `"clone": false` or `null`) mounts a box clone into a sandbox, which can then write `.git/hooks`, `.git/config`, or `.sbx.json` that the box runs or reads (product T10 on the box). | B3 | low | high | mitigated | agent-server-I13 |
+| agent-server-T21 | T, E | git on the box gets a token through the credential helper, and a program that git runs in a box clone (a hook, or a build) uses it to write to GitHub. | B7 | low | high | mitigated | agent-server-I14 |
 
 STRIDE categories that have no threat above:
 
@@ -172,6 +175,7 @@ STRIDE categories that have no threat above:
 | agent-server-I11 | Unattended upgrades install security updates and never reboot (`Unattended-Upgrade::Automatic-Reboot "false"`, as `apt-config dump` reads it). Doctor reports when a reboot is necessary. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T15, agent-server-T16 |
 | agent-server-I12 | The sleep, suspend, and hibernate targets are masked. Doctor fails when one is not. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T17 |
 | agent-server-I13 | On the `agent-server` profile, `sbx-up` stops when the resolved sandbox is not a clone: a `.sbx.json` with any value of `"clone"` that turns it off, or a project outside git. | `sbx-up` (`config_load`) | agent-server-T20 |
+| agent-server-I14 | `sbx-token credential` answers only `get` for `https` on `github.com`. Its token names the one repository in git's path and has only `contents: read` and `metadata: read`, so the box can clone and fetch, but never push. It stops when git gives no path, and never mints a token for more than one repository. Doctor fails when the helper is not set. | `sbx-token` (`lib/credential`), `profiles/agent-server/30_git`, `profiles/agent-server/lib/doctor.sh` | agent-server-T21 |
 
 ## Accepted risks
 
