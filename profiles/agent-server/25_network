@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
-# NetBird, and SSH through NetBird only.
+# NetBird, and SSH and mosh through NetBird only.
 #
 # The operator reaches this machine only over the NetBird overlay, also at
 # home. When a peer is connected, SSH moves to the overlay interface, and the
-# general rule for 22/tcp that 05_hardening added goes (agent-server-I2).
+# general rule for 22/tcp that 05_hardening added goes (agent-server-I2). mosh
+# gets its UDP ports on the overlay interface only.
 # NetBird's own SSH server stays off, so every login goes through sshd and the
 # YubiKey (agent-server-I9).
 #
@@ -22,6 +23,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
 source "$root_dir/lib/style.sh"
 
 iface="wt0" # the default WireGuard interface of the NetBird client
+mosh_ports="60000:61000" # the default range of mosh-server
 keyring="/usr/share/keyrings/netbird-archive-keyring.asc"
 sources="/etc/apt/sources.list.d/netbird.list"
 key_url="https://pkgs.netbird.io/debian/public.key"
@@ -174,6 +176,11 @@ if grep -qE '^22/tcp( \(v6\))? +ALLOW' <<<"$status"; then
   sudo ufw delete allow 22/tcp
 fi
 
+# mosh-server takes the first free UDP port in this range, one per session.
+# There is never a general rule for it.
+section "mosh over the overlay"
+sudo ufw allow in on "$iface" to any port "$mosh_ports" proto udp
+
 cat <<EOF
 SSH now answers on $iface only.
 
@@ -186,6 +193,6 @@ The doms-agents entry in ~/.ssh/config.d/hosts on the Mac must use the
 overlay address $overlay_ip, or the NetBird name of this machine.
 
 In the dashboard, the "Default" policy must be gone (it lets every peer reach
-every other peer), and one policy must let only your client group reach this
-machine, on TCP port 22, one way.
+every other peer). Policies must let only your client group reach this
+machine, one way, on TCP port 22 and on UDP ports ${mosh_ports/:/-} (mosh).
 EOF

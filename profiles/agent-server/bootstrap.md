@@ -27,7 +27,11 @@ Host doms-agents
   HostName <address of the box>
   User <your username on doms-agents>
   HostKeyAlias doms-agents
+  ServerAliveInterval 15
+  ServerAliveCountMax 4
 ```
+
+The two `ServerAlive` lines close a dead SSH session after about one minute, so the terminal does not freeze. They also keep the connection open through routers that forget idle connections.
 
 Then copy the Mac's key, and check that the key alone is enough:
 
@@ -85,7 +89,7 @@ The real run saves the profile, and later runs reuse it. A dry run saves nothing
 
 In the NetBird dashboard, add the box as a **Server**, not as a user device. A user device logs in through SSO, and its login can expire. Then the box leaves NetBird, and SSH, which listens only on `wt0`, is reachable only from the box's keyboard. A server joins with a setup key and has no login expiry.
 
-Make a one-off setup key with an auto-assigned group for the box, for example `agent-servers`. Delete the "Default" policy, and make one policy: source your user group, destination `agent-servers`, TCP port 22, one way. Connect the Mac to NetBird as a user device. Then, on the box:
+Make a one-off setup key with an auto-assigned group for the box, for example `agent-servers`. Delete the "Default" policy, and make two policies, each one way from source your user group to destination `agent-servers`: one for TCP port 22 (SSH), and one for UDP ports 60000-61000 (mosh). Connect the Mac to NetBird as a user device. Then, on the box:
 
 ```console
 read -rs -p 'Setup key: ' NETBIRD_SETUP_KEY && export NETBIRD_SETUP_KEY
@@ -133,6 +137,20 @@ Start agents inside tmux, so that they keep running after you disconnect:
 tmux new -s agents
 cd ~/src/<project> && sbx-up
 ```
+
+## 8. Connect with mosh
+
+A plain SSH session stops when the Mac sleeps or changes network, and each new login needs the YubiKey. mosh logs in over SSH one time (with the YubiKey), and then keeps the session over UDP. The session continues after sleep, a change of Wi-Fi, or an outage. From the Mac:
+
+```console
+mosh doms-agents -- tmux new -A -s agents
+```
+
+mosh uses the `ssh` on `PATH`, which is Homebrew's OpenSSH, so the YubiKey works. mosh has no scrollback. Use tmux's copy mode (`prefix [`).
+
+A session that hears nothing from the Mac for three days stops (`MOSH_SERVER_NETWORK_TMOUT`). tmux keeps the work, so connect again. To stop an old session now, run `pkill -u "$USER" mosh-server` on the box. This also stops the session that you are in.
+
+If mosh says that it needs a UTF-8 locale, the box does not have the Mac's locale. Run `sudo locale-gen en_US.UTF-8` on the box (with the locale from `locale` on the Mac).
 
 ## Later
 
