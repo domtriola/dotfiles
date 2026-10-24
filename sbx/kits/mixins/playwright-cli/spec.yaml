@@ -1,0 +1,86 @@
+schemaVersion: "2"
+kind: mixin
+name: playwright-cli
+displayName: Playwright CLI
+description: >-
+  Installs playwright-cli and Chromium in the background after the sandbox
+  starts. Read this before you use playwright-cli.
+sourceURL: https://github.com/domtriola/dotfiles
+
+permissions:
+  network:
+    allow:
+      # The Node release index and tarballs.
+      - nodejs.org
+      # npm install -g @playwright/cli
+      - registry.npmjs.org
+      # The Chromium download, and the mirror Playwright falls back to.
+      - cdn.playwright.dev
+      - playwright.download.prss.microsoft.com
+      # apt, for Chromium's system packages. The mirror differs by
+      # architecture: ports for arm64, the other two for amd64.
+      - ports.ubuntu.com
+      - archive.ubuntu.com
+      - security.ubuntu.com
+
+setup:
+  startup:
+    - command:
+        - "sh"
+        - "-c"
+        - |
+          set -eu
+
+          # Two files under $HOME report what the install is doing, because
+          # the engine does not stop a sandbox whose startup work fails:
+          #
+          #   .playwright-cli-kit.log     everything the install printed
+          #   .playwright-cli-kit.status  the current step, then ready | failed
+          #
+          # Both are reset before the hook returns, so a restart never reports
+          # the previous start's result. The wrapper on PATH goes too: the
+          # install replaces the Node it runs, and writes it again at the end.
+          log="$HOME/.playwright-cli-kit.log"
+          : >"$log"
+          echo "starting the playwright-cli kit" >"$HOME/.playwright-cli-kit.status"
+          rm -f "$HOME/.local/bin/playwright-cli"
+
+          # The script comes from files/home. Without it, nothing else would
+          # ever write failed, so say so here.
+          script="$HOME/.local/libexec/playwright-cli-kit/install"
+          if [ ! -f "$script" ]; then
+            echo "playwright-cli kit: $script is missing" >"$log"
+            echo failed >"$HOME/.playwright-cli-kit.status"
+            exit 0
+          fi
+
+          # Renovate bumps this pin (see renovate.json at the repository root),
+          # after a 7-day release age.
+          # renovate: datasource=npm depName=@playwright/cli
+          cli_version=0.1.22
+
+          # The install takes a minute or two, and the engine starts the agent
+          # only after every startup hook returns. So the hook starts it
+          # detached (setsid, so it outlives the hook) and returns at once.
+          # The script reads the workspace only for the Node version the
+          # project asks for.
+          PLAYWRIGHT_CLI_VERSION="$cli_version" setsid nohup sh "$script" \
+            "${WORKSPACE_DIR:-$PWD}" >>"$log" 2>&1 </dev/null &
+      description: "Start the Node, playwright-cli, and Chromium install in the background"
+      user: "1000"
+
+agentInstructions:
+  content: |
+    `playwright-cli` drives a headless Chromium. See `playwright-cli --help`.
+
+    - It is installed in the background after the sandbox starts, which takes
+      a minute or two. Before your first `playwright-cli` command, wait until
+      `~/.playwright-cli-kit.status` reads `ready`. If it reads `failed`, the
+      reason is in `~/.playwright-cli-kit.log`.
+    - When the app runs in Docker Compose, open it on
+      `http://localhost:<published port>`. `docker compose ps` shows the
+      published ports.
+    - It writes its snapshots to `.playwright-cli/` in the current directory.
+      Do not commit them.
+    - It has its own Node, in `~/.local/share/playwright-cli-kit`. It does not
+      change the `node` on PATH, and it installs nothing in the project.

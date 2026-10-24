@@ -10,7 +10,7 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+=(?<currentValue>\\S+)"
       ],
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "extractVersionTemplate": "^v?(?<version>.*)$"
     },
     {
       "description": "The nvm install script URL in the language setup steps",
