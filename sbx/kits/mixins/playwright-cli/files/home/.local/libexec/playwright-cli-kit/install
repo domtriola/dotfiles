@@ -9,7 +9,8 @@
 #
 # PLAYWRIGHT_CLI_VERSION is the @playwright/cli version, which the kit's
 # spec.yaml pins. PLAYWRIGHT_CLI_KIT_NODE_MIRROR names a different Node release
-# mirror, for the tests.
+# mirror, for the tests. PLAYWRIGHT_CLI_KIT_LOCK_WAIT is how many seconds to
+# wait for another apt-get to finish (600 by default).
 
 set -eu
 
@@ -174,7 +175,24 @@ npm install -g --ignore-scripts --prefix "$node_dir" "@playwright/cli@$cli_versi
 step "installing Chromium"
 # --with-deps installs the system packages with sudo and apt. --no-shell skips
 # the headless shell, which playwright-cli does not use.
-playwright-cli install-browser chromium --with-deps --no-shell
+#
+# Another apt-get often runs while a sandbox starts (the dotfiles kit's, for
+# one), and the loser of that race gets "Could not get lock". Playwright runs
+# apt-get itself, so DPkg::Lock::Timeout cannot reach it. Instead, the install
+# runs again once a second while apt is locked, for up to lock_wait seconds.
+# Any other failure stops at once, because a retry will not fix it.
+lock_wait="${PLAYWRIGHT_CLI_KIT_LOCK_WAIT:-600}"
+deadline=$(($(date +%s) + lock_wait))
+until playwright-cli install-browser chromium --with-deps --no-shell >"$tmp/install.out" 2>&1; do
+  cat "$tmp/install.out"
+  grep -q 'Could not get lock' "$tmp/install.out" ||
+    fail "the Chromium install failed"
+  [ "$(date +%s)" -lt "$deadline" ] ||
+    fail "apt was still locked after ${lock_wait}s"
+  echo "--- apt is locked, so the Chromium install runs again ---"
+  sleep 1
+done
+cat "$tmp/install.out"
 
 # The wrapper comes last, so playwright-cli is on PATH only once it works. It
 # puts the kit's Node first on PATH for the CLI alone, and makes Chromium the

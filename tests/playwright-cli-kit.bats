@@ -4,7 +4,8 @@
 # background. The Node mirror is a directory of fake releases, read with the
 # real curl through file:// URLs. Each fake release holds an npm that installs
 # a fake playwright-cli, which logs its calls, and fails when
-# FAKE_PLAYWRIGHT_CLI_FAIL is set.
+# FAKE_PLAYWRIGHT_CLI_FAIL is set. Its first FAKE_PLAYWRIGHT_CLI_LOCKED calls
+# fail the way Playwright does when another apt-get holds the dpkg lock.
 
 load helpers
 
@@ -74,6 +75,11 @@ cat >"$prefix/bin/playwright-cli" <<'CLI'
 #!/bin/sh
 echo "PLAYWRIGHT_MCP_BROWSER=$PLAYWRIGHT_MCP_BROWSER node=$(node --version) $*" >>"$FAKE_STATE/playwright-cli.log"
 [ -z "${FAKE_PLAYWRIGHT_CLI_FAIL:-}" ] || { echo "Failed to install browsers" >&2; exit 1; }
+calls=$(($(wc -l <"$FAKE_STATE/playwright-cli.log")))
+if [ "$calls" -le "${FAKE_PLAYWRIGHT_CLI_LOCKED:-0}" ]; then
+  echo "E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 2471 (apt-get)" >&2
+  exit 1
+fi
 CLI
 chmod +x "$prefix/bin/playwright-cli"
 NPM
@@ -179,5 +185,22 @@ installed_node() {
   run_install
   [ "$(cat "$status_file")" = "failed" ]
   grep -q 'playwright-cli kit failed' "$log"
+  [ ! -e "$HOME/.local/bin/playwright-cli" ]
+}
+
+@test "a browser install that loses the apt lock runs again until it gets the lock" {
+  export FAKE_PLAYWRIGHT_CLI_LOCKED=2
+  run_install
+  [ "$(cat "$status_file")" = "ready" ]
+  [ "$(wc -l <"$FAKE_STATE/playwright-cli.log")" -eq 3 ]
+  [ "$(grep -c 'apt is locked' "$log")" -eq 2 ]
+  [ -x "$HOME/.local/bin/playwright-cli" ]
+}
+
+@test "a browser install that never gets the apt lock leaves failed" {
+  export FAKE_PLAYWRIGHT_CLI_LOCKED=1000 PLAYWRIGHT_CLI_KIT_LOCK_WAIT=0
+  run_install
+  [ "$(cat "$status_file")" = "failed" ]
+  grep -q 'apt was still locked after 0s' "$log"
   [ ! -e "$HOME/.local/bin/playwright-cli" ]
 }
