@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # The packages this machine needs to run sandboxes, and nothing more, except
-# starship, so that the prompt is the same as on the other machines.
+# starship, so that the prompt is the same as on the other machines, and mosh,
+# so that the operator's sessions survive a bad network.
 #
 # Everything comes from apt. There is no editor and no language runtime: the
 # operator does not edit code on this machine. sbx comes in 22_sandboxes.
@@ -18,6 +19,8 @@ packages=(
   jq:jq
   fzf:fzf
   tmux:tmux
+  # The operator's sessions from the laptop survive sleep and a network change.
+  mosh:mosh-server
   # sbx-token signs the App's JWT with it.
   openssl:openssl
   ufw:ufw
