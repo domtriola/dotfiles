@@ -177,19 +177,27 @@ step "installing Chromium"
 # the headless shell, which playwright-cli does not use.
 #
 # Another apt-get often runs while a sandbox starts (the dotfiles kit's, for
-# one), and the loser of that race gets "Could not get lock". Playwright runs
-# apt-get itself, so DPkg::Lock::Timeout cannot reach it. Instead, the install
-# runs again once a second while apt is locked, for up to lock_wait seconds.
-# Any other failure stops at once, because a retry will not fix it.
+# one), and it can break this install in two ways:
+#
+# - The loser of the race for the dpkg lock gets "Could not get lock".
+# - The image's /etc/apt/apt.conf.d/docker-clean deletes the downloaded .deb
+#   files after each `apt-get update`, which does not take the archives lock.
+#   An update that runs between the download and dpkg gets "Could not open
+#   file /var/cache/apt/archives/...".
+#
+# Playwright runs apt-get itself, so DPkg::Lock::Timeout cannot reach it.
+# Instead, the install runs again once a second after either error, for up to
+# lock_wait seconds. A new run downloads the files again. Any other failure
+# stops at once, because a retry will not fix it.
 lock_wait="${PLAYWRIGHT_CLI_KIT_LOCK_WAIT:-600}"
 deadline=$(($(date +%s) + lock_wait))
 until playwright-cli install-browser chromium --with-deps --no-shell >"$tmp/install.out" 2>&1; do
   cat "$tmp/install.out"
-  grep -q 'Could not get lock' "$tmp/install.out" ||
+  grep -Eq 'Could not get lock|Could not open file /var/cache/apt/archives/' "$tmp/install.out" ||
     fail "the Chromium install failed"
   [ "$(date +%s)" -lt "$deadline" ] ||
-    fail "apt was still locked after ${lock_wait}s"
-  echo "--- apt is locked, so the Chromium install runs again ---"
+    fail "another apt-get still got in the way after ${lock_wait}s"
+  echo "--- another apt-get got in the way, so the Chromium install runs again ---"
   sleep 1
 done
 cat "$tmp/install.out"
