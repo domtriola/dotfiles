@@ -154,30 +154,3 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   grep -q '^run ' "$FAKE_STATE/sbx.log"
   ! grep -q -- '--clone' "$FAKE_STATE/sbx.log"
 }
-
-@test "the git identity of the host reaches a kit that declares it" {
-  mkdir -p "$SBX_UP_DOTFILES/sbx/kits/mixins/dotfiles"
-  printf 'args:\n  gitName:\n    default: ""\n  gitEmail:\n    default: ""\n' \
-    >"$SBX_UP_DOTFILES/sbx/kits/mixins/dotfiles/spec.yaml"
-  git config --global user.name "Global Name"
-  git config user.name "Ann Example"
-  git config user.email "ann@example.com"
-  run sbx_up --no-gh
-  [ "$status" -eq 0 ]
-  grep -q -- '--kit-arg gitName=Ann Example --kit-arg gitEmail=ann@example.com' "$FAKE_STATE/sbx.log"
-}
-
-@test "the git identity is not passed when no kit declares it, or when the host has none" {
-  git config user.name "Ann Example"
-  run sbx_up --no-gh
-  [ "$status" -eq 0 ]
-  ! grep -q -- '--kit-arg' "$FAKE_STATE/sbx.log"
-
-  mkdir -p "$SBX_UP_DOTFILES/sbx/kits/mixins/dotfiles"
-  printf 'args:\n  gitName:\n    default: ""\n' >"$SBX_UP_DOTFILES/sbx/kits/mixins/dotfiles/spec.yaml"
-  git config --unset user.name
-  : >"$FAKE_STATE/sbx.log"
-  run sbx_up --no-gh
-  [ "$status" -eq 0 ]
-  ! grep -q -- '--kit-arg' "$FAKE_STATE/sbx.log"
-}

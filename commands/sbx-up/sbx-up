@@ -41,9 +41,6 @@ The sandbox gets a GitHub token from sbx-token that reaches only the project's
 repositories, and that sbx renews while the sandbox runs. If no token can be
 minted, nothing is started or removed. See `sbx-token --help`.
 
-A kit that declares the gitName and gitEmail arguments, such as dotfiles,
-gets the user.name and user.email of the host's git config for the project.
-
 Arguments:
   agent       A kit under sbx/kits/sandboxes, or a path to any kit. Overrides
               the "agent" setting for this run.

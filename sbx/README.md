@@ -114,12 +114,21 @@ passing it to every sandbox would break the ones that take none.
 zip is left alone, because the check reads the kit's spec from disk; supply its
 arguments with `--kit-arg` by hand.
 
-Only `pi-ailo` takes arguments from that file today. Its README says what they
-mean.
+Only `pi-ailo` takes arguments today. Its README says what they mean.
 
-The `dotfiles` mixin takes the git identity as arguments too, but `sbx-up` reads
-those from the host's git config and passes them with `--kit-arg`. See
-[its README](kits/mixins/dotfiles/README.md#git-identity).
+## Git identity
+
+No kit here sets the git identity, because `sbx` does it. When it creates a
+sandbox for a v2 kit, it copies `user.name` and `user.email` from the host's
+git config for the project into the sandbox's `~/.gitconfig`. A repository's
+own config still overrides them. If the host has no identity, `git commit` in
+the sandbox fails with "Author identity unknown". Set it on the host and
+recreate the sandbox.
+
+A v3 kit gets the identity only when it declares the
+`com.docker.sandbox/git-identity@1` capability. Declare it when you migrate
+`my-claude` to v3. Do not pass the identity as a kit argument: the kit spec
+says that the runtime selects it.
 
 ## Pulling changes from a `--clone` sandbox
 
