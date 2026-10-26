@@ -3,15 +3,15 @@
 **Kind**: feature
 **Product model**: [product.md](product.md)
 **Origin**: #109
-**Last reviewed**: 2026-10-23
+**Last reviewed**: 2026-10-24
 
 ## Scope
 
 This model covers what only the `agent-server` profile installs and does. The profile runs on drive 1 of the Framework Desktop (hostname `doms-agents`): a headless Ubuntu Server that is always on, where about 8 sandboxes run for long periods while the operator is away. The commands, the dotfiles, the sandbox kits, the GitHub side, and the sandboxes are in the [product model](product.md). In the product model, "the host" is the box for this profile.
 
 - **The `agent-server` setup steps** (`profiles/agent-server/`), and what they download: the Docker repository (for `sbx`) and the NetBird repository.
-- **The SSH server** on the box, and the operator's SSH sessions from the laptop into the box's tmux.
-- **NetBird** on the box, which is the only network path to the SSH server.
+- **The SSH server** and **mosh-server** on the box, and the operator's SSH and mosh sessions from the laptop into the box's tmux.
+- **NetBird** on the box, which is the only network path to the SSH server and mosh-server.
 - **The App key file**: `sbx-token` with `SBX_TOKEN_STORE=file`, which only this profile uses.
 - **git's credentials on the box**: `sbx-token credential`, which `30_git` sets as git's helper for `https://github.com`.
 - **`sudo`** with the operator's password.
@@ -40,7 +40,7 @@ Product A4 (the operator's SSH key) is the YubiKey key (`ed25519-sk`) on this pr
 
 ## Actors
 
-- **Operator**: connects over SSH from the laptop, through NetBird, and works in the box's tmux. Types the `sudo` password, and the LUKS passphrase at the box's keyboard.
+- **Operator**: connects over SSH or mosh from the laptop, through NetBird, and works in the box's tmux. Types the `sudo` password, and the LUKS passphrase at the box's keyboard.
 - **Adversary: device on the LAN.** A guest's device, or a hijacked IoT device, on the operator's home network. It can send traffic to the box's LAN address.
 - **Adversary: NetBird peer.** A peer on the operator's NetBird network that the operator does not control: a peer in another group when the policy is wrong, or a peer that an attacker adds through the NetBird account.
 - **Adversary: person at the operator's home.** Can touch the running box: its keyboard, its USB and USB4 ports, its firmware setup, and its power cable. Can also carry it away.
@@ -53,6 +53,7 @@ The other actors are in the product model.
 ## Entry points
 
 - **The SSH server** (port 22, on the NetBird interface `wt0` only).
+- **mosh-server** (UDP ports 60000 to 61000, on `wt0` only). An SSH login with the YubiKey starts it, and gives the laptop its session key.
 - **The NetBird client**: its traffic from peers, and the configuration that the management service sends to it.
 - **The box's console**: the keyboard, the LUKS prompt, and the firmware setup.
 - **The USB and USB4 ports.**
@@ -63,7 +64,7 @@ The other actors are in the product model.
 - **The key file** `~/.config/sbx-token/`, which `sbx-token` reads.
 - **git's credential requests**, which `sbx-token credential` reads on stdin.
 - **`.sbx.json`** in a box clone, which `sbx-up` reads.
-- **The output of the box's tmux**, which goes to the laptop's terminal over SSH.
+- **The output of the box's tmux**, which goes to the laptop's terminal over SSH or mosh.
 
 The other entry points are in the product model.
 
@@ -71,10 +72,10 @@ The other entry points are in the product model.
 
 | ID  | Boundary | Between | Control at the boundary |
 | --- | -------- | ------- | ----------------------- |
-| agent-server-B1 | Network to the SSH server | The LAN and the NetBird peers, and `sshd` on the box | ufw allows 22/tcp only on `wt0` (agent-server-I2). The NetBird policy. Only `sk-` keys with `verify-required` (agent-server-I1). |
+| agent-server-B1 | Network to the SSH server and mosh-server | The LAN and the NetBird peers, and `sshd` and mosh-server on the box | ufw allows 22/tcp and 60000:61000/udp only on `wt0` (agent-server-I2). The NetBird policies. Only `sk-` keys with `verify-required` (agent-server-I1). mosh-server accepts only packets that its session key authenticates. |
 | agent-server-B2 | Operator's user to root | A process that runs as the operator, and root | The `sudo` password (agent-server-I4). |
 | agent-server-B3 | Physical access to the box | A person who touches the box, and its disk and memory | LUKS (agent-server-I7). The IOMMU (agent-server-I6). |
-| agent-server-B4 | Box to laptop | The box's tmux and SSH session, and the laptop's terminal, clipboard, and SSH agent | tmux `set-clipboard external` (agent-server-I10). No agent forwarding (agent-server-I3). |
+| agent-server-B4 | Box to laptop | The box's tmux and SSH or mosh session, and the laptop's terminal, clipboard, and SSH agent | tmux `set-clipboard external` (agent-server-I10). No agent forwarding (agent-server-I3). |
 
 Its other threats cross product boundaries B1 (upstreams to a host), B3 (sandbox to host), and B7 (key handling on the host).
 
@@ -109,9 +110,13 @@ flowchart LR
   end
 
   yk -- signature, PIN and touch --> term
-  term -- SSH over WireGuard --> nb
+  term -- SSH and mosh over WireGuard --> nb
   nb -- SSH --> sshd
+  nb -- mosh, UDP --> moshd[mosh-server on wt0]
+  sshd -- starts, session key --> moshd
+  moshd -- session --> tmux
   lan -. blocked by ufw .-> sshd
+  lan -. blocked by ufw .-> moshd
   sshd -- session --> tmux
   tmux -- password --> root
   tmux -- pane output, tmux copies over OSC 52 --> term
@@ -127,7 +132,7 @@ flowchart LR
 | ID  | STRIDE | Threat | Boundary | Likelihood | Impact | Status | Mitigation |
 | --- | ------ | ------ | -------- | ---------- | ------ | ------ | ---------- |
 | agent-server-T1 | S | Someone logs in over SSH with a password, a key copied from a laptop, or a key with no PIN and touch. | agent-server-B1 | low | high | mitigated | agent-server-I1 |
-| agent-server-T2 | E | A device on the LAN exploits a bug in `sshd` before login. | agent-server-B1 | low | high | mitigated | agent-server-I2 |
+| agent-server-T2 | E | A device on the LAN exploits a bug in `sshd` before login. | agent-server-B1 | low | high | mitigated | agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp and 60000:61000/udp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. It adds the rule for 60000:61000/udp (mosh) on `wt0` only. Doctor fails when ufw is off, when it has a rule for 22/tcp that is not on `wt0`, or when it has any other rule that is not 60000:61000/udp on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2, agent-server-T22, agent-server-T23 |
 | agent-server-T3 | S, E | A NetBird peer that the operator does not control reaches `sshd`: a wrong dashboard policy, or a peer that an attacker adds through the NetBird account. | agent-server-B1 | low | high | accepted | agent-server-I1. The NetBird policy (see [Assumptions](#assumptions)). |
 | agent-server-T4 | S | NetBird's own SSH server lets a peer in through NetBird's authorization, and not through `sshd` and the YubiKey. | agent-server-B1 | low | high | mitigated | agent-server-I9 |
 | agent-server-T5 | E | A process that runs as the operator gets root with no password. | agent-server-B2 | medium | high | mitigated | agent-server-I4 |
@@ -147,6 +152,9 @@ flowchart LR
 | agent-server-T19 | T | A sandbox agent sets the laptop's clipboard through OSC 52 in its output, and the operator pastes it into a laptop shell. | agent-server-B4 | medium | high | mitigated | agent-server-I10 |
 | agent-server-T20 | E | A `.sbx.json` that turns off the clone (for example `"clone": false` or `null`) mounts a box clone into a sandbox, which can then write `.git/hooks`, `.git/config`, or `.sbx.json` that the box runs or reads (product T10 on the box). | B3 | low | high | mitigated | agent-server-I13 |
 | agent-server-T21 | T, E | git on the box gets a token through the credential helper, and a program that git runs in a box clone (a hook, or a build) uses it to write to GitHub. | B7 | low | high | mitigated | agent-server-I14 |
+| agent-server-I15 | mosh-server stops after 3 days with no packet from the client (`MOSH_SERVER_NETWORK_TMOUT=259200`, which `~/.bashrc.d/mosh.bashrc` sets for the command that SSH runs). | `env/agent-server/.bashrc.d/mosh.bashrc` | agent-server-T23 |
+| agent-server-T22 | E | A device on the LAN exploits a bug in mosh-server before it checks a packet. | agent-server-B1 | low | high | mitigated | agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp and 60000:61000/udp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. It adds the rule for 60000:61000/udp (mosh) on `wt0` only. Doctor fails when ufw is off, when it has a rule for 22/tcp that is not on `wt0`, or when it has any other rule that is not 60000:61000/udp on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2, agent-server-T22, agent-server-T23 |
+| agent-server-T23 | S | An attacker who gets a mosh session key (it is in the mosh client process on the laptop) resumes the session from a NetBird peer, with no YubiKey, while mosh-server runs. | agent-server-B1 | low | high | accepted | agent-server-I2. agent-server-I15. The NetBird policies. |
 
 STRIDE categories that have no threat above:
 
@@ -156,14 +164,14 @@ STRIDE categories that have no threat above:
 - **Spoofing (agent-server-B2)**: `sudo` checks the password of the one user.
 - **Spoofing (agent-server-B4)**: the laptop checks the box's host key under the `doms-agents` alias (`HostKeyAlias`).
 - **Information disclosure (agent-server-B4)**: the box sends only the terminal output that the operator asked for. tmux cannot read the laptop's clipboard (agent-server-I10).
-- **Tampering and information disclosure on the wire (agent-server-B1)**: SSH and WireGuard encrypt and authenticate the traffic.
+- **Tampering and information disclosure on the wire (agent-server-B1)**: SSH, mosh (AES-128-OCB), and WireGuard encrypt and authenticate the traffic.
 
 ## Security invariants
 
 | ID  | Invariant | Enforced in | Mitigates |
 | --- | --------- | ----------- | --------- |
 | agent-server-I1 | `sshd` sets `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin no`, `PubkeyAuthOptions verify-required`, `PubkeyAcceptedAlgorithms` with only the `sk-ssh-ed25519` types, and `AuthorizedKeysFile .ssh/authorized_keys`, as `sshd -T` reads them. Every key in `authorized_keys` is an `sk-` key. Doctor fails when one of these is not true. | `profiles/agent-server/05_hardening`, `profiles/agent-server/lib/doctor.sh` | agent-server-T1, agent-server-T3 |
-| agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. Doctor fails when ufw is off, or when it has a rule for 22/tcp that is not on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2 |
+| agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp and 60000:61000/udp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. It adds the rule for 60000:61000/udp (mosh) on `wt0` only. Doctor fails when ufw is off, when it has a rule for 22/tcp that is not on `wt0`, or when it has any other rule that is not 60000:61000/udp on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2, agent-server-T22, agent-server-T23 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. Doctor fails when ufw is off, or when it has a rule for 22/tcp that is not on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2 |
 | agent-server-I3 | `sshd` sets `AllowAgentForwarding no`, as `sshd -T` reads it. | `profiles/agent-server/05_hardening` | agent-server-T7 |
 | agent-server-I4 | No file in `/etc/sudoers` or `/etc/sudoers.d/` gives the operator a `NOPASSWD` rule. No step adds one. Doctor fails when `sudo -n -l` lists a `NOPASSWD` rule. | `profiles/agent-server/*`, `profiles/agent-server/lib/doctor.sh` | agent-server-T5 |
 | agent-server-I5 | With `SBX_TOKEN_STORE=file`, `sbx-token` writes the key to a file under `~/.config/sbx-token/` with mode 600, through a temporary file of mode 600 in the same directory and a rename. It refuses to read a key file whose mode is wider than 600. `import-key` saves the store in `config.json`, so that the renewal, which the sbx daemon runs without the operator's shell, reads the same file. The key never goes on a command line (product I8). | `sbx-token` (`lib/store`, `lib/core`), `profiles/agent-server/lib/doctor.sh` | agent-server-T8, agent-server-T9 |
@@ -188,12 +196,13 @@ STRIDE categories that have no threat above:
 | agent-server-T13 | Theft is more likely than a targeted attack at home, and a theft cuts the power, which locks the disk again. The IOMMU and the `sudo` password cover part of the rest. | Dominick Triola | 2026-10-21 | The box moves out of the operator's home, or the operator becomes a target. |
 | agent-server-T15 | An unattended reboot stops the box at the LUKS prompt until the operator is home. Doctor tells the operator, and the operator reboots at home. | Dominick Triola | 2026-10-21 | Remote LUKS unlock or livepatch becomes part of the profile. |
 | agent-server-T18 | It delays work but harms no asset. The commits stay in the sandbox, and the QA of #109 tests a push after a renewal. | Dominick Triola | 2026-10-21 | A failed renewal loses work, or happens again. |
+| agent-server-T23 | The key is only in the memory of the mosh client on the laptop, and a process that can read it there already controls the operator's terminal. Only a NetBird peer in the client group can reach mosh-server. A session stops after 3 days with no client (agent-server-I15). A session that survives sleep and a network change saves a YubiKey login each time. | Dominick Triola | 2026-10-24 | Another person gets a peer in the client group, or mosh stores its key on disk. |
 
 ## Assumptions
 
 - The box has one user, the operator. LUKS needs the passphrase at each start.
 - The router forwards no port to the box.
-- The NetBird dashboard has no "Default" policy. One policy lets only the operator's client group reach the box, on TCP 22, one way. The NetBird account uses two-factor authentication.
+- The NetBird dashboard has no "Default" policy. Policies let only the operator's client group reach the box, one way, on TCP 22 and on UDP 60000 to 61000. The NetBird account uses two-factor authentication.
 - `sbx` runs sandboxes in VMs (KVM) and does not change the ufw rules. No Docker Engine is installed.
 - The operator pulls only reviewed `main` into the box's clones, and never runs `sbx-pull` there. The operator reads diffs inside a sandbox, with `sbx-shell`.
 - The laptop's SSH config sets no `ForwardAgent` for `doms-agents`.

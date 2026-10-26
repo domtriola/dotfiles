@@ -49,6 +49,9 @@ brew link --force --overwrite libpq
 brew_install neovim
 brew_install --cask ghostty
 brew_install tmux
+# SSH sessions that survive sleep and a network change. See
+# profiles/agent-server/bootstrap.md.
+brew_install mosh
 
 # Starship terminal prompt
 if ! command -v starship &>/dev/null || confirm "Update starship?"; then

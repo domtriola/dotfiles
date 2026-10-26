@@ -87,7 +87,7 @@ fi
 section "Firewall"
 # ---------------------------------------------------------------------------
 
-# agent-server-I2: SSH on wt0 only, and no other port open.
+# agent-server-I2: SSH and mosh on wt0 only, and no other port open.
 if ufw_status="$(sudo ufw status verbose 2>/dev/null)"; then
   if grep -q '^Status: active' <<<"$ufw_status"; then
     ok "ufw" "active"
@@ -116,9 +116,18 @@ if ufw_status="$(sudo ufw status verbose 2>/dev/null)"; then
     fail "ssh rule" "no rule for 22/tcp"
   fi
 
-  other_rules="$(sed -n '/^--/,$p' <<<"$ufw_status" | grep -E 'ALLOW|LIMIT' | grep -cvE '^22/tcp' || true)"
+  # mosh is optional, but only on wt0. A general rule for its ports counts as
+  # one of the other rules below.
+  mosh_rule='^60000:61000/udp( \(v6\))? on wt0 +ALLOW'
+  if grep -qE "$mosh_rule" <<<"$ufw_status"; then
+    ok "mosh rule" "60000:61000/udp on wt0 only"
+  else
+    warn "mosh rule" "no rule for 60000:61000/udp on wt0, run setup 25_network"
+  fi
+
+  other_rules="$(sed -n '/^--/,$p' <<<"$ufw_status" | grep -E 'ALLOW|LIMIT' | grep -vE '^22/tcp' | grep -cvE "$mosh_rule" || true)"
   if [[ "$other_rules" -gt 0 ]]; then
-    fail "other rules" "$other_rules rule(s) for ports other than 22/tcp, see sudo ufw status"
+    fail "other rules" "$other_rules rule(s) other than 22/tcp and 60000:61000/udp on wt0, see sudo ufw status"
   else
     ok "other rules" "none"
   fi
