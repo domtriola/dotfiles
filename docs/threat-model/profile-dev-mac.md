@@ -14,7 +14,7 @@ This model covers what only the `dev-mac` profile installs and does on the Mac. 
 - **The Claude Code managed settings** that `30_tools` installs as root, and host Claude Code on the Mac.
 - **The Keychain**, which holds the GitHub App key (product A1) on this profile.
 - **The Secure Enclave SSH key** that `40_ssh_key` makes (part of product A4).
-- **kamaji on the host**: the `kamaji` wrapper and `kamaji-update` (`env/.local/bin/`), the runtime clone at `~/.local/share/kamaji`, and the `Ctrl-a B` popup. kamaji's own code is in its repository; this model covers only how the Mac runs it.
+- **kamaji on the host**: the `kamaji` wrapper and `kamaji-update` (`env/.local/bin/`), the runtime clone at `~/.local/share/kamaji`, and the `Ctrl-a b` popup. kamaji's own code is in its repository; this model covers only how the Mac runs it.
 
 Out of scope:
 
@@ -30,7 +30,7 @@ On the Mac, the Keychain holds A1, the Secure Enclave holds the SSH key of A4, a
 ## Actors
 
 - **Host Claude Code**: on the Mac it only authenticates the sandboxes. The managed settings deny it every tool.
-- **The kamaji board**: the operator opens it with `Ctrl-a B`. When the operator refreshes it, it mints tokens (A2) from A1 for each owner and writes the snapshot.
+- **The kamaji board**: the operator opens it with `Ctrl-a b`. When the operator refreshes it, it mints tokens (A2) from A1 for each owner and writes the snapshot.
 - **The kamaji sandbox**: an agent in a sandbox that works in a clone of the kamaji development checkout (product I4), and reads the snapshot through the read-only source mount.
 - **Adversary: compromised upstream** (as in the product model), for the installers and packages that this profile's setup steps download.
 

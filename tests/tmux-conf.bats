@@ -161,7 +161,7 @@ given_kamaji() {
   server_path="$BATS_TEST_TMPDIR/bin:${PATH#"$repo_root/tests/fakes/bin:"}"
 }
 
-# open_board presses C-a B, and waits until kamaji has run. The client-attached
+# open_board presses C-a b, and waits until kamaji has run. The client-attached
 # hook runs a shell, and a key pressed before it finishes is lost, so C-a is
 # pressed until the client is in the prefix table.
 open_board() {
@@ -171,7 +171,7 @@ open_board() {
     press C-a
     [ "$(key_table)" = "prefix" ] && break
   done
-  press B
+  press b
   for _ in $(seq 20); do
     [[ -s "$FAKE_STATE/kamaji.log" ]] && break
     sleep 0.1
@@ -180,7 +180,7 @@ open_board() {
   sleep 0.5
 }
 
-@test "C-a B opens kamaji board in a popup, which closes when the board exits" {
+@test "C-a b opens kamaji board in a popup, which closes when the board exits" {
   given_kamaji 0
   open_board
   # With no popup, C-a reaches tmux again.
@@ -188,7 +188,7 @@ open_board() {
   [ "$(key_table)" = "prefix" ]
 }
 
-@test "C-a B keeps the popup open when kamaji board fails, until Enter closes it" {
+@test "C-a b keeps the popup open when kamaji board fails, until Enter closes it" {
   given_kamaji 1
   open_board
   # The open popup takes the keys, so C-a does not reach tmux.
