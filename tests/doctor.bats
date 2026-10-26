@@ -52,8 +52,7 @@ fake_command() {
 
 # given_kamaji sets this machine up as if kamaji-update had made the runtime
 # clone, the development checkout were cloned, sync-env had installed the
-# wrapper, the App were installed on both owners, and the refresh job had run
-# once.
+# wrapper, and the App were installed on both owners.
 given_kamaji() {
   runtime="$HOME/.local/share/kamaji"
   git init --quiet "$runtime"
@@ -63,7 +62,6 @@ given_kamaji() {
   chmod +x "$HOME/.local/bin/kamaji"
   export PATH="$HOME/.local/bin:$PATH"
   fake_command sbx-token 'echo "sbx-token: me-sbx, installed on Fernata-Studio, domtriola"'
-  fake_command launchctl 'echo "state = not running"; echo "last exit code = 0"'
 }
 
 @test "dev-mac doctor reports kamaji as pending, and checks nothing else, when it is not installed" {
@@ -72,7 +70,6 @@ given_kamaji() {
   run "$doctor" --profile dev-mac
   [[ "$output" =~ pending\ +kamaji\ +not\ installed,\ see\ bootstrap.md ]]
   [[ "$output" != *"kamaji command"* ]]
-  [[ "$output" != *"kamaji refresh job"* ]]
 }
 
 @test "dev-mac doctor reports each kamaji check as ok when all is set up" {
@@ -82,7 +79,6 @@ given_kamaji() {
   [[ "$output" =~ ok\ +kamaji\ checkout\ +~/src/personal/kamaji ]]
   [[ "$output" =~ ok\ +kamaji\ command\ +runs\ the\ runtime\ clone ]]
   [[ "$output" =~ ok\ +kamaji\ owners\ +domtriola,\ Fernata-Studio ]]
-  [[ "$output" =~ ok\ +kamaji\ refresh\ job ]]
 }
 
 @test "dev-mac doctor warns when the runtime clone has local changes, because the host runs them" {
@@ -132,25 +128,4 @@ given_kamaji() {
   fake_command sbx-token 'echo "sbx-token: me-sbx, key stored (not checked with GitHub)"'
   run "$doctor" --profile dev-mac --offline
   [[ "$output" =~ pending\ +kamaji\ owners\ +needs\ an\ online\ sbx-token\ check ]]
-}
-
-@test "dev-mac doctor warns, with the command that loads it, when the refresh job is not loaded" {
-  given_kamaji
-  fake_command launchctl 'echo "Could not find service" >&2; exit 113'
-  run "$doctor" --profile dev-mac
-  [[ "$output" =~ warn\ +kamaji\ refresh\ job\ +not\ loaded,\ run\ launchctl\ bootstrap\ gui/ ]]
-}
-
-@test "dev-mac doctor warns, and names the log, when the last refresh failed" {
-  given_kamaji
-  fake_command launchctl 'echo "last exit code = 1"'
-  run "$doctor" --profile dev-mac
-  [[ "$output" =~ warn\ +kamaji\ refresh\ job\ +last\ refresh\ exited\ 1,\ see\ ~/Library/Logs/kamaji-refresh.log ]]
-}
-
-@test "dev-mac doctor reports the refresh job as ok before its first run" {
-  given_kamaji
-  fake_command launchctl 'echo "last exit code = (never exited)"'
-  run "$doctor" --profile dev-mac
-  [[ "$output" =~ ok\ +kamaji\ refresh\ job ]]
 }

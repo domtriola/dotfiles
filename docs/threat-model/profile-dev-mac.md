@@ -3,7 +3,7 @@
 **Kind**: feature
 **Product model**: [product.md](product.md)
 **Origin**: #109, #122
-**Last reviewed**: 2026-10-23
+**Last reviewed**: 2026-10-26
 
 ## Scope
 
@@ -14,7 +14,7 @@ This model covers what only the `dev-mac` profile installs and does on the Mac. 
 - **The Claude Code managed settings** that `30_tools` installs as root, and host Claude Code on the Mac.
 - **The Keychain**, which holds the GitHub App key (product A1) on this profile.
 - **The Secure Enclave SSH key** that `40_ssh_key` makes (part of product A4).
-- **kamaji on the host**: the `kamaji` wrapper and `kamaji-update` (`env/.local/bin/`), the runtime clone at `~/.local/share/kamaji`, the refresh job (`env/Library/LaunchAgents/com.domtriola.kamaji-refresh.plist`), and the `Ctrl-a B` popup. kamaji's own code is in its repository; this model covers only how the Mac runs it.
+- **kamaji on the host**: the `kamaji` wrapper and `kamaji-update` (`env/.local/bin/`), the runtime clone at `~/.local/share/kamaji`, and the `Ctrl-a B` popup. kamaji's own code is in its repository; this model covers only how the Mac runs it.
 
 Out of scope:
 
@@ -30,7 +30,7 @@ On the Mac, the Keychain holds A1, the Secure Enclave holds the SSH key of A4, a
 ## Actors
 
 - **Host Claude Code**: on the Mac it only authenticates the sandboxes. The managed settings deny it every tool.
-- **The kamaji refresh job**: runs `kamaji refresh` every 15 minutes with no operator present, and mints tokens (A2) from A1 for each owner.
+- **The kamaji board**: the operator opens it with `Ctrl-a B`. When the operator refreshes it, it mints tokens (A2) from A1 for each owner and writes the snapshot.
 - **The kamaji sandbox**: an agent in a sandbox that works in a clone of the kamaji development checkout (product I4), and reads the snapshot through the read-only source mount.
 - **Adversary: compromised upstream** (as in the product model), for the installers and packages that this profile's setup steps download.
 
@@ -67,7 +67,7 @@ flowchart LR
     claude[host Claude Code]
     se[(Secure Enclave: SSH key)]
     runtime[kamaji runtime clone]
-    job[kamaji refresh job]
+    popup[Ctrl-a B popup]
     keychain[(Keychain: A1)]
     devco[(kamaji development checkout)]
   end
@@ -80,7 +80,7 @@ flowchart LR
   managed -- deny every tool --> claude
   setup -- makes key --> se
   github -- kamaji-update, fast-forward only --> runtime
-  job -- runs --> runtime
+  popup -- runs --> runtime
   keychain -- sbx-token mint --> runtime
   github -- issue text --> runtime
   runtime -- snapshot --> devco
@@ -96,11 +96,11 @@ flowchart LR
 | dev-mac-T2 | T | A brew formula, cask, or tap, or a global npm tool (`sfw`, `socket`), is published with malicious code. None of them has a pinned version. | B1 | low | high | accepted | Package-manager digests. A 7-day minimum release age for pnpm. |
 | dev-mac-T3 | E | Host Claude Code acts on the Mac with the operator's full access. | B5 | low | high | mitigated | dev-mac-I1 |
 | dev-mac-T4 | I | The operator's SSH key is copied off the Mac. | B7 | low | high | mitigated | dev-mac-I2 |
-| dev-mac-T5 | E | A prompt injection makes the kamaji sandbox agent commit code, which `sbx-pull` brings into the development checkout. The refresh job or the popup runs it on the host, before review, with access to A1. | B3, B7 | medium | high | mitigated | dev-mac-I3 |
+| dev-mac-T5 | E | A prompt injection makes the kamaji sandbox agent commit code, which `sbx-pull` brings into the development checkout. The popup runs it on the host, before review, with access to A1. | B3, B7 | medium | high | mitigated | dev-mac-I3 |
 | dev-mac-T10 | E | The kamaji checkout's `.sbx.json` sets `"clone": false`, so the sandbox mounts it read and write, and writes `.git/config` (for example `core.fsmonitor`) or a hook that the host's git runs (product T10). | B3 | low | high | mitigated | dev-mac-I5 |
 | dev-mac-T6 | T | `.kamaji` in the development checkout is a symlink, so the host writes the snapshot into another directory of the operator's. A clone-mode sandbox cannot make one (dev-mac-I5), but a commit that `sbx-pull` brings in could. | B3 | low | medium | mitigated | dev-mac-I4, dev-mac-I5. The check in I4 can lose a race with a process that changes the directory at the same time; only a sandbox in direct mode could be that process. |
 | dev-mac-T7 | T | A GitHub user writes an issue on a listed public repository with terminal escape sequences, which `kamaji board` prints in the host terminal, or with instructions for the kamaji sandbox agent, which reads the snapshot. | B5 | medium | low | accepted | None in dotfiles. kamaji must remove control characters before it prints issue text. The agent in the sandbox has the limits of product B5. |
-| dev-mac-T8 | I | `kamaji refresh` writes a token from `sbx-token mint` to `~/Library/Logs/kamaji-refresh.log`. | B7 | low | high | accepted | kamaji must never print a token, as product I8 requires of `sbx-token`. |
+| dev-mac-T8 | I | kamaji prints a token from `sbx-token mint` in the terminal, where the tmux scrollback keeps it. | B7 | low | high | accepted | kamaji must never print a token, as product I8 requires of `sbx-token`. |
 | dev-mac-T9 | T | A dependency in kamaji's lockfile is published with malicious code, and runs on the host with access to A1. | B1 | low | high | accepted | `--frozen-lockfile`, so only a lockfile that you reviewed in a PR installs. The 7-day minimum release age for pnpm. |
 
 STRIDE categories that have no threat above: the product model covers them for B1, B3, B4, B5, and B7.

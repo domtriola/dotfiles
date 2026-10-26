@@ -206,7 +206,6 @@ section "kamaji"
 # development checkout, which the kamaji sandbox can write to. Until the
 # runtime clone exists, nothing else here applies.
 kamaji_runtime="$HOME/.local/share/kamaji"
-kamaji_job="com.domtriola.kamaji-refresh"
 if [[ ! -d "$kamaji_runtime/.git" ]]; then
   pending "kamaji" "not installed, see bootstrap.md"
 else
@@ -253,22 +252,8 @@ else
   else
     pending "kamaji owners" "needs an online sbx-token check"
   fi
-
-  if have launchctl; then
-    job_status=0
-    job_out="$(launchctl print "gui/$(id -u)/$kamaji_job" 2>/dev/null)" || job_status=$?
-    last_exit="$(sed -n 's/^[[:space:]]*last exit code = //p' <<<"$job_out" | head -1)"
-    if [[ "$job_status" -ne 0 ]]; then
-      warn "kamaji refresh job" "not loaded, run launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$kamaji_job.plist"
-    elif [[ -z "$last_exit" || "$last_exit" == "0" || "$last_exit" == "(never exited)" ]]; then
-      ok "kamaji refresh job" "loaded, refreshes every 15 minutes"
-    else
-      warn "kamaji refresh job" "last refresh exited $last_exit, see ~/Library/Logs/kamaji-refresh.log"
-    fi
-    unset job_status job_out last_exit
-  fi
 fi
-unset kamaji_runtime kamaji_job token_installs
+unset kamaji_runtime token_installs
 
 # ---------------------------------------------------------------------------
 section "Environment"

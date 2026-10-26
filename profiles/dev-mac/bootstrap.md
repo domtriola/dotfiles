@@ -148,7 +148,7 @@ kamaji shows the backlogs of all your projects on one board. It runs here, not i
 kamaji has two copies on this machine:
 
 - The **development checkout** at `~/src/personal/kamaji`. You work in it, and kamaji writes its snapshot to its `.kamaji/` directory. Start the kamaji sandbox from it with `sbx-up`, in the default clone mode. The sandbox then reads the snapshot at `/run/sandbox/source/.kamaji/snapshot.json`, a read-only view of the checkout. Never set `"clone": false` in its `.sbx.json`: a sandbox that can write the checkout can also write `.git/config` or a hook that your git runs. The host never runs this checkout's code, because `sbx-pull` brings sandbox commits into it before you review them.
-- The **runtime clone** at `~/.local/share/kamaji`. The `kamaji` command, the refresh job, and `Ctrl-a B` run this copy. `kamaji-update` keeps it at `main` on GitHub, which holds only what you reviewed and merged.
+- The **runtime clone** at `~/.local/share/kamaji`. The `kamaji` command and `Ctrl-a B` run this copy. `kamaji-update` keeps it at `main` on GitHub, which holds only what you reviewed and merged.
 
 1. [ ] Install the App on Fernata-Studio, if it is not there yet, at `https://github.com/apps/<your login>-sbx/installations/new`. Then run `sbx-token expect Fernata-Studio`, and check that `sbx-token check` names domtriola and Fernata-Studio.
 1. [ ] Clone the development checkout, and make the runtime clone:
@@ -160,14 +160,6 @@ kamaji has two copies on this machine:
 
    Do not run `pnpm link --global` in the development checkout. That puts its code on the host's PATH.
 
-1. [ ] Load the refresh job that `sync-env` installed. It runs `kamaji refresh` now and every 15 minutes, and writes to `~/Library/Logs/kamaji-refresh.log`:
-
-   ```sh
-   launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.domtriola.kamaji-refresh.plist
-   ```
-
-1. [ ] Test it: `doctor` shows each check in the kamaji section as `ok`, and `Ctrl-a B` in tmux opens the board.
+1. [ ] Test it: `doctor` shows each check in the kamaji section as `ok`, and `Ctrl-a B` in tmux opens the board. Press `r` in the board to refresh the snapshot.
 
 After you merge a kamaji PR, run `kamaji-update`. It lists the commits that it adds. `doctor` shows the commit that the host runs.
-
-`launchd` reads the job only when it loads it. After `sync-env` changes the job, load it again: `launchctl bootout gui/$(id -u)/com.domtriola.kamaji-refresh`, then the `bootstrap` command above.
