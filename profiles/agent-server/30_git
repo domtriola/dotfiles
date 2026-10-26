@@ -41,6 +41,18 @@ set_global "$scope.helper" "$helper"
 # limit the token to it.
 set_global "$scope.useHttpPath" "true"
 
+# sbx-up passes this identity to each sandbox, where git commit fails without
+# it. Only the operator knows the right values, so this warns and does not
+# guess.
+section "The git identity"
+for key in user.name user.email; do
+  if value="$(git config --global --get "$key")"; then
+    echo "$key is $value."
+  else
+    status warn "$key" "not set, run: git config --global $key <value>"
+  fi
+done
+
 cat <<'MSG'
 
 Clone with an HTTPS URL, for a repository that the App is installed on:

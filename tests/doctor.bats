@@ -26,3 +26,17 @@ setup() {
   run "$doctor" --profile agent-server --offline
   [[ "$output" =~ ok\ +reboot\ +not\ required ]]
 }
+
+@test "agent-server doctor warns when the git identity is not set" {
+  run "$doctor" --profile agent-server --offline
+  [[ "$output" =~ warn\ +git\ user\.name\ +not\ set ]]
+  [[ "$output" =~ warn\ +git\ user\.email\ +not\ set ]]
+}
+
+@test "agent-server doctor reports the git identity when it is set" {
+  git config --global user.name "Ann Example"
+  git config --global user.email "ann@example.com"
+  run "$doctor" --profile agent-server --offline
+  [[ "$output" =~ ok\ +git\ user\.name\ +Ann\ Example ]]
+  [[ "$output" =~ ok\ +git\ user\.email\ +ann@example\.com ]]
+}
