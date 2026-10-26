@@ -303,7 +303,7 @@ else
   fail "git credentials" "git cannot clone private repositories, run setup 30_git"
 fi
 
-# sbx-up passes the identity to each sandbox. Without it, git commit fails in
+# sbx copies the identity into each sandbox. Without it, git commit fails in
 # the sandbox, but nothing on the box breaks.
 for key in user.name user.email; do
   if value="$(git config --global --get "$key")"; then

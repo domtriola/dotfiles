@@ -119,7 +119,7 @@ sbx-token check
 
 Also delete the `.pem` file on the Mac. `import-key` saves the file store in its config, so the hourly token renewal (which the sbx daemon runs, not your shell) finds the key.
 
-Set the git identity. `sbx-up` passes it to each sandbox, and without it `git commit` fails there:
+Set the git identity. `sbx` copies it into each sandbox, and without it `git commit` fails there:
 
 ```console
 git config --global user.name "<name>"

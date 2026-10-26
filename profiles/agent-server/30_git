@@ -41,7 +41,7 @@ set_global "$scope.helper" "$helper"
 # limit the token to it.
 set_global "$scope.useHttpPath" "true"
 
-# sbx-up passes this identity to each sandbox, where git commit fails without
+# sbx copies this identity into each sandbox, where git commit fails without
 # it. Only the operator knows the right values, so this warns and does not
 # guess.
 section "The git identity"
