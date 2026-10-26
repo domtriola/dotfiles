@@ -13,8 +13,10 @@ sbx run ./sbx/kits/sandboxes/my-claude
 
 - `files/home/.config/my-claude/settings.json` holds the settings: the model,
   the status line, a full-screen TUI, bypass permissions mode with no prompt
-  at startup, the telemetry and auto-update switches, and a small permission
-  denylist. The kit sets `defaultMode` itself: if only the sandbox's
+  at startup, the error-reporting, feedback and auto-update switches, and a
+  small permission denylist. The kit does not set `DISABLE_TELEMETRY`: any
+  telemetry opt-out also turns off feature flags, and without them
+  `/remote-control` is not available. The kit sets `defaultMode` itself: if only the sandbox's
   `~/.claude/settings.json` sets it, Claude Code asks at each start if auto
   mode is to be the default.
 - `files/home/.local/bin/statusline.sh` draws the status line.
