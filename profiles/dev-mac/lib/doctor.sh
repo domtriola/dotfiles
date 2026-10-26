@@ -180,6 +180,12 @@ if have sbx; then
   else
     ok "global github secret" "none"
   fi
+
+  if [[ "$(sbx settings get claude.remoteControl 2>/dev/null)" == "true" ]]; then
+    ok "remote control" "on"
+  else
+    warn "remote control" "off, /remote-control disconnects, run setup 30_tools"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
