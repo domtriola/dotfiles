@@ -114,7 +114,12 @@ passing it to every sandbox would break the ones that take none.
 zip is left alone, because the check reads the kit's spec from disk; supply its
 arguments with `--kit-arg` by hand.
 
-Only `pi-ailo` takes arguments today. Its README says what they mean.
+Only `pi-ailo` takes arguments from that file today. Its README says what they
+mean.
+
+The `dotfiles` mixin takes the git identity as arguments too, but `sbx-up` reads
+those from the host's git config and passes them with `--kit-arg`. See
+[its README](kits/mixins/dotfiles/README.md#git-identity).
 
 ## Pulling changes from a `--clone` sandbox
 

@@ -27,6 +27,23 @@ To test a branch before it merges, change `DOTFILES_REF` and start a sandbox:
 sbx run ./sbx/kits/sandboxes/my-claude --kit ./sbx/kits/mixins/dotfiles
 ```
 
+## Git identity
+
+The sandbox runtime writes a `~/.gitconfig` with no `user.name` or
+`user.email`, so `git commit` fails with "Author identity unknown". The kit
+takes the identity as two arguments, `gitName` and `gitEmail`, and its install
+step writes them to the system git config (`/etc/gitconfig`). A repository's
+own config still overrides them. An empty value writes nothing.
+
+`sbx-up` passes the host's `user.name` and `user.email`, read in the project,
+so they stay out of this repository. With `sbx run`, pass them by hand:
+
+```console
+sbx run claude --kit ./sbx/kits/mixins/dotfiles \
+  --kit-arg gitName="$(git config user.name)" \
+  --kit-arg gitEmail="$(git config user.email)"
+```
+
 ## Knowing when it has finished
 
 The startup hook returns at once, so the agent does not wait for it. It writes
