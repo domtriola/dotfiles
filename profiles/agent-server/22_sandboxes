@@ -107,6 +107,22 @@ else
   sudo loginctl enable-linger "$user"
 fi
 
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+# Remote Control in a Claude sandbox needs this host setting as well as the
+# feature flag in the sandbox. Without it, /remote-control connects and then
+# keeps disconnecting. The first run comes before `sbx login`, so a refusal
+# here does not stop setup: doctor reports the setting until it is set.
+if [[ "$(sbx settings get claude.remoteControl 2>/dev/null)" == "true" ]]; then
+  echo "claude.remoteControl is already true."
+elif sbx settings set claude.remoteControl true; then
+  echo "Set claude.remoteControl to true."
+else
+  echo "22_sandboxes: sbx did not set claude.remoteControl." >&2
+  echo "After sbx login, run setup 22_sandboxes again." >&2
+fi
+
 cat <<EOF
 
 sbx is installed. The steps that stay by hand are in

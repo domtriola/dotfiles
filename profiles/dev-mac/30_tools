@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Configures installed packages: the Claude Code policy and the GitHub CLI.
+# Configures installed packages: the Claude Code policy, the GitHub CLI and
+# Docker Sandboxes.
 #
 # Needs sudo for the Claude Code policy, so this step prompts for a password.
 
@@ -32,3 +33,10 @@ sudo install -m 644 \
 # gh runs git over SSH, so git operations use the Secure Enclave key and never
 # the gh token.
 gh config set git_protocol ssh
+
+# Docker Sandboxes.
+#
+# Remote Control in a Claude sandbox needs this host setting as well as the
+# feature flag in the sandbox. Without it, /remote-control connects and then
+# keeps disconnecting.
+sbx settings set claude.remoteControl true

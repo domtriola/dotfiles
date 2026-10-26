@@ -261,6 +261,14 @@ else
   fail "sbx" "not installed, run setup 22_sandboxes"
 fi
 
+if have sbx; then
+  if [[ "$(sbx settings get claude.remoteControl 2>/dev/null)" == "true" ]]; then
+    ok "remote control" "on"
+  else
+    warn "remote control" "off, /remote-control disconnects, run setup 22_sandboxes"
+  fi
+fi
+
 if [[ -r /dev/kvm && -w /dev/kvm ]]; then
   ok "kvm" "/dev/kvm is usable"
 else

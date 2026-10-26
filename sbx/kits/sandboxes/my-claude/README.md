@@ -19,6 +19,9 @@ sbx run ./sbx/kits/sandboxes/my-claude
   `/remote-control` is not available. The kit sets `defaultMode` itself: if only the sandbox's
   `~/.claude/settings.json` sets it, Claude Code asks at each start if auto
   mode is to be the default.
+- `/remote-control` also needs the host setting `claude.remoteControl`. Without
+  it, Remote Control connects and then keeps disconnecting. The `dev-mac` and
+  `agent-server` setup steps set it, and `doctor` checks it.
 - `files/home/.local/bin/statusline.sh` draws the status line.
 - `agentInstructions` in `spec.yaml` adds the language preferences.
 - `setup.install` in `spec.yaml` installs a pinned `gh` release over the old
