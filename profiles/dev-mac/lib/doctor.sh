@@ -166,6 +166,13 @@ if have sbx-token; then
   4) warn "sandbox token App" "$token_out" ;;
   *) fail "sandbox token App" "$token_out" ;;
   esac
+  # The accounts that the App is installed on, for the kamaji section. Only an
+  # online check names them.
+  token_installs=""
+  if [[ "$token_status" == "0" && "$token_out" == *", installed on "* ]]; then
+    token_installs="${token_out#*, installed on }"
+    token_installs="${token_installs%% (*}"
+  fi
   unset token_args token_status token_out
 else
   fail "sbx-token" "not installed, run sync-env"
@@ -187,6 +194,66 @@ if have sbx; then
     warn "remote control" "off, /remote-control disconnects, run setup 30_tools"
   fi
 fi
+
+# ---------------------------------------------------------------------------
+section "kamaji"
+# ---------------------------------------------------------------------------
+
+# kamaji reads the backlogs of every project in its list. It runs here, not in
+# a sandbox, because a token reaches the repositories of one owner only, and
+# kamaji needs both owners, domtriola and Fernata-Studio. The host runs the
+# runtime clone, which kamaji-update keeps at the reviewed main, and never the
+# development checkout, which the kamaji sandbox can write to. Until the
+# runtime clone exists, nothing else here applies.
+kamaji_runtime="$HOME/.local/share/kamaji"
+if [[ ! -d "$kamaji_runtime/.git" ]]; then
+  pending "kamaji" "not installed, see bootstrap.md"
+else
+  if [[ -n "$(git -C "$kamaji_runtime" status --porcelain 2>/dev/null)" ]]; then
+    warn "kamaji runtime" "has local changes, which the host runs, see kamaji-update"
+  else
+    ok "kamaji runtime" "$(git -C "$kamaji_runtime" log -1 --format='%h %cs' 2>/dev/null), update with kamaji-update"
+  fi
+
+  # In clone mode (product I4), the kamaji sandbox reads the snapshot through
+  # a read-only view of this checkout. Mounted read and write, the sandbox
+  # could write .git/config or a hook that the host's git then runs.
+  if [[ -d "$HOME/src/personal/kamaji" ]]; then
+    if jq -e '.clone == false' "$HOME/src/personal/kamaji/.sbx.json" >/dev/null 2>&1; then
+      fail "kamaji checkout" ".sbx.json sets \"clone\": false, so the sandbox can write it, remove that"
+    else
+      ok "kamaji checkout" "~/src/personal/kamaji"
+    fi
+  else
+    warn "kamaji checkout" "not cloned, so the kamaji sandbox gets no snapshot, see bootstrap.md"
+  fi
+
+  kamaji_path="$(command -v kamaji 2>/dev/null || true)"
+  if [[ "$kamaji_path" == "$HOME/.local/bin/kamaji" ]]; then
+    ok "kamaji command" "runs the runtime clone"
+  elif [[ -z "$kamaji_path" ]]; then
+    fail "kamaji command" "not installed, run sync-env"
+  else
+    fail "kamaji command" "$kamaji_path comes first on PATH, so the runtime clone does not run, remove it"
+  fi
+  unset kamaji_path
+
+  if [[ -n "${token_installs:-}" ]]; then
+    missing=""
+    for owner in domtriola Fernata-Studio; do
+      [[ ", $token_installs, " == *", $owner, "* ]] || missing="${missing:+$missing, }$owner"
+    done
+    if [[ -z "$missing" ]]; then
+      ok "kamaji owners" "domtriola, Fernata-Studio"
+    else
+      warn "kamaji owners" "the App is not installed on $missing, install it there, then run sbx-token expect <owner>"
+    fi
+    unset missing owner
+  else
+    pending "kamaji owners" "needs an online sbx-token check"
+  fi
+fi
+unset kamaji_runtime token_installs
 
 # ---------------------------------------------------------------------------
 section "Environment"

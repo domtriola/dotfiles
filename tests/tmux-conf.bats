@@ -151,3 +151,52 @@ ssh_connection="192.0.2.1 50000 192.0.2.2 22"
   [[ "$(status_left)" == *"main"* ]]
   [[ "$(status_left)" != *"$host"* ]]
 }
+
+# given_kamaji puts a fake kamaji on the server's PATH. It logs its arguments
+# and exits with the status that it is given.
+given_kamaji() {
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  printf '#!/bin/sh\necho "$*" >>"%s/kamaji.log"\nexit %s\n' "$FAKE_STATE" "$1" >"$BATS_TEST_TMPDIR/bin/kamaji"
+  chmod +x "$BATS_TEST_TMPDIR/bin/kamaji"
+  server_path="$BATS_TEST_TMPDIR/bin:${PATH#"$repo_root/tests/fakes/bin:"}"
+}
+
+# open_board presses C-a B, and waits until kamaji has run. The client-attached
+# hook runs a shell, and a key pressed before it finishes is lost, so C-a is
+# pressed until the client is in the prefix table.
+open_board() {
+  start_server
+  attach_client
+  for _ in $(seq 10); do
+    press C-a
+    [ "$(key_table)" = "prefix" ] && break
+  done
+  press B
+  for _ in $(seq 20); do
+    [[ -s "$FAKE_STATE/kamaji.log" ]] && break
+    sleep 0.1
+  done
+  [ "$(cat "$FAKE_STATE/kamaji.log")" = "board" ]
+  sleep 0.5
+}
+
+@test "C-a B opens kamaji board in a popup, which closes when the board exits" {
+  given_kamaji 0
+  open_board
+  # With no popup, C-a reaches tmux again.
+  press C-a
+  [ "$(key_table)" = "prefix" ]
+}
+
+@test "C-a B keeps the popup open when kamaji board fails, until Enter closes it" {
+  given_kamaji 1
+  open_board
+  # The open popup takes the keys, so C-a does not reach tmux.
+  press C-a
+  [ "$(key_table)" = "root" ]
+  # Enter closes it.
+  press Enter
+  sleep 0.3
+  press C-a
+  [ "$(key_table)" = "prefix" ]
+}

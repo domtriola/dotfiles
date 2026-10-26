@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Usage: kamaji <command> [args...]
+#
+# Runs kamaji from its runtime clone (~/.local/share/kamaji), which
+# kamaji-update keeps at the reviewed main. The development checkout at
+# ~/src/personal/kamaji never runs on the host: a sandbox commit reaches it
+# before you review it. kamaji writes its snapshot there, and the kamaji
+# sandbox reads it through its read-only view of the checkout.
+
+runtime="${KAMAJI_RUNTIME:-$HOME/.local/share/kamaji}"
+checkout="$HOME/src/personal/kamaji"
+
+if [ ! -f "$runtime/package.json" ]; then
+  echo "kamaji: not installed, run kamaji-update" >&2
+  exit 1
+fi
+
+# A symlink would send the snapshot to another directory of the operator's.
+if [ -z "${KAMAJI_SNAPSHOT_DIR:-}" ] && [ -d "$checkout" ]; then
+  if [ -L "$checkout/.kamaji" ]; then
+    echo "kamaji: $checkout/.kamaji is a symlink, so the snapshot could land outside the checkout. Remove it." >&2
+    exit 1
+  fi
+  KAMAJI_SNAPSHOT_DIR="$checkout/.kamaji"
+  export KAMAJI_SNAPSHOT_DIR
+fi
+
+# kamaji then runs in its own directory, so the directory of the pane that
+# opens the popup cannot change what it reads.
+cd "$runtime" || exit 1
+bin="$(node -p 'const b = require("./package.json").bin; typeof b === "string" ? b : b.kamaji')" || exit 1
+exec node "$runtime/$bin" "$@"

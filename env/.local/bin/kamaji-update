@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Usage: kamaji-update
+#
+# Brings the runtime clone of kamaji (~/.local/share/kamaji) to main on GitHub,
+# then installs its locked dependencies. Run it after you merge a kamaji PR.
+#
+# The host runs this clone, and never the development checkout at
+# ~/src/personal/kamaji: the kamaji sandbox can write to that checkout, and
+# code that runs on the host can read the GitHub App key. main holds only what
+# you reviewed and merged, so this clone takes main by fast-forward, from
+# GitHub, and never from the development checkout.
+
+set -euo pipefail
+
+runtime="${KAMAJI_RUNTIME:-$HOME/.local/share/kamaji}"
+remote="${KAMAJI_REMOTE:-git@github.com:domtriola/kamaji.git}"
+
+die() {
+  printf 'kamaji-update: %s\n' "$1" >&2
+  exit 1
+}
+
+if [[ ! -d "$runtime/.git" ]]; then
+  mkdir -p "$(dirname "$runtime")"
+  git clone --quiet --branch main "$remote" "$runtime"
+else
+  [[ -z "$(git -C "$runtime" status --porcelain)" ]] ||
+    die "$runtime has local changes. The host must run main only, so remove them: git -C $runtime reset --hard origin/main"
+  git -C "$runtime" fetch --quiet origin main
+  added="$(git -C "$runtime" log --oneline HEAD..FETCH_HEAD)"
+  git -C "$runtime" merge --ff-only --quiet FETCH_HEAD 2>/dev/null ||
+    die "$runtime has commits that are not on main, so it cannot fast-forward. Remove them: git -C $runtime reset --hard origin/main"
+  if [[ -z "$added" ]]; then
+    printf 'kamaji-update: already at main\n'
+  else
+    printf 'kamaji-update: added\n%s\n' "$(sed 's/^/  /' <<<"$added")"
+  fi
+fi
+
+(cd "$runtime" && pnpm install --frozen-lockfile)
+
+printf 'kamaji-update: the host now runs %s\n' "$(git -C "$runtime" log -1 --format='%h %s')"
