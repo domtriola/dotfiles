@@ -29,8 +29,6 @@ sbx_up_profile() {
 config_load() {
   local root="$1" name="$2" agent="$3"
   local config="$root/.sbx.json" given override plan arg spec in_git=false
-  local mixin_spec git_name git_email
-  local -a specs
 
   given="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
 
@@ -63,8 +61,7 @@ config_load() {
         repos: (.repos // [] | if type == "array" and all(type == "string") then . else error("repos") end),
         perms: (.permissions // {} | if type == "object" and all(type == "string")
           then to_entries | map("\(.key)=\(.value)") else error("permissions") end),
-        spec: ((.agent | kit("sandboxes")) + "/spec.yaml"),
-        mixin_specs: (.kits | map(kit("mixins") + "/spec.yaml"))
+        spec: ((.agent | kit("sandboxes")) + "/spec.yaml")
       }
   ' <<<"$given")"; then
     die "could not read $config"
@@ -100,25 +97,5 @@ config_load() {
   fi
   if [[ -f "$sbx_up_kit_args_file" && -f "$spec" ]] && grep -q '^args:' "$spec"; then
     run+=(--kit-args-file "$sbx_up_kit_args_file")
-  fi
-
-  # The dotfiles kit takes the git identity as arguments, so that it stays in
-  # the host's git config and out of this repository. The project's own
-  # identity wins over the global one, as it would for a commit on the host.
-  # Like the file above, the arguments go only to a sandbox with a kit that
-  # declares them.
-  specs=("$spec")
-  while IFS= read -r mixin_spec; do
-    specs+=("$mixin_spec")
-  done < <(jq -r '.mixin_specs[]' <<<"$plan")
-  if grep -qs '^  gitName:' "${specs[@]}"; then
-    git_name="$(git -C "$root" config user.name || true)"
-    git_email="$(git -C "$root" config user.email || true)"
-    if [[ -n "$git_name" ]]; then
-      run+=(--kit-arg "gitName=$git_name")
-    fi
-    if [[ -n "$git_email" ]]; then
-      run+=(--kit-arg "gitEmail=$git_email")
-    fi
   fi
 }

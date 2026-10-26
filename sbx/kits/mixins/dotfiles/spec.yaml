@@ -8,20 +8,6 @@ description: >-
   touch ~/src/personal/dotfiles.
 sourceURL: https://github.com/domtriola/dotfiles
 
-# The git identity for commits in the sandbox. sbx-up passes the host's
-# user.name and user.email, so they stay out of this repository. Empty means
-# no identity, and git commit fails. A value cannot hold a line break, so it
-# cannot end the heredoc that reads it below.
-args:
-  gitName:
-    default: ""
-    description: "git user.name in the sandbox"
-    pattern: '^[^\r\n]*$'
-  gitEmail:
-    default: ""
-    description: "git user.email in the sandbox"
-    pattern: '^[^\r\n]*$'
-
 environment:
   variables:
     # The clone source:
@@ -61,23 +47,6 @@ setup:
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
           git ca-certificates
       description: "Ensure git is available for the dotfiles clone"
-
-    # The runtime writes ~/.gitconfig, so the identity goes in the system
-    # config. A repository's own config still overrides it. The quoted
-    # heredocs keep the shell from reading the values.
-    - command: |
-        set -eu
-        name="$(cat <<'GIT_NAME'
-        ${{ kit.args.gitName }}
-        GIT_NAME
-        )"
-        email="$(cat <<'GIT_EMAIL'
-        ${{ kit.args.gitEmail }}
-        GIT_EMAIL
-        )"
-        if [ -n "$name" ]; then git config --system user.name "$name"; fi
-        if [ -n "$email" ]; then git config --system user.email "$email"; fi
-      description: "Set the git identity that sbx-up passes from the host"
 
   startup:
     - command:
