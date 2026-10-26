@@ -38,7 +38,7 @@ The prefix is `Ctrl-a`.
 | Binding          | Action                                        |
 | ---------------- | --------------------------------------------- |
 | `Ctrl-a f`       | Open tmux-sessionizer (fzf project picker)    |
-| `Ctrl-a B`       | Open the kamaji board in a popup              |
+| `Ctrl-a b`       | Open the kamaji board in a popup              |
 | `Ctrl-a r`       | Reload `~/.tmux.conf`                         |
 | `Ctrl-a \|`      | Split pane horizontally (keeps current path)  |
 | `Ctrl-a -`       | Split pane vertically (keeps current path)    |
