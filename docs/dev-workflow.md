@@ -49,7 +49,7 @@ The prefix is `Ctrl-a`.
 | `F12`            | Turn this tmux's keys off or on (nested tmux) |
 
 Copy mode uses vi keys: `v` starts a selection and `y` copies it. The copy goes
-to the terminal's clipboard through OSC 52, which works over SSH. Where `pbcopy`
+to the terminal's clipboard through OSC 52, which works over SSH and mosh. Where `pbcopy`
 or `wl-copy` is installed, the copy also goes to it.
 
 A program in a pane cannot set or read the clipboard through OSC 52. This

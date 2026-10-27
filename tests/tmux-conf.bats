@@ -92,6 +92,21 @@ ssh_connection="192.0.2.1 50000 192.0.2.2 22"
   [ ! -s "$BATS_TEST_TMPDIR/answer" ]
 }
 
+@test "a copy sends OSC 52 for the clipboard c, the only form that mosh passes on" {
+  command -v script >/dev/null 2>&1 || skip "script(1) is not installed"
+  start_server
+  TERM=xterm-256color script -qfec "$real_tmux -L conf attach -t main" \
+    "$BATS_TEST_TMPDIR/terminal" >/dev/null 2>&1 3>&- &
+  client_pid=$!
+  for _ in $(seq 50); do
+    [[ -n "$(t list-clients 2>/dev/null)" ]] && break
+    sleep 0.1
+  done
+  t set-buffer -w hello
+  sleep 0.5
+  grep -aq $'\e]52;c;'"$(printf hello | base64)" "$BATS_TEST_TMPDIR/terminal"
+}
+
 @test "with no clipboard command installed, y in copy mode still copies" {
   # Only the tools that the config could look for, and none of them.
   mkdir -p "$BATS_TEST_TMPDIR/bin"
