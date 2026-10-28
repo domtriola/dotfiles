@@ -7,7 +7,8 @@
 # FAKE_PLAYWRIGHT_CLI_FAIL is set. Its first FAKE_PLAYWRIGHT_CLI_LOCKED calls
 # fail the way Playwright does when another apt-get holds the dpkg lock, or,
 # with FAKE_PLAYWRIGHT_CLI_CLEANED set, when another apt-get deletes the
-# downloaded .deb files.
+# downloaded .deb files. A fake certutil logs its calls, and a fake apt-get
+# logs its calls and puts that certutil on PATH.
 
 load helpers
 
@@ -27,9 +28,42 @@ setup() {
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   ln -s "$(PATH="${PATH#*/tests/fakes/bin:}" command -v curl)" "$BATS_TEST_TMPDIR/bin/curl"
   export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  make_apt_fakes
+
+  export PLAYWRIGHT_CLI_KIT_PROXY_CA="$BATS_TEST_TMPDIR/proxy-ca.crt"
+  echo "fake CA" >"$PLAYWRIGHT_CLI_KIT_PROXY_CA"
 
   export PLAYWRIGHT_CLI_KIT_NODE_MIRROR="file://$BATS_FILE_TMPDIR/dist"
   [[ -d "$BATS_FILE_TMPDIR/dist" ]] || make_mirror
+}
+
+# make_apt_fakes writes the fake apt-get on PATH, and the fake certutil that it
+# installs. With FAKE_CERTUTIL_INSTALLED set, certutil is on PATH from the start.
+# The fake certutil creates the database file on -N.
+make_apt_fakes() {
+  local fakes="$BATS_TEST_TMPDIR/apt-fakes"
+  mkdir -p "$fakes"
+  cat >"$fakes/certutil" <<'CERTUTIL'
+#!/bin/sh
+echo "$*" >>"$FAKE_STATE/certutil.log"
+db=""
+new=""
+while [ $# -gt 0 ]; do
+  [ "$1" = -d ] && db="${2#sql:}"
+  [ "$1" = -N ] && new=1
+  shift
+done
+[ -z "$new" ] || : >"$db/cert9.db"
+CERTUTIL
+  cat >"$BATS_TEST_TMPDIR/bin/apt-get" <<APTGET
+#!/bin/sh
+echo "\$*" >>"\$FAKE_STATE/apt-get.log"
+ln -sf "$fakes/certutil" "$BATS_TEST_TMPDIR/bin/certutil"
+APTGET
+  chmod +x "$fakes/certutil" "$BATS_TEST_TMPDIR/bin/apt-get"
+  : >"$FAKE_STATE/apt-get.log"
+  : >"$FAKE_STATE/certutil.log"
+  [ -z "${FAKE_CERTUTIL_INSTALLED:-}" ] || ln -s "$fakes/certutil" "$BATS_TEST_TMPDIR/bin/certutil"
 }
 
 # make_mirror writes a Node mirror with these releases, newest first. Only the
@@ -218,4 +252,44 @@ installed_node() {
   [ "$(cat "$status_file")" = "failed" ]
   grep -q 'another apt-get still got in the way after 0s' "$log"
   [ ! -e "$HOME/.local/bin/playwright-cli" ]
+}
+
+@test "the install adds the proxy CA to Chromium's NSS database" {
+  run_install
+  [ "$(cat "$status_file")" = "ready" ]
+  local db="sql:$HOME/.pki/nssdb"
+  [ "$(cat "$FAKE_STATE/certutil.log")" = "-d $db -N --empty-password
+-d $db -D -n sbx-proxy-ca
+-d $db -A -t C,, -n sbx-proxy-ca -i $PLAYWRIGHT_CLI_KIT_PROXY_CA" ]
+}
+
+@test "the install gets certutil from apt when it is missing" {
+  if PATH="${PATH#"$BATS_TEST_TMPDIR/bin:"}" command -v certutil >/dev/null; then
+    skip "this machine has a certutil on PATH"
+  fi
+  run_install
+  [ "$(cat "$status_file")" = "ready" ]
+  [ "$(cat "$FAKE_STATE/apt-get.log")" = "update
+install -y --no-install-recommends libnss3-tools" ]
+}
+
+@test "a second install keeps the NSS database and replaces the CA" {
+  export FAKE_CERTUTIL_INSTALLED=1
+  make_apt_fakes
+  mkdir -p "$HOME/.pki/nssdb"
+  : >"$HOME/.pki/nssdb/cert9.db"
+  run_install
+  [ "$(cat "$status_file")" = "ready" ]
+  [ ! -s "$FAKE_STATE/apt-get.log" ]
+  ! grep -q -- ' -N ' "$FAKE_STATE/certutil.log"
+  grep -q -- '-D -n sbx-proxy-ca' "$FAKE_STATE/certutil.log"
+  grep -q -- '-A -t C,, -n sbx-proxy-ca' "$FAKE_STATE/certutil.log"
+}
+
+@test "without a proxy CA, the install skips the NSS database" {
+  rm "$PLAYWRIGHT_CLI_KIT_PROXY_CA"
+  run_install
+  [ "$(cat "$status_file")" = "ready" ]
+  grep -q "no proxy CA at $PLAYWRIGHT_CLI_KIT_PROXY_CA" "$log"
+  [ ! -s "$FAKE_STATE/certutil.log" ]
 }

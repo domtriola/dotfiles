@@ -66,7 +66,7 @@ Out of scope:
   - The `gh` release (`my-claude`).
   - The `pi-image` container and the npm extensions (`pi-ailo`).
   - The dotfiles clone at `main`, and apt packages (`dotfiles` mixin).
-  - Node from nodejs.org, at the version that the project asks for, `@playwright/cli` at a pinned version from npm, Chromium from the Playwright CDN, and apt packages with sudo (`playwright-cli` mixin).
+  - Node from nodejs.org, at the version that the project asks for, `@playwright/cli` at a pinned version from npm, Chromium from the Playwright CDN, and apt packages with sudo, including `libnss3-tools` to add the sandbox proxy's CA to Chromium's trust store (`playwright-cli` mixin).
 - **Workspace files that a kit reads**: the `playwright-cli` startup hook reads `.nvmrc`, `.node-version`, and `package.json` to choose the Node version. The version that it downloads always comes from the Node release index, not from the file.
 - **Output from a sandbox to the host**:
   - Pending network approvals (`sbx policy approval ls`), which `sbx-policy` reads.

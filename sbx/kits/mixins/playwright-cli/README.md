@@ -28,12 +28,18 @@ It installs these, all for the agent user:
 | Node           | `~/.local/share/playwright-cli-kit/node`, from nodejs.org, checksummed.  |
 | playwright-cli | `@playwright/cli`, at the version that `spec.yaml` pins, into that Node. |
 | Chromium       | `~/.cache/ms-playwright`, with its system packages from apt (with sudo). |
+| The proxy CA   | `~/.pki/nssdb`, with `certutil` from apt (`libnss3-tools`).              |
 | The wrapper    | `~/.local/bin/playwright-cli`, written last.                             |
 
 The wrapper puts the kit's Node first on `PATH` for the CLI alone, so the
 `node` on the agent's `PATH` does not change. It also sets
 `PLAYWRIGHT_MCP_BROWSER=chromium`, because the CLI's own default is Chrome,
 which has no arm64 build.
+
+The sandbox proxy intercepts TLS with its own CA. Chromium on Linux does not
+read the system CA bundle, only the NSS database in `~/.pki/nssdb`. So the kit
+adds the proxy's CA (`/usr/local/share/ca-certificates/proxy-ca.crt`) there.
+Without it, every HTTPS page fails with `ERR_CERT_AUTHORITY_INVALID`.
 
 The kit does not install the project's dependencies, and writes nothing in the
 workspace. It reads the workspace only to choose the Node version:

@@ -11,6 +11,8 @@
 # spec.yaml pins. PLAYWRIGHT_CLI_KIT_NODE_MIRROR names a different Node release
 # mirror, for the tests. PLAYWRIGHT_CLI_KIT_LOCK_WAIT is how many seconds to
 # wait for another apt-get to finish (600 by default).
+# PLAYWRIGHT_CLI_KIT_PROXY_CA is the sandbox proxy's CA certificate, which
+# Chromium must trust (/usr/local/share/ca-certificates/proxy-ca.crt by default).
 
 set -eu
 
@@ -172,12 +174,8 @@ step "installing playwright-cli $cli_version"
 cd "$HOME"
 npm install -g --ignore-scripts --prefix "$node_dir" "@playwright/cli@$cli_version"
 
-step "installing Chromium"
-# --with-deps installs the system packages with sudo and apt. --no-shell skips
-# the headless shell, which playwright-cli does not use.
-#
 # Another apt-get often runs while a sandbox starts (the dotfiles kit's, for
-# one), and it can break this install in two ways:
+# one), and it can break an apt install in two ways:
 #
 # - The loser of the race for the dpkg lock gets "Could not get lock".
 # - The image's /etc/apt/apt.conf.d/docker-clean deletes the downloaded .deb
@@ -186,21 +184,55 @@ step "installing Chromium"
 #   file /var/cache/apt/archives/...".
 #
 # Playwright runs apt-get itself, so DPkg::Lock::Timeout cannot reach it.
-# Instead, the install runs again once a second after either error, for up to
-# lock_wait seconds. A new run downloads the files again. Any other failure
-# stops at once, because a retry will not fix it.
+# Instead, with_apt_retry runs the command again once a second after either
+# error, for up to lock_wait seconds. A new run downloads the files again. Any
+# other failure stops at once, because a retry will not fix it.
+#
+#   with_apt_retry <what> <command>...
 lock_wait="${PLAYWRIGHT_CLI_KIT_LOCK_WAIT:-600}"
-deadline=$(($(date +%s) + lock_wait))
-until playwright-cli install-browser chromium --with-deps --no-shell >"$tmp/install.out" 2>&1; do
-  cat "$tmp/install.out"
-  grep -Eq 'Could not get lock|Could not open file /var/cache/apt/archives/' "$tmp/install.out" ||
-    fail "the Chromium install failed"
-  [ "$(date +%s)" -lt "$deadline" ] ||
-    fail "another apt-get still got in the way after ${lock_wait}s"
-  echo "--- another apt-get got in the way, so the Chromium install runs again ---"
-  sleep 1
-done
-cat "$tmp/install.out"
+with_apt_retry() {
+  what="$1"
+  shift
+  deadline=$(($(date +%s) + lock_wait))
+  until "$@" >"$tmp/apt.out" 2>&1; do
+    cat "$tmp/apt.out"
+    grep -Eq 'Could not get lock|Could not open file /var/cache/apt/archives/' "$tmp/apt.out" ||
+      fail "$what failed"
+    [ "$(date +%s)" -lt "$deadline" ] ||
+      fail "another apt-get still got in the way after ${lock_wait}s"
+    echo "--- another apt-get got in the way, so $what runs again ---"
+    sleep 1
+  done
+  cat "$tmp/apt.out"
+}
+
+step "installing Chromium"
+# --with-deps installs the system packages with sudo and apt. --no-shell skips
+# the headless shell, which playwright-cli does not use.
+with_apt_retry "the Chromium install" \
+  playwright-cli install-browser chromium --with-deps --no-shell
+
+step "trusting the sandbox proxy's CA in Chromium"
+# The sandbox proxy intercepts TLS with its own CA. curl and Node trust it
+# through the system bundle, but Chromium on Linux reads only the NSS database
+# in ~/.pki/nssdb. Without the CA there, every HTTPS page fails with
+# ERR_CERT_AUTHORITY_INVALID. The CA is removed and added again on each start,
+# in case the proxy's CA changed.
+ca="${PLAYWRIGHT_CLI_KIT_PROXY_CA:-/usr/local/share/ca-certificates/proxy-ca.crt}"
+nssdb="$HOME/.pki/nssdb"
+if [ ! -f "$ca" ]; then
+  echo "no proxy CA at $ca, so Chromium trusts only its own CAs"
+else
+  command -v certutil >/dev/null ||
+    with_apt_retry "the certutil install" sudo -n env DEBIAN_FRONTEND=noninteractive sh -c \
+      'apt-get update && apt-get install -y --no-install-recommends libnss3-tools'
+  if [ ! -f "$nssdb/cert9.db" ]; then
+    mkdir -p "$nssdb"
+    certutil -d "sql:$nssdb" -N --empty-password
+  fi
+  certutil -d "sql:$nssdb" -D -n sbx-proxy-ca >/dev/null 2>&1 || true
+  certutil -d "sql:$nssdb" -A -t C,, -n sbx-proxy-ca -i "$ca"
+fi
 
 # The wrapper comes last, so playwright-cli is on PATH only once it works. It
 # puts the kit's Node first on PATH for the CLI alone, and makes Chromium the
