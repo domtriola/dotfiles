@@ -42,6 +42,18 @@ setup() {
   [[ "$output" =~ ok\ +git\ user\.email\ +ann@example\.com ]]
 }
 
+@test "agent-server doctor warns when xterm-ghostty has no terminfo entry" {
+  fake_command infocmp 'exit 1'
+  run "$doctor" --profile agent-server --offline
+  [[ "$output" =~ warn\ +xterm-ghostty\ +not\ in\ the\ terminfo\ database.*15_terminfo ]]
+}
+
+@test "agent-server doctor reports xterm-ghostty when it has a terminfo entry" {
+  fake_command infocmp 'exit 0'
+  run "$doctor" --profile agent-server --offline
+  [[ "$output" =~ ok\ +xterm-ghostty\ +in\ the\ terminfo\ database ]]
+}
+
 # fake_command writes a command into a directory that comes first on PATH.
 fake_command() {
   mkdir -p "$BATS_TEST_TMPDIR/bin"
