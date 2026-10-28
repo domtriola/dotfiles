@@ -197,6 +197,17 @@ if have vgs; then
 fi
 
 # ---------------------------------------------------------------------------
+section "Terminal"
+# ---------------------------------------------------------------------------
+
+# Over ssh, TERM is the Mac's xterm-ghostty, and tmux needs its entry.
+if infocmp xterm-ghostty >/dev/null 2>&1; then
+  ok "xterm-ghostty" "in the terminfo database"
+else
+  warn "xterm-ghostty" "not in the terminfo database, tmux fails over ssh, run setup 15_terminfo"
+fi
+
+# ---------------------------------------------------------------------------
 section "Kernel"
 # ---------------------------------------------------------------------------
 

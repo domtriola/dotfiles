@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#
+# A terminfo entry for xterm-ghostty, the TERM of Ghostty on the Mac.
+#
+# ssh passes the Mac's TERM to the box. Without an entry of that name, tmux
+# stops with "missing or unsuitable terminal: xterm-ghostty". (mosh does not
+# pass TERM: mosh-server sets xterm-256color.)
+#
+# ncurses-term has the entry, but only as ghostty. So this installs
+# ncurses-term, and compiles xterm-ghostty into /etc/terminfo as another name
+# for it.
+
+set -eo pipefail
+
+if infocmp xterm-ghostty >/dev/null 2>&1; then
+  echo "xterm-ghostty is already in the terminfo database."
+  exit 0
+fi
+
+if ! infocmp ghostty >/dev/null 2>&1; then
+  echo "Installing: ncurses-term"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ncurses-term
+fi
+
+echo "Adding xterm-ghostty to /etc/terminfo"
+printf 'xterm-ghostty|Ghostty terminal emulator,\n\tuse=ghostty,\n' |
+  sudo tic -x -o /etc/terminfo -
