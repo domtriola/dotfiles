@@ -252,6 +252,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+section "pnpm"
+# ---------------------------------------------------------------------------
+
+pnpm_bin="$HOME/.local/share/pnpm/bin/pnpm"
+
+if have node; then
+  ok "node" "$(node --version 2>/dev/null || echo 'version unknown')"
+else
+  fail "node" "not installed, run setup 10_packages"
+fi
+
+if [[ -x "$pnpm_bin" ]]; then
+  ok "pnpm" "$("$pnpm_bin" --version 2>/dev/null || echo 'version unknown')"
+else
+  fail "pnpm" "not installed, run setup 15_pnpm"
+fi
+
+# agent-server-I16. pnpm reads the value from ~/.config/pnpm/config.yaml.
+if [[ -x "$pnpm_bin" ]]; then
+  release_age="$(cd "$HOME" && "$pnpm_bin" config get minimumReleaseAge 2>/dev/null | tr -dc '0-9')"
+  if [[ -n "$release_age" && "$release_age" -ge 10080 ]]; then
+    ok "minimum release age" "$release_age minutes"
+  else
+    fail "minimum release age" "${release_age:-unset}, expected at least 10080, run sync-env"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 section "Sandboxes"
 # ---------------------------------------------------------------------------
 

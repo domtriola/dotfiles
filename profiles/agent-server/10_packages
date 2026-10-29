@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
 # The packages this machine needs to run sandboxes, and nothing more, except
-# starship, so that the prompt is the same as on the other machines, and mosh,
-# so that the operator's sessions survive a bad network.
+# starship, so that the prompt is the same as on the other machines, mosh, so
+# that the operator's sessions survive a bad network, and Node, for the global
+# pnpm tools.
 #
-# Everything comes from apt. There is no editor and no language runtime: the
-# operator does not edit code on this machine. sbx comes in 22_sandboxes.
+# Everything comes from apt. There is no editor: the operator does not edit
+# code on this machine. sbx comes in 22_sandboxes, and pnpm in 15_pnpm.
 #
 # Each package names a command that proves it is present, so a rerun does
 # nothing and only touches the package lists when there is work to do.
@@ -28,6 +29,9 @@ packages=(
   lvm2:vgs
   # .bash_profile starts it when it is installed.
   starship:starship
+  # 15_pnpm runs get-pnpm with npx, and the global pnpm tools run on node.
+  nodejs:node
+  npm:npx
 )
 
 missing=()

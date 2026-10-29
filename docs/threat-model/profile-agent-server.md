@@ -3,13 +3,13 @@
 **Kind**: feature
 **Product model**: [product.md](product.md)
 **Origin**: #109
-**Last reviewed**: 2026-10-24
+**Last reviewed**: 2026-10-29
 
 ## Scope
 
 This model covers what only the `agent-server` profile installs and does. The profile runs on drive 1 of the Framework Desktop (hostname `doms-agents`): a headless Ubuntu Server that is always on, where about 8 sandboxes run for long periods while the operator is away. The commands, the dotfiles, the sandbox kits, the GitHub side, and the sandboxes are in the [product model](product.md). In the product model, "the host" is the box for this profile.
 
-- **The `agent-server` setup steps** (`profiles/agent-server/`), and what they download: the Docker repository (for `sbx`) and the NetBird repository.
+- **The `agent-server` setup steps** (`profiles/agent-server/`), and what they download: the Docker repository (for `sbx`), the NetBird repository, and pnpm with its global tools from the npm registry.
 - **The SSH server** and **mosh-server** on the box, and the operator's SSH and mosh sessions from the laptop into the box's tmux.
 - **NetBird** on the box, which is the only network path to the SSH server and mosh-server.
 - **The App key file**: `sbx-token` with `SBX_TOKEN_STORE=file`, which only this profile uses.
@@ -61,6 +61,8 @@ The other actors are in the product model.
   - The Docker repository key and `docker-sbx` (`22_sandboxes`).
   - The NetBird repository key and the `netbird` package (`25_network`).
   - Ubuntu packages, also from unattended upgrades.
+  - `get-pnpm`, which `npx` takes from the npm registry, and the pnpm that it downloads (`15_pnpm`).
+- **Global pnpm tools**, which the operator installs from the npm registry with `pnpm add --global`.
 - **The key file** `~/.config/sbx-token/`, which `sbx-token` reads.
 - **git's credential requests**, which `sbx-token credential` reads on stdin.
 - **`.sbx.json`** in a box clone, which `sbx-up` reads.
@@ -155,6 +157,7 @@ flowchart LR
 | agent-server-I15 | mosh-server stops after 3 days with no packet from the client (`MOSH_SERVER_NETWORK_TMOUT=259200`, which `~/.bashrc.d/mosh.bashrc` sets for the command that SSH runs). | `env/agent-server/.bashrc.d/mosh.bashrc` | agent-server-T23 |
 | agent-server-T22 | E | A device on the LAN exploits a bug in mosh-server before it checks a packet. | agent-server-B1 | low | high | mitigated | agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp and 60000:61000/udp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. It adds the rule for 60000:61000/udp (mosh) on `wt0` only. Doctor fails when ufw is off, when it has a rule for 22/tcp that is not on `wt0`, or when it has any other rule that is not 60000:61000/udp on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2, agent-server-T22, agent-server-T23 |
 | agent-server-T23 | S | An attacker who gets a mosh session key (it is in the mosh client process on the laptop) resumes the session from a NetBird peer, with no YubiKey, while mosh-server runs. | agent-server-B1 | low | high | accepted | agent-server-I2. agent-server-I15. The NetBird policies. |
+| agent-server-T24 | T, E | `get-pnpm`, pnpm, or a global pnpm tool is published with malicious code, and runs as the operator with access to agent-server-A1 and A3. The same happens when the operator runs `pnpm install` in a box clone, which runs code that agents wrote. | B1 | low | high | accepted | agent-server-I16. get-pnpm checks the npm registry signature of pnpm. `15_pnpm` and its comment say never to install in a box clone. |
 
 STRIDE categories that have no threat above:
 
@@ -185,6 +188,8 @@ STRIDE categories that have no threat above:
 | agent-server-I13 | On the `agent-server` profile, `sbx-up` stops when the resolved sandbox is not a clone: a `.sbx.json` with any value of `"clone"` that turns it off, or a project outside git. | `sbx-up` (`config_load`) | agent-server-T20 |
 | agent-server-I14 | `sbx-token credential` answers only `get` for `https` on `github.com`. Its token names the one repository in git's path and has only `contents: read` and `metadata: read`, so the box can clone and fetch, but never push. It stops when git gives no path, and never mints a token for more than one repository. Doctor fails when the helper is not set. | `sbx-token` (`lib/credential`), `profiles/agent-server/30_git`, `profiles/agent-server/lib/doctor.sh` | agent-server-T21 |
 
+| agent-server-I16 | pnpm does not install a version until it has been published for 7 days (`minimumReleaseAge: 10080` in `~/.config/pnpm/config.yaml`), also for `pnpm add --global`. Doctor fails when pnpm reads a smaller value. | `env/.config/pnpm/config.yaml`, `profiles/agent-server/env.manifest`, `profiles/agent-server/lib/doctor.sh` | agent-server-T24 |
+
 ## Accepted risks
 
 | Threat | Reason | Accepted by | Date | Revisit when |
@@ -197,6 +202,7 @@ STRIDE categories that have no threat above:
 | agent-server-T15 | An unattended reboot stops the box at the LUKS prompt until the operator is home. Doctor tells the operator, and the operator reboots at home. | Dominick Triola | 2026-10-21 | Remote LUKS unlock or livepatch becomes part of the profile. |
 | agent-server-T18 | It delays work but harms no asset. The commits stay in the sandbox, and the QA of #109 tests a push after a renewal. | Dominick Triola | 2026-10-21 | A failed renewal loses work, or happens again. |
 | agent-server-T23 | The key is only in the memory of the mosh client on the laptop, and a process that can read it there already controls the operator's terminal. Only a NetBird peer in the client group can reach mosh-server. A session stops after 3 days with no client (agent-server-I15). A session that survives sleep and a network change saves a YubiKey login each time. | Dominick Triola | 2026-10-24 | Another person gets a peer in the client group, or mosh stores its key on disk. |
+| agent-server-T24 | The operator needs global tools such as sfw on the box. The 7-day release age gives the registry time to remove a malicious version, and the box has no `curl \| sh` installer for Node. `npx --yes get-pnpm` itself has no release age. | Dominick Triola | 2026-10-29 | A box clone needs `pnpm install` on the host, or a tool needs a lifecycle script. |
 
 ## Assumptions
 
