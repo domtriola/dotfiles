@@ -252,7 +252,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-section "pnpm"
+section "JavaScript"
 # ---------------------------------------------------------------------------
 
 pnpm_bin="$HOME/.local/share/pnpm/bin/pnpm"
@@ -260,13 +260,13 @@ pnpm_bin="$HOME/.local/share/pnpm/bin/pnpm"
 if have node; then
   ok "node" "$(node --version 2>/dev/null || echo 'version unknown')"
 else
-  fail "node" "not installed, run setup 10_packages"
+  fail "node" "not installed, run setup 15_languages"
 fi
 
 if [[ -x "$pnpm_bin" ]]; then
   ok "pnpm" "$("$pnpm_bin" --version 2>/dev/null || echo 'version unknown')"
 else
-  fail "pnpm" "not installed, run setup 15_pnpm"
+  fail "pnpm" "not installed, run setup 15_languages"
 fi
 
 # agent-server-I16. pnpm reads the value from ~/.config/pnpm/config.yaml.
@@ -276,6 +276,15 @@ if [[ -x "$pnpm_bin" ]]; then
     ok "minimum release age" "$release_age minutes"
   else
     fail "minimum release age" "${release_age:-unset}, expected at least 10080, run sync-env"
+  fi
+fi
+
+# agent-server-I16. A box clone runs only the dependency builds that it allows.
+if [[ -x "$pnpm_bin" ]]; then
+  if [[ "$(cd "$HOME" && "$pnpm_bin" config get dangerouslyAllowAllBuilds 2>/dev/null)" == "true" ]]; then
+    fail "dependency builds" "dangerouslyAllowAllBuilds is true, remove it from the pnpm config"
+  else
+    ok "dependency builds" "only the ones that a project allows"
   fi
 fi
 

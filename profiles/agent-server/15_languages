@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# Language toolchains, so that the operator can install and run the projects
+# in the box's clones, outside a sandbox. A project's scripts then run as the
+# operator (agent-server-T24), so the clones get only reviewed main.
+#
+# JavaScript: Node and npm from apt, and the standalone pnpm. Ubuntu's
+# corepack is too old to run pnpm 11 or later, so get-pnpm installs pnpm into
+# PNPM_HOME, as on dev-mac. ~/.bashrc.d/pnpm.bashrc puts it on PATH, and
+# ~/.config/pnpm/config.yaml holds the 7-day minimum release age.
+
+set -eo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)"
+# shellcheck source=../../lib/style.sh
+source "$root_dir/lib/style.sh"
+
+# ---------------------------------------------------------------------------
+# JavaScript
+# ---------------------------------------------------------------------------
+section "Node"
+
+# <package>:<command that proves the package is present>, as in 10_packages.
+# get-pnpm runs with npx.
+packages=(
+  nodejs:node
+  npm:npx
+)
+
+missing=()
+for entry in "${packages[@]}"; do
+  command -v "${entry#*:}" >/dev/null 2>&1 || missing+=("${entry%%:*}")
+done
+
+if [[ ${#missing[@]} -eq 0 ]]; then
+  echo "Node $(node --version) is already installed."
+else
+  echo "Installing: ${missing[*]}"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+fi
+
+section "pnpm"
+
+pnpm_major=12
+
+export PNPM_HOME="$HOME/.local/share/pnpm"
+
+if [[ -x "$PNPM_HOME/bin/pnpm" ]]; then
+  echo "pnpm $("$PNPM_HOME/bin/pnpm" --version) is already installed. Run pnpm self-update to upgrade it."
+else
+  # get-pnpm hands over to `pnpm setup`, which edits the rc file of $SHELL.
+  # ~/.bashrc is a dotfile, so SHELL is unset and pnpm.bashrc sets PATH
+  # instead. The home directory has no package.json that could pin another
+  # version.
+  cd "$HOME"
+  env -u SHELL npx --yes get-pnpm "$pnpm_major"
+fi
