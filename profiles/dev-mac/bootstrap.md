@@ -141,6 +141,43 @@ To revoke a machine, delete its key pair under **Credentials**. To change the Ap
 
 If `sbx-token check` reports an installation on an account that is not expected, and you did not install the App there, delete that installation with `sbx-token uninstall <account>`. Only the API can do this, because GitHub does not show you the installations on other accounts.
 
+## Set up the YubiKey secret store
+
+The `secrets` command keeps the secrets of each project's scripts in `~/.config/secrets`, encrypted to two YubiKeys: a main key and a backup. See `secrets --help`. Run this after `setup` (`20_packages` installs `age`, `age-plugin-yubikey`, and `ykman`) and `sync-env`.
+
+1. [ ] Do these steps for each YubiKey, with only that key inserted:
+
+   1. Change the PIV PIN (the default is `123456`), the PUK (the default is `12345678`), and the management key. Keep the PIN and the PUK in your password manager.
+
+      ```sh
+      ykman piv access change-pin
+      ykman piv access change-puk
+      ykman piv access change-management-key --generate --protect
+      ```
+
+   1. Add the key to the store. If it has no age slot yet, `secrets init` makes one, and asks for the PIN and a touch.
+
+      ```sh
+      secrets init
+      ```
+
+1. [ ] Keep the backup YubiKey in another place than the Mac, so that one theft or fire does not take both keys.
+1. [ ] Test it: `doctor` reports the secret store as ok, with 2 recipients. Then run the commands below. `secrets set` asks for a value (type any text), and each decrypt waits for a touch.
+
+   ```sh
+   secrets set scratch test HELLO && secrets keys scratch test && secrets run scratch test -- printenv HELLO
+   rm -r ~/.config/secrets/scratch
+   ```
+
+To add a secret, run `secrets set <project> <scope> <KEY>`. A shell script can read it with `stored_secret` from `~/.local/lib/secrets/lib/store.sh`. Another program can read it from `secrets get` through a pipe, or from its environment under `secrets run`.
+
+### A lost or stolen YubiKey
+
+1. [ ] Remove the lines of the lost key (its `# Serial:` comment and the line under it) from `~/.config/secrets/recipients.txt` and `identities.txt`, and from each `<project>/recipients.txt` (`ls ~/.config/secrets/*/recipients.txt` finds them).
+1. [ ] Run `secrets rekey` with the other YubiKey inserted. The lost key can no longer decrypt the new files.
+1. [ ] If the store was lost too (the Mac was stolen, or a copy of the folder), the old files are still encrypted to the lost key. Rotate each secret in them at its service, and set the new values with `secrets set`.
+1. [ ] Add a new backup YubiKey: do the steps above, then run `secrets rekey` again.
+
 ## Set up kamaji
 
 kamaji shows the backlogs of all your projects on one board. It runs here, not in a sandbox, because it needs a token for each owner, and a sandbox token reaches the repositories of one owner only. Do this after the sandbox GitHub tokens.

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# A fake age. The "ciphertext" is a header that names the recipients, then the
+# plaintext in base64, so a test can see who a file is for and never finds a
+# value in it by accident. Each call logs its arguments to $FAKE_STATE/age.argv.
+# FAKE_AGE_FAIL=encrypt makes an encrypt fail after it writes part of its
+# output, as a real failure can.
+printf '%s\n' "$*" >>"$FAKE_STATE/age.argv"
+
+mode="" out="" recipients="" input=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+  -d | --decrypt) mode="decrypt" ;;
+  -e | --encrypt) mode="encrypt" ;;
+  -i | --identity) shift ;;
+  -R | --recipients-file)
+    recipients="$(grep -v '^#' "$2" | grep . | sort | paste -sd, -)"
+    shift
+    ;;
+  -o | --output)
+    out="$2"
+    shift
+    ;;
+  *) input="$1" ;;
+  esac
+  shift
+done
+
+case "$mode" in
+encrypt)
+  [[ -n "$recipients" ]] || {
+    echo "age: no recipients" >&2
+    exit 1
+  }
+  if [[ "${FAKE_AGE_FAIL:-}" == "encrypt" ]]; then
+    printf 'partial' >"$out"
+    echo "age: encrypt failed" >&2
+    exit 1
+  fi
+  { printf 'fake-age %s\n' "$recipients" && base64 | tr -d '\n'; } >"$out"
+  ;;
+decrypt)
+  if [[ "${FAKE_AGE_FAIL:-}" == "decrypt" ]]; then
+    echo "age: no identity matched" >&2
+    exit 1
+  fi
+  tail -n +2 "$input" | base64 -d
+  ;;
+*) exit 2 ;;
+esac
