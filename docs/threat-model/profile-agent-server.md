@@ -3,19 +3,19 @@
 **Kind**: feature
 **Product model**: [product.md](product.md)
 **Origin**: #109
-**Last reviewed**: 2026-10-24
+**Last reviewed**: 2026-10-29
 
 ## Scope
 
 This model covers what only the `agent-server` profile installs and does. The profile runs on drive 1 of the Framework Desktop (hostname `doms-agents`): a headless Ubuntu Server that is always on, where about 8 sandboxes run for long periods while the operator is away. The commands, the dotfiles, the sandbox kits, the GitHub side, and the sandboxes are in the [product model](product.md). In the product model, "the host" is the box for this profile.
 
-- **The `agent-server` setup steps** (`profiles/agent-server/`), and what they download: the Docker repository (for `sbx`) and the NetBird repository.
+- **The `agent-server` setup steps** (`profiles/agent-server/`), and what they download: the Docker repository (for `sbx`), the NetBird repository, and pnpm from the npm registry.
 - **The SSH server** and **mosh-server** on the box, and the operator's SSH and mosh sessions from the laptop into the box's tmux.
 - **NetBird** on the box, which is the only network path to the SSH server and mosh-server.
 - **The App key file**: `sbx-token` with `SBX_TOKEN_STORE=file`, which only this profile uses.
 - **git's credentials on the box**: `sbx-token credential`, which `30_git` sets as git's helper for `https://github.com`.
 - **`sudo`** with the operator's password.
-- **The box's clones** in `~/src`, from which the operator starts sandboxes with `sbx-up`.
+- **The box's clones** in `~/src`, from which the operator starts sandboxes with `sbx-up`, and in which the operator installs and runs the projects with pnpm.
 - **Unattended work**: security updates without a reboot, no sleep, and agents that run while the operator is away.
 - **Its `env.manifest`** and its doctor checks.
 - **The box's hardware** (LUKS, the IOMMU, the firmware settings), as far as the profile depends on them.
@@ -61,6 +61,9 @@ The other actors are in the product model.
   - The Docker repository key and `docker-sbx` (`22_sandboxes`).
   - The NetBird repository key and the `netbird` package (`25_network`).
   - Ubuntu packages, also from unattended upgrades.
+  - `get-pnpm`, which `npx` takes from the npm registry, and the pnpm that it downloads (`15_languages`).
+- **The npm registry**, from which pnpm installs the dependencies of a box clone, and the global tools.
+- **The scripts and the pnpm settings of a box clone** (`package.json`, `pnpm-workspace.yaml`), which pnpm runs and reads as the operator.
 - **The key file** `~/.config/sbx-token/`, which `sbx-token` reads.
 - **git's credential requests**, which `sbx-token credential` reads on stdin.
 - **`.sbx.json`** in a box clone, which `sbx-up` reads.
@@ -155,6 +158,7 @@ flowchart LR
 | agent-server-I15 | mosh-server stops after 3 days with no packet from the client (`MOSH_SERVER_NETWORK_TMOUT=259200`, which `~/.bashrc.d/mosh.bashrc` sets for the command that SSH runs). | `env/agent-server/.bashrc.d/mosh.bashrc` | agent-server-T23 |
 | agent-server-T22 | E | A device on the LAN exploits a bug in mosh-server before it checks a packet. | agent-server-B1 | low | high | mitigated | agent-server-I2 | ufw denies incoming traffic by default, and no step opens a port other than 22/tcp and 60000:61000/udp. `05_hardening` adds a general rule for 22/tcp only when no rule for 22/tcp on `wt0` exists. `25_network` adds the `wt0` rule after a peer is connected, and then removes the general rule. It adds the rule for 60000:61000/udp (mosh) on `wt0` only. Doctor fails when ufw is off, when it has a rule for 22/tcp that is not on `wt0`, or when it has any other rule that is not 60000:61000/udp on `wt0`. | `profiles/agent-server/05_hardening`, `profiles/agent-server/25_network`, `profiles/agent-server/lib/doctor.sh` | agent-server-T2, agent-server-T22, agent-server-T23 |
 | agent-server-T23 | S | An attacker who gets a mosh session key (it is in the mosh client process on the laptop) resumes the session from a NetBird peer, with no YubiKey, while mosh-server runs. | agent-server-B1 | low | high | accepted | agent-server-I2. agent-server-I15. The NetBird policies. |
+| agent-server-T24 | T, I, E | The operator runs `pnpm install` or a project script in a box clone, outside a sandbox. Malicious code runs as the operator, with access to agent-server-A1 and A3, and can ask the credential helper for a read-only token. The code can come from a dependency, `get-pnpm`, or pnpm, which an upstream publishes, or from the project, where an agent adds a script, an allowed build, or a dependency to a branch. | B1, B3 | low | high | accepted | agent-server-I16. get-pnpm checks the npm registry signature of pnpm. The clones get only reviewed `main` (see [Assumptions](#assumptions)). |
 
 STRIDE categories that have no threat above:
 
@@ -185,6 +189,8 @@ STRIDE categories that have no threat above:
 | agent-server-I13 | On the `agent-server` profile, `sbx-up` stops when the resolved sandbox is not a clone: a `.sbx.json` with any value of `"clone"` that turns it off, or a project outside git. | `sbx-up` (`config_load`) | agent-server-T20 |
 | agent-server-I14 | `sbx-token credential` answers only `get` for `https` on `github.com`. Its token names the one repository in git's path and has only `contents: read` and `metadata: read`, so the box can clone and fetch, but never push. It stops when git gives no path, and never mints a token for more than one repository. Doctor fails when the helper is not set. | `sbx-token` (`lib/credential`), `profiles/agent-server/30_git`, `profiles/agent-server/lib/doctor.sh` | agent-server-T21 |
 
+| agent-server-I16 | pnpm does not install a version until it has been published for 7 days (`minimumReleaseAge: 10080` in `~/.config/pnpm/config.yaml`), also for `pnpm add --global`. pnpm runs no build script of a dependency that the project does not allow, which is the default of pnpm 12. Doctor fails when pnpm reads a smaller release age, or `dangerouslyAllowAllBuilds: true`. | `env/.config/pnpm/config.yaml`, `profiles/agent-server/env.manifest`, `profiles/agent-server/lib/doctor.sh` | agent-server-T24 |
+
 ## Accepted risks
 
 | Threat | Reason | Accepted by | Date | Revisit when |
@@ -197,6 +203,7 @@ STRIDE categories that have no threat above:
 | agent-server-T15 | An unattended reboot stops the box at the LUKS prompt until the operator is home. Doctor tells the operator, and the operator reboots at home. | Dominick Triola | 2026-10-21 | Remote LUKS unlock or livepatch becomes part of the profile. |
 | agent-server-T18 | It delays work but harms no asset. The commits stay in the sandbox, and the QA of #109 tests a push after a renewal. | Dominick Triola | 2026-10-21 | A failed renewal loses work, or happens again. |
 | agent-server-T23 | The key is only in the memory of the mosh client on the laptop, and a process that can read it there already controls the operator's terminal. Only a NetBird peer in the client group can reach mosh-server. A session stops after 3 days with no client (agent-server-I15). A session that survives sleep and a network change saves a YubiKey login each time. | Dominick Triola | 2026-10-24 | Another person gets a peer in the client group, or mosh stores its key on disk. |
+| agent-server-T24 | The operator works on the projects on the box, and a sandbox for each install costs too much. The 7-day release age gives the registry time to remove a malicious version, pnpm runs no dependency build that the project does not allow, and a review of `main` catches a change to the scripts or to the allowed builds. `npx --yes get-pnpm` itself has no release age. A process that runs as the operator already has A1 and A3 (agent-server-T6, T9). | Dominick Triola | 2026-10-29 | The operator runs a branch that is not reviewed on the host, or a project allows all builds. |
 
 ## Assumptions
 
@@ -204,6 +211,6 @@ STRIDE categories that have no threat above:
 - The router forwards no port to the box.
 - The NetBird dashboard has no "Default" policy. Policies let only the operator's client group reach the box, one way, on TCP 22 and on UDP 60000 to 61000. The NetBird account uses two-factor authentication.
 - `sbx` runs sandboxes in VMs (KVM) and does not change the ufw rules. No Docker Engine is installed.
-- The operator pulls only reviewed `main` into the box's clones, and never runs `sbx-pull` there. The operator reads diffs inside a sandbox, with `sbx-shell`.
+- The operator pulls only reviewed `main` into the box's clones, and runs `pnpm install` and the project scripts only on it. The operator never runs `sbx-pull` there. The operator reads diffs inside a sandbox, with `sbx-shell`.
 - The laptop's SSH config sets no `ForwardAgent` for `doms-agents`.
 - The assumptions of the product model.

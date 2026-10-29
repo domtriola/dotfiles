@@ -318,7 +318,8 @@ EOF
     "~/.local/bin/git-prune-branches" "~/.local/bin/sbx-up" "~/.local/bin/sbx-shell" \
     "~/.local/bin/sbx-token" "~/.local/bin/sbx-policy" "~/.local/bin/setup" \
     "~/.local/bin/sync-env" "~/.local/bin/doctor" "~/.local/bin/sync-skills" \
-    "~/.bashrc" "~/.bashrc.d/sbx-token.bashrc"; do
+    "~/.bashrc" "~/.bashrc.d/sbx-token.bashrc" "~/.bashrc.d/pnpm.bashrc" \
+    "~/.config/pnpm/config.yaml"; do
     [[ "$output" == *"copy    $dest"* ]] || { echo "missing: $dest"; false; }
   done
   [[ "$output" != *"ready-tmux"* ]]
