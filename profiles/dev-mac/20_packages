@@ -94,6 +94,11 @@ brew_install --cask netbirdio/tap/netbird-ui
 brew_install openssh
 brew_install ykman
 
+# The YubiKey secret store, which the secrets command reads and writes. See
+# "Set up the YubiKey secret store" in bootstrap.md.
+brew_install age
+brew_install age-plugin-yubikey
+
 # Privacy Guard
 # https://gnupg.org/documentation/manuals/gnupg/
 # gpg --help
