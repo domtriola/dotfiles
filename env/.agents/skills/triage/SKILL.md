@@ -20,20 +20,24 @@ Start every comment and issue that you post with this line:
 
 - **Category**: `bug` (something is broken) or `enhancement` (a new feature or an improvement).
 - **State**: `needs-triage` (the maintainer must evaluate it), `needs-info` (waiting on the reporter), `ready-for-agent` (fully specified for an AFK agent), `ready-for-human` (needs a human to implement), or `wontfix`.
-- **Phase**: `phase: <name>`, in this order: `pre-alpha`, `alpha`, `beta`, or `ga`. `pre-alpha` means that the issue must be done before the alpha starts. Each other phase means that the issue is done while that phase is live.
+- **Milestone**: optional. No milestone is acceptable, for example for a bug or a chore. Use the **Milestones** rules in `docs/agents/issue-tracker.md`:
+  - A **milestone is a phase**, such as Beta or GA. A feature that spans many tickets is a spec with sub-issues, not a milestone.
+  - **Order**: by due date; milestones with no due date come last, then by creation (milestone number).
+  - **Current milestone**: the earliest open milestone that has open issues. It moves on by itself when its last issue closes.
+  - **Later**: an issue in an open milestone after the current one. An issue with no milestone, or in a closed milestone, is current work.
+  - Work that started (claimed, or with an open PR) is never held back.
 
-A triaged issue has exactly one category, one state, and one phase. If the repo has no `phase:` labels (`gh label list --search "phase:"`), skip the phase role and its bucket below. For a PR, `ready-for-agent` means that a brief is attached and an agent does the next step on the diff, and `ready-for-human` means that it is ready for a human to merge.
+A triaged issue has exactly one category and one state. Set the milestone with `gh issue edit <number> --milestone '<title>'`, in single quotes, because the title comes from GitHub. For a PR, `ready-for-agent` means that a brief is attached and an agent does the next step on the diff, and `ready-for-human` means that it is ready for a human to merge.
 
 An unlabeled issue goes to `needs-triage` first. From there it goes to `needs-info`, `ready-for-agent`, `ready-for-human`, or `wontfix`. `needs-info` goes back to `needs-triage` when the reporter replies. The maintainer can override any transition. If state roles conflict, or a transition looks unusual, ask the maintainer before you continue.
 
 ## Show what needs attention
 
-List four buckets, oldest first, with counts and a one-line summary per item. Let the maintainer choose.
+List three buckets, oldest first, with counts and a one-line summary per item. Let the maintainer choose.
 
 1. Unlabeled issues.
 2. `needs-triage`.
 3. `needs-info` with reporter activity since the last triage notes.
-4. Open issues with no phase label.
 
 When PRs are in scope, add the external PRs to the buckets, and tag each line `[PR]` or `[issue]`. This filter applies to discovery only: always triage a PR that the maintainer names.
 
@@ -42,7 +46,7 @@ When PRs are in scope, add the external PRs to the buckets, and tag each line `[
 1. **Gather context.** Read the full issue (body, comments, labels, author, dates), and for a PR, the diff. Read earlier triage notes, so that you do not ask resolved questions again. Explore the codebase with the vocabulary in `GLOSSARY.md`, and respect the ADRs in the area. Then do two checks:
    - **Redundancy**: search for an existing implementation of the request by domain concept, not only by its words, and report where you looked. If it exists, the outcome is an already-implemented `wontfix`.
    - **Prior rejection**: read `.out-of-scope/*.md`, and show any file that resembles the request ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
-2. **Recommend** a category, a state, and a phase with your reasons, and summarize the relevant code, including whether the request is already implemented. Wait for the maintainer.
+2. **Recommend** a category, a state, and a milestone (or none) with your reasons, and summarize the relevant code, including whether the request is already implemented. Wait for the maintainer.
 3. **Verify the claim** before any grilling. For a bug, reproduce it from the reporter's steps. For a PR, check it out and run the relevant tests or commands. Report the result: confirmed (with the code path), failed, or not enough detail (a strong `needs-info` signal).
 4. **Grill**, if the request needs it, with the `grilling` and `domain-modeling` skills. Update `GLOSSARY.md` and the ADRs as decisions land.
 5. **Apply the outcome**:
