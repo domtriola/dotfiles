@@ -154,27 +154,31 @@ given_secret_store() {
   [[ "$output" =~ ok\ +age\  ]]
   [[ "$output" =~ ok\ +age-plugin-yubikey ]]
   [[ "$output" =~ ok\ +store\ permissions ]]
-  [[ "$output" =~ ok\ +backup\ recipient\ +2\ recipients ]]
+  [[ "$output" =~ ok\ +recipients\ +2,\ with\ a\ backup ]]
   [[ "$output" =~ ok\ +store\ location ]]
 }
 
 @test "dev-mac doctor fails when the store or a file in it can be read by others" {
   given_secret_store
   chmod 755 "$SECRETS_HOME"
-  run "$doctor" --profile dev-mac --offline
-  [[ "$output" =~ FAIL\ +store\ permissions ]]
-
-  chmod 700 "$SECRETS_HOME"
   chmod 644 "$SECRETS_HOME/app/production.age"
   run "$doctor" --profile dev-mac --offline
-  [[ "$output" =~ FAIL\ +store\ permissions.*production\.age ]]
+  [[ "$output" =~ FAIL\ +store\ permissions.*not\ mode\ 700.*app/production\.age ]]
 }
 
 @test "dev-mac doctor warns when the store has no backup recipient" {
   given_secret_store
   printf '# main\nage1yubikey1main\n' >"$SECRETS_HOME/recipients.txt"
   run "$doctor" --profile dev-mac --offline
-  [[ "$output" =~ warn\ +backup\ recipient\ +1\ recipient ]]
+  [[ "$output" =~ warn\ +recipients\ +1,\ with\ no\ backup ]]
+}
+
+@test "dev-mac doctor warns when the recipients of a project have no backup, so a rekey can miss a lost key" {
+  given_secret_store
+  printf 'age1yubikey1main\n' >"$SECRETS_HOME/app/recipients.txt"
+  chmod 600 "$SECRETS_HOME/app/recipients.txt"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ warn\ +recipients\ of\ app\ +1,\ with\ no\ backup ]]
 }
 
 @test "dev-mac doctor fails when a scope is inside a git working tree" {

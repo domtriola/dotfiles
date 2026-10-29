@@ -49,6 +49,8 @@ secrets_encrypt() {
   local file
   file="$(secrets_scope_file "$1" "$2")"
   mkdir -p "$(dirname "$file")" || return 1
+  # A crash can leave a .new file, which age may refuse to overwrite.
+  rm -f "$file.new"
   if age --encrypt --recipients-file "$(secrets_recipients "$1")" --output "$file.new"; then
     mv -f "$file.new" "$file"
   else

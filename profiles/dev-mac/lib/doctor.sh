@@ -271,42 +271,59 @@ unset tool
 # The store holds only ciphertext, but the scopes and the key names in it are
 # for this user only. A scope in a git working tree can be pushed by mistake,
 # and kept in its history after a rekey.
-secrets_home="${SECRETS_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/secrets}"
-if [[ ! -d "$secrets_home" ]]; then
+# shellcheck source=../../../commands/secrets/lib/store.sh
+source "$dotfiles_dir/commands/secrets/lib/store.sh"
+store="$(secrets_home)"
+
+# recipients_check <label> <file> reports how many recipients a file has. A
+# project's own file replaces the shared one, so each needs a backup.
+recipients_check() {
+  local count
+  count="$(grep -c '^age1' "$2" 2>/dev/null || true)"
+  if [[ "${count:-0}" -ge 2 ]]; then
+    ok "$1" "$count, with a backup"
+  elif [[ "${count:-0}" -eq 1 ]]; then
+    warn "$1" "1, with no backup, run secrets init with the backup YubiKey"
+  else
+    fail "$1" "none in $2, run secrets init with a YubiKey inserted"
+  fi
+}
+
+if [[ ! -d "$store" ]]; then
   pending "secret store" "not set up, see bootstrap.md"
 else
-  readable="$(find "$secrets_home" -mindepth 1 \( -perm -040 -o -perm -004 \) 2>/dev/null | sed "s|^$secrets_home/||" | paste -sd ' ' -)"
-  if [[ -z "$(find "$secrets_home" -maxdepth 0 -perm 700 2>/dev/null)" ]]; then
-    fail "store permissions" "$secrets_home is not mode 700, run chmod 700 $secrets_home"
-  elif [[ -n "$readable" ]]; then
-    fail "store permissions" "others can read $readable, run chmod -R go-rwx $secrets_home"
-  else
+  problems=""
+  [[ -n "$(find "$store" -maxdepth 0 -perm 700 2>/dev/null)" ]] || problems="the store is not mode 700"
+  readable="$(find "$store" -mindepth 1 \( -perm -040 -o -perm -004 \) 2>/dev/null | sed "s|^$store/||" | paste -sd ' ' -)"
+  [[ -z "$readable" ]] || problems="${problems:+$problems, }others can read $readable"
+  if [[ -z "$problems" ]]; then
     ok "store permissions" "only you can read it"
+  else
+    fail "store permissions" "$problems, run chmod 700 $store && chmod -R go-rwx $store"
   fi
 
-  recipient_count="$(grep -c '^age1' "$secrets_home/recipients.txt" 2>/dev/null || true)"
-  if [[ "${recipient_count:-0}" -ge 2 ]]; then
-    ok "backup recipient" "$recipient_count recipients"
-  elif [[ "${recipient_count:-0}" -eq 1 ]]; then
-    warn "backup recipient" "1 recipient, run secrets init with the backup YubiKey"
-  else
-    fail "backup recipient" "no recipients, run secrets init"
-  fi
+  recipients_check "recipients" "$store/recipients.txt"
+  for project_recipients in "$store"/*/recipients.txt; do
+    [[ -f "$project_recipients" ]] || continue
+    project="${project_recipients%/recipients.txt}"
+    recipients_check "recipients of ${project##*/}" "$project_recipients"
+  done
 
   tracked=""
   while IFS= read -r scope_file; do
     if git -C "$(dirname "$scope_file")" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      tracked="${tracked:+$tracked }${scope_file#"$secrets_home"/}"
+      tracked="${tracked:+$tracked }${scope_file#"$store"/}"
     fi
-  done < <(find "$secrets_home" -name '*.age' 2>/dev/null)
+  done < <(find "$store" -name '*.age' 2>/dev/null)
   if [[ -z "$tracked" ]]; then
     ok "store location" "no scope is in a git working tree"
   else
     fail "store location" "in a git working tree: $tracked, move the store out of it"
   fi
-  unset readable recipient_count tracked scope_file
+  unset problems readable project_recipients project tracked scope_file
 fi
-unset secrets_home
+unset store
+unset -f recipients_check
 
 # ---------------------------------------------------------------------------
 section "Environment"

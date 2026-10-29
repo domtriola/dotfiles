@@ -44,8 +44,8 @@ checkout, for example `commands/setup/setup --dry`.
 
 ## Finding the checkout
 
-The commands that work on the checkout (all except the `sbx-` ones) look for
-it in this order:
+The commands that work on the checkout (all except the `sbx-` ones and
+`secrets`) look for it in this order:
 
 1. `$DOTFILES_DIR`.
 2. The checkout that holds the file, when it is run from `commands/`.
@@ -62,8 +62,9 @@ color.
 
 Most tests in `tests/` run a command through its command line, with fakes
 for `sbx`, `tmux`, the GitHub API, the OS secret stores, `gh`, `docker`,
-`sudo`, `age` and `age-plugin-yubikey` first on PATH. Run them with `./test` from the checkout root. Arguments
-go to bats, for example `./test tests/sbx-token.bats` or `./test --filter mint`.
+`sudo`, `age`, `age-plugin-yubikey` and `ykman` first on PATH. Run them with
+`./test` from the checkout root. Arguments go to bats, for example
+`./test tests/sbx-token.bats` or `./test --filter mint`.
 
 The tests run only in a Docker Sandbox. A command that has no fake is the real
 one. Thus `./test` stops at once on any other machine, and so does a direct
