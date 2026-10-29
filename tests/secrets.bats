@@ -105,6 +105,15 @@ value_of() {
   [[ "$output" != *PREVIEW_URL* ]]
 }
 
+@test "run refuses a key that is not a valid environment variable" {
+  given_store
+  mkdir -p "$SECRETS_HOME/app"
+  printf 'BASH_ENV/x=1\n' | "$repo_root/tests/fakes/bin/age" --encrypt -R "$SECRETS_HOME/recipients.txt" -o "$SECRETS_HOME/app/production.age"
+  run "$secrets" run app production -- true
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not a valid key"* ]]
+}
+
 @test "run passes the exit status of the command through" {
   given_store
   set_values app production A=1
@@ -130,6 +139,7 @@ value_of() {
   printf 'age1yubikey1main\nage1yubikey1new\n' >"$SECRETS_HOME/recipients.txt"
   run "$secrets" rekey
   [ "$status" -eq 0 ]
+  [[ "$output" == *"encrypted app/production again"* ]]
   [[ "$output" == *"encrypted 2 scopes again"* ]]
   [ "$(head -1 "$SECRETS_HOME/app/production.age")" = "fake-age age1yubikey1main,age1yubikey1new" ]
   [ "$(head -1 "$SECRETS_HOME/other/ci.age")" = "fake-age age1yubikey1main,age1yubikey1new" ]
@@ -162,18 +172,29 @@ value_of() {
   [ "$status" -eq 0 ]
   [ "$(stat -c %a "$SECRETS_HOME")" = "700" ]
   [ "$(stat -c %a "$SECRETS_HOME/identities.txt")" = "600" ]
-  grep -q -- '--generate --pin-policy once --touch-policy always' "$FAKE_STATE/age-plugin-yubikey.argv"
+  grep -q -- '--generate --serial key1 --pin-policy once --touch-policy always' "$FAKE_STATE/age-plugin-yubikey.argv"
   grep -qx 'AGE-PLUGIN-YUBIKEY-1KEY1' "$SECRETS_HOME/identities.txt"
   grep -qx 'age1yubikey1key1' "$SECRETS_HOME/recipients.txt"
   [[ "$output" == *"backup YubiKey"* ]]
 }
 
+@test "init refuses when no YubiKey, or more than one, is inserted" {
+  FAKE_YUBIKEYS="" run "$secrets" init
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"insert one YubiKey"* ]]
+  FAKE_YUBIKEYS="key1 key2" run "$secrets" init
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"insert one YubiKey"* ]]
+  [ ! -s "$FAKE_STATE/age-plugin-yubikey.argv" ]
+}
+
 @test "init with the backup YubiKey adds it, and adds no key twice" {
   "$secrets" init
-  FAKE_YUBIKEY=key2 "$secrets" init
+  FAKE_YUBIKEYS=key2 "$secrets" init
   run "$secrets" init
   [ "$status" -eq 0 ]
   [[ "$output" == *"in the store already"* ]]
+  [[ "$output" == *"the store has 2 YubiKeys"* ]]
   [ "$(grep -c '^age1' "$SECRETS_HOME/recipients.txt")" -eq 2 ]
   [ "$(grep -c '^AGE-PLUGIN' "$SECRETS_HOME/identities.txt")" -eq 2 ]
 }

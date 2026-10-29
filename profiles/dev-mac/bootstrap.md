@@ -162,7 +162,7 @@ The `secrets` command keeps the secrets of each project's scripts in `~/.config/
       ```
 
 1. [ ] Keep the backup YubiKey in another place than the Mac, so that one theft or fire does not take both keys.
-1. [ ] Test it: `doctor` reports the secret store as ok, with 2 recipients. Then:
+1. [ ] Test it: `doctor` reports the secret store as ok, with 2 recipients. Then run the commands below. `secrets set` asks for a value (type any text), and each decrypt waits for a touch.
 
    ```sh
    secrets set scratch test HELLO && secrets keys scratch test && secrets run scratch test -- printenv HELLO
@@ -173,7 +173,7 @@ To add a secret, run `secrets set <project> <scope> <KEY>`. A shell script can r
 
 ### A lost or stolen YubiKey
 
-1. [ ] Remove the lines of the lost key (its `# Serial:` comment and the line under it) from `~/.config/secrets/recipients.txt` and `identities.txt`, and from each `<project>/recipients.txt`.
+1. [ ] Remove the lines of the lost key (its `# Serial:` comment and the line under it) from `~/.config/secrets/recipients.txt` and `identities.txt`, and from each `<project>/recipients.txt` (`ls ~/.config/secrets/*/recipients.txt` finds them).
 1. [ ] Run `secrets rekey` with the other YubiKey inserted. The lost key can no longer decrypt the new files.
 1. [ ] If the store was lost too (the Mac was stolen, or a copy of the folder), the old files are still encrypted to the lost key. Rotate each secret in them at its service, and set the new values with `secrets set`.
 1. [ ] Add a new backup YubiKey: do the steps above, then run `secrets rekey` again.

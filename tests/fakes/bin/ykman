@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# A fake ykman, with the YubiKeys in $FAKE_YUBIKEYS (default key1) inserted.
+printf '%s\n' "$*" >>"$FAKE_STATE/ykman.argv"
+case "$*" in
+"list --serials")
+  for key in ${FAKE_YUBIKEYS-key1}; do
+    printf '%s\n' "$key"
+  done
+  ;;
+*) exit 2 ;;
+esac

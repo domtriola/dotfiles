@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# A fake age-plugin-yubikey, with the YubiKey named by $FAKE_YUBIKEY (default
-# key1) inserted. A key has an age slot once --generate made one, which is
-# recorded as $FAKE_STATE/yubikey-<name>.
+# A fake age-plugin-yubikey, for the YubiKey that --serial names. A key has an
+# age slot once --generate made one, which is recorded as
+# $FAKE_STATE/yubikey-<serial>.
 printf '%s\n' "$*" >>"$FAKE_STATE/age-plugin-yubikey.argv"
-key="${FAKE_YUBIKEY:-key1}"
+key=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  [[ "${args[$i]}" == "--serial" ]] && key="${args[$((i + 1))]}"
+done
+[[ -n "$key" ]] || exit 2
 upper="$(printf '%s' "$key" | tr '[:lower:]' '[:upper:]')"
 
 slot() {
