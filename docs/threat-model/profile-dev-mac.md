@@ -23,9 +23,11 @@ Out of scope:
 
 ## Assets
 
-On the Mac, the Keychain holds A1, the Secure Enclave holds the SSH key of A4, and the Mac user account is A5. This profile adds one asset:
+On the Mac, the Keychain holds A1, the Secure Enclave holds the SSH key of A4, and the Mac user account is A5. This profile adds these assets:
 
 - **The kamaji snapshot** (`~/src/personal/kamaji/.kamaji/snapshot.json`): issue titles and bodies from every repository in kamaji's list, private ones too. The kamaji sandbox reads it, by design.
+- **The secret store** (`$SECRETS_HOME`, default `~/.config/secrets`): one age file for each scope of a project, such as database URLs, storage tokens, and a GitHub token for operator scripts. Only the age identities on the YubiKeys decrypt it. The folder holds only ciphertext, and the names of the projects, scopes and keys.
+- **The YubiKeys**: a main key and a backup, each with one age identity in a PIV slot (PIN once, touch always). The PIV PIN, the PUK, and the management key guard the slot.
 
 ## Actors
 
@@ -45,6 +47,7 @@ The other actors are in the product model.
 - **The managed settings file** (`profiles/dev-mac/lib/managed-settings.json`), which host Claude Code reads.
 - **kamaji's code and locked dependencies**, which `kamaji-update` takes from `main` on GitHub and installs with `pnpm install --frozen-lockfile`.
 - **The kamaji development checkout**, which takes sandbox commits through `sbx-pull` before review (product T12).
+- **The secret values** that the operator types into `secrets set`, and that `secrets get` and `secrets run` give to the operator's scripts and tools.
 - **Issue and PR text** from every repository in kamaji's list, which `kamaji refresh` and `kamaji board` read on the host.
 
 The other entry points are in the product model.
@@ -102,6 +105,10 @@ flowchart LR
 | dev-mac-T7 | T | A GitHub user writes an issue on a listed public repository with terminal escape sequences, which `kamaji board` prints in the host terminal, or with instructions for the kamaji sandbox agent, which reads the snapshot. | B5 | medium | low | accepted | None in dotfiles. kamaji must remove control characters before it prints issue text. The agent in the sandbox has the limits of product B5. |
 | dev-mac-T8 | I | kamaji prints a token from `sbx-token mint` in the terminal, where the tmux scrollback keeps it. | B7 | low | high | accepted | kamaji must never print a token, as product I8 requires of `sbx-token`. |
 | dev-mac-T9 | T | A dependency in kamaji's lockfile is published with malicious code, and runs on the host with access to A1. | B1 | low | high | accepted | `--frozen-lockfile`, so only a lockfile that you reviewed in a PR installs. The 7-day minimum release age for pnpm. |
+| dev-mac-T11 | I | The Mac is stolen with a YubiKey in it, so the thief has the store and a key that decrypts it. | B7 | low | high | mitigated | dev-mac-I6. FileVault. |
+| dev-mac-T12 | I | A process that runs as the operator (such as a malicious package) asks the YubiKey for a decrypt while an operation waits for a touch, so the operator's touch decrypts its request too. It can also read the environment of a `secrets run` command, or a value that `secrets get` pipes. | B7 | low | high | accepted | dev-mac-I6: each decrypt needs a touch, and decrypts one scope only. |
+| dev-mac-T13 | I | A plaintext secret is written to disk: a temp file, a here-string or heredoc that bash puts in `/tmp`, an editor buffer, or the terminal scrollback. | B7 | low | high | mitigated | dev-mac-I7 |
+| dev-mac-T14 | I | A scope is committed to a git repository and pushed, so a lost YubiKey decrypts it later, even after a rekey. | B7 | low | medium | mitigated | dev-mac-I8 |
 
 STRIDE categories that have no threat above: the product model covers them for B1, B3, B4, B5, and B7.
 
@@ -114,6 +121,9 @@ STRIDE categories that have no threat above: the product model covers them for B
 | dev-mac-I3 | The host runs kamaji only from the runtime clone. `kamaji-update` fast-forwards it to `main` from GitHub, never from the development checkout, and refuses when the clone has local changes or commits that are not on `main`. The `kamaji` wrapper runs only the runtime clone. Doctor fails when another `kamaji` comes first on PATH, and warns when the runtime clone has local changes. | `env/.local/bin/kamaji`, `env/.local/bin/kamaji-update`, `profiles/dev-mac/lib/doctor.sh` | dev-mac-T5 |
 | dev-mac-I4 | The `kamaji` wrapper refuses to run when `.kamaji` in the development checkout is a symlink. It runs kamaji in the runtime clone's directory, so the directory of the pane that opens the popup does not change what kamaji reads. | `env/.local/bin/kamaji` | dev-mac-T5, dev-mac-T6 |
 | dev-mac-I5 | Doctor fails when the kamaji checkout's `.sbx.json` sets `"clone": false`, so the kamaji sandbox keeps product I4. | `profiles/dev-mac/lib/doctor.sh` | dev-mac-T6, dev-mac-T10 |
+| dev-mac-I6 | `secrets init` makes an age slot only with `--pin-policy once --touch-policy always`. The bootstrap changes the default PIV PIN, PUK, and management key, and keeps the backup YubiKey in another place. Doctor warns when the store has fewer than two recipients. | `commands/secrets/lib/init`, `profiles/dev-mac/bootstrap.md`, `profiles/dev-mac/lib/doctor.sh` | dev-mac-T11, dev-mac-T12 |
+| dev-mac-I7 | `secrets` and `lib/store.sh` move a plaintext only through pipes, command substitutions, and parameter expansions, never a file, a here-string or a heredoc. `set` reads values without echo. `keys` and `set` never print a value, and `get` refuses to print to a terminal. age writes the new ciphertext to a temp file, which replaces the scope only after age succeeds. | `commands/secrets/` | dev-mac-T13 |
+| dev-mac-I8 | `secrets` makes every file with umask 077. Doctor fails when `$SECRETS_HOME` is not mode 700, when a file in it can be read by the group or others, or when a scope is inside a git working tree. | `commands/secrets/secrets`, `profiles/dev-mac/lib/doctor.sh` | dev-mac-T13, dev-mac-T14 |
 
 ## Accepted risks
 
@@ -122,6 +132,7 @@ STRIDE categories that have no threat above: the product model covers them for B
 | dev-mac-T7, dev-mac-T8 | kamaji owns these mitigations, in its own repository. Modern terminals block the dangerous escape sequences, as for product T13. | Dominick Triola | 2026-10-23 | kamaji prints issue text or logs its requests. |
 | dev-mac-T9 | The same reason as dev-mac-T2, and a lockfile change shows in the PR diff. | Dominick Triola | 2026-10-23 | kamaji adds a dependency with an install script. |
 | dev-mac-T1, dev-mac-T2 | Every download comes over HTTPS from the vendor's own source. Package managers check signatures or digests, and Renovate and the 7-day release age apply where they can. On personal machines, pinning every installer costs more to maintain than it reduces the risk. | Dominick Triola | 2026-10-12 | An upstream has a security incident. |
+| dev-mac-T12 | A process that runs as the operator can already read the operator's files and the environment of the operator's processes. The YubiKey makes it wait for an operation, and a touch decrypts one scope only. | Dominick Triola | 2026-10-29 | A scope holds a secret that is worth more than the operator's own access, or a YubiKey with a touch display (one request for each touch) is available. |
 
 ## Assumptions
 

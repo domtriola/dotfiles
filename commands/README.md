@@ -14,6 +14,7 @@ here when it works on this checkout, or when it outgrows one file.
 | `sbx-shell`   | Opens a shell into a sandbox. See `sbx-shell --help`.                       |
 | `sbx-token`   | Mints scoped GitHub tokens for sandboxes, and for git. See `--help`.        |
 | `sbx-policy`  | Answers sandbox approvals and manages local network rules. See `--help`.    |
+| `secrets`     | Keeps the secrets of each project, which a YubiKey decrypts. See `--help`.  |
 
 ## Layout
 
@@ -60,8 +61,8 @@ color.
 ## Tests
 
 Most tests in `tests/` run a command through its command line, with fakes
-for `sbx`, `tmux`, the GitHub API, the OS secret stores, `gh`, `docker` and
-`sudo` first on PATH. Run them with `./test` from the checkout root. Arguments
+for `sbx`, `tmux`, the GitHub API, the OS secret stores, `gh`, `docker`,
+`sudo`, `age` and `age-plugin-yubikey` first on PATH. Run them with `./test` from the checkout root. Arguments
 go to bats, for example `./test tests/sbx-token.bats` or `./test --filter mint`.
 
 The tests run only in a Docker Sandbox. A command that has no fake is the real

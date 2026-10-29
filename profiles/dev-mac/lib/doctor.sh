@@ -256,6 +256,59 @@ fi
 unset kamaji_runtime token_installs
 
 # ---------------------------------------------------------------------------
+section "Secret store"
+# ---------------------------------------------------------------------------
+
+for tool in age age-plugin-yubikey; do
+  if have "$tool"; then
+    ok "$tool" "$(command -v "$tool")"
+  else
+    fail "$tool" "not installed, run setup 20_packages"
+  fi
+done
+unset tool
+
+# The store holds only ciphertext, but the scopes and the key names in it are
+# for this user only. A scope in a git working tree can be pushed by mistake,
+# and kept in its history after a rekey.
+secrets_home="${SECRETS_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/secrets}"
+if [[ ! -d "$secrets_home" ]]; then
+  pending "secret store" "not set up, see bootstrap.md"
+else
+  readable="$(find "$secrets_home" -mindepth 1 \( -perm -040 -o -perm -004 \) 2>/dev/null | sed "s|^$secrets_home/||" | paste -sd ' ' -)"
+  if [[ -z "$(find "$secrets_home" -maxdepth 0 -perm 700 2>/dev/null)" ]]; then
+    fail "store permissions" "$secrets_home is not mode 700, run chmod 700 $secrets_home"
+  elif [[ -n "$readable" ]]; then
+    fail "store permissions" "others can read $readable, run chmod -R go-rwx $secrets_home"
+  else
+    ok "store permissions" "only you can read it"
+  fi
+
+  recipient_count="$(grep -c '^age1' "$secrets_home/recipients.txt" 2>/dev/null || true)"
+  if [[ "${recipient_count:-0}" -ge 2 ]]; then
+    ok "backup recipient" "$recipient_count recipients"
+  elif [[ "${recipient_count:-0}" -eq 1 ]]; then
+    warn "backup recipient" "1 recipient, run secrets init with the backup YubiKey"
+  else
+    fail "backup recipient" "no recipients, run secrets init"
+  fi
+
+  tracked=""
+  while IFS= read -r scope_file; do
+    if git -C "$(dirname "$scope_file")" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      tracked="${tracked:+$tracked }${scope_file#"$secrets_home"/}"
+    fi
+  done < <(find "$secrets_home" -name '*.age' 2>/dev/null)
+  if [[ -z "$tracked" ]]; then
+    ok "store location" "no scope is in a git working tree"
+  else
+    fail "store location" "in a git working tree: $tracked, move the store out of it"
+  fi
+  unset readable recipient_count tracked scope_file
+fi
+unset secrets_home
+
+# ---------------------------------------------------------------------------
 section "Environment"
 # ---------------------------------------------------------------------------
 
