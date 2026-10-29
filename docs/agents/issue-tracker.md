@@ -41,7 +41,7 @@ Specs, tickets, and maps for this repo are GitHub issues. Use the `gh` CLI, whic
 - **Later**: an issue in an open milestone after the current one. An issue with no milestone, or in a closed milestone, is current work.
 - Work that started (claimed, or with an open PR) is never held back.
 
-List the open milestones with `gh api 'repos/{owner}/{repo}/milestones?state=open&sort=due_on&direction=asc'`. Each milestone has `open_issues`: skip those with 0. Sort them by the **Order** rule yourself, with `--jq 'sort_by([.due_on == null, .due_on, .number])'`. The issues API gives the milestone of each issue as `.milestone.number`, `.milestone.state`, and `.milestone.due_on` (`.milestone` is null for an issue with no milestone). Set the milestone of an issue with `gh issue edit <number> --milestone "<title>"`.
+List the open milestones with `gh api 'repos/{owner}/{repo}/milestones?state=open&sort=due_on&direction=asc'`. Each milestone has `open_issues`: skip those with 0. Sort them by the **Order** rule yourself, with `--jq 'sort_by([.due_on == null, .due_on, .number])'`. The issues API gives the milestone of each issue as `.milestone.number`, `.milestone.state`, and `.milestone.due_on` (`.milestone` is null for an issue with no milestone). Set the milestone of an issue with `gh issue edit <number> --milestone '<title>'`, in single quotes, because the title comes from GitHub.
 
 ## Maps
 
