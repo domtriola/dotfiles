@@ -40,3 +40,9 @@ gh config set git_protocol ssh
 # feature flag in the sandbox. Without it, /remote-control connects and then
 # keeps disconnecting.
 sbx settings set claude.remoteControl true
+
+# The Docker disk (/var/lib/docker) of each new sandbox. sbx makes it 10g,
+# which a few images fill. A sandbox uses only the space that it writes, so
+# this is a limit, not space that is kept for it. A project's .sbx.json can set
+# its own size with "disk".
+sbx settings set sandbox.disk.dockerVolume 30g

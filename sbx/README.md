@@ -86,8 +86,22 @@ It also adds, lists and removes the local network rules (`sbx-policy allow`,
 ## Per-project settings
 
 Drop a `.sbx.json` at the project root to choose the agent, the kits, the
-memory limit, and whether the sandbox gets its own clone. Every key is
-optional, and `sbx-up --help` lists them with their defaults.
+memory limit, the size of the Docker disk, and whether the sandbox gets its own
+clone. Every key is optional, and `sbx-up --help` lists them with their
+defaults.
+
+The Docker disk (`/var/lib/docker`) holds the images, containers, and volumes
+that the agent makes. Its default is the `sbx` setting
+`sandbox.disk.dockerVolume`, which `setup` sets to 30g. A project that builds
+big images can ask for more:
+
+```json
+{ "disk": "60g" }
+```
+
+The size is a limit, not space that is kept: a sandbox uses only the space that
+it writes. The size applies only when a sandbox is made. `sbx-up` makes the
+sandbox again on each start, so a new size applies at the next start.
 
 Naming an agent on the command line overrides the file for one run:
 

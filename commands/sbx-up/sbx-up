@@ -63,6 +63,11 @@ optional:
             Default: agent-skills, dotfiles
   memory    the memory limit passed to `sbx run`.
             Default: 4g
+  disk      the size of the Docker disk (/var/lib/docker) of the sandbox,
+            such as "50g". It applies when the sandbox is made, which
+            sbx-up does on each start.
+            Default: the sbx setting sandbox.disk.dockerVolume, which
+            setup sets to 30g
   clone     give the sandbox its own clone instead of the host worktree.
             A sandbox that mounts the worktree can write files that the
             host runs later, such as .git/hooks.

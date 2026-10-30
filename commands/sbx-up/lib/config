@@ -23,7 +23,8 @@ sbx_up_profile() {
 
 # config_load resolves the settings for one sandbox and sets three globals:
 #
-#   run        the `sbx` command line, as an array
+#   run        the `sbx` command line, as an array, after `env` and the
+#              variables that sbx reads when the project sets them
 #   gh_repos   the "repos" setting, one per line, or nothing for origin
 #   gh_perms   the "permissions" setting, as name=level, one per line
 config_load() {
@@ -61,7 +62,10 @@ config_load() {
         repos: (.repos // [] | if type == "array" and all(type == "string") then . else error("repos") end),
         perms: (.permissions // {} | if type == "object" and all(type == "string")
           then to_entries | map("\(.key)=\(.value)") else error("permissions") end),
-        spec: ((.agent | kit("sandboxes")) + "/spec.yaml")
+        spec: ((.agent | kit("sandboxes")) + "/spec.yaml"),
+        env: (if .disk == null then []
+          elif (.disk | type == "string" and test("^[0-9]+(\\.[0-9]+)?[A-Za-z]*$"))
+          then ["DOCKER_SANDBOXES_DOCKER_SIZE=\(.disk)"] else error("disk") end)
       }
   ' <<<"$given")"; then
     die "could not read $config"
@@ -79,7 +83,17 @@ config_load() {
     die "$root is not in git, so it cannot be cloned, and the agent-server profile does not mount a directory. Run sbx-up in a git clone."
   fi
 
+  # sbx reads the size of the Docker disk only from its environment, and only
+  # when it creates the sandbox. sbx-up recreates the sandbox on each start,
+  # so a new size applies at the next start.
   run=(sbx)
+  if [[ "$(jq '.env | length' <<<"$plan")" -gt 0 ]]; then
+    run=(env)
+    while IFS= read -r arg; do
+      run+=("$arg")
+    done < <(jq -r '.env[]' <<<"$plan")
+    run+=(sbx)
+  fi
   while IFS= read -r arg; do
     run+=("$arg")
   done < <(jq -r '.args[]' <<<"$plan")

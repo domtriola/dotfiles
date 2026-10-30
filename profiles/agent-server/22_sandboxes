@@ -123,6 +123,19 @@ else
   echo "After sbx login, run setup 22_sandboxes again." >&2
 fi
 
+# The Docker disk (/var/lib/docker) of each new sandbox. sbx makes it 10g,
+# which a few images fill. A sandbox uses only the space that it writes, so
+# this is a limit, not space that is kept for it. A project's .sbx.json can set
+# its own size with "disk".
+if [[ "$(sbx settings get sandbox.disk.dockerVolume 2>/dev/null)" == "30g" ]]; then
+  echo "sandbox.disk.dockerVolume is already 30g."
+elif sbx settings set sandbox.disk.dockerVolume 30g; then
+  echo "Set sandbox.disk.dockerVolume to 30g."
+else
+  echo "22_sandboxes: sbx did not set sandbox.disk.dockerVolume." >&2
+  echo "After sbx login, run setup 22_sandboxes again." >&2
+fi
+
 cat <<EOF
 
 sbx is installed. The steps that stay by hand are in

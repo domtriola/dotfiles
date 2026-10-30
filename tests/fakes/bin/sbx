@@ -5,6 +5,9 @@
 # once, as sbx does when it stores one.
 
 printf '%s\n' "$*" >>"$FAKE_STATE/sbx.log"
+# The Docker disk size that a new sandbox gets, if the caller sets one.
+[[ "$1" != "run" || -z "${DOCKER_SANDBOXES_DOCKER_SIZE:-}" ]] ||
+  printf '%s\n' "$DOCKER_SANDBOXES_DOCKER_SIZE" >>"$FAKE_STATE/sbx-docker-size.log"
 
 case "$1 ${2:-}" in
 "secret set")
