@@ -110,6 +110,29 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   grep -q '^run .* --clone' "$FAKE_STATE/sbx.log"
 }
 
+@test "disk in .sbx.json sets the size of the Docker disk of the new sandbox" {
+  echo '{"disk": "50g"}' >.sbx.json
+  run sbx_up --no-gh
+  [ "$status" -eq 0 ]
+  grep -q '^run ' "$FAKE_STATE/sbx.log"
+  [ "$(cat "$FAKE_STATE/sbx-docker-size.log")" = "50g" ]
+}
+
+@test "with no disk in .sbx.json, the sandbox gets the default size of sbx" {
+  run sbx_up --no-gh
+  [ "$status" -eq 0 ]
+  grep -q '^run ' "$FAKE_STATE/sbx.log"
+  [ ! -s "$FAKE_STATE/sbx-docker-size.log" ]
+}
+
+@test "a disk that is not a size is reported, before any sandbox is touched" {
+  echo '{"disk": 50}' >.sbx.json
+  run sbx_up --no-gh
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"could not read"* ]]
+  [ ! -s "$FAKE_STATE/sbx.log" ]
+}
+
 @test "clone false in .sbx.json mounts the host worktree" {
   echo '{"clone": false}' >.sbx.json
   run sbx_up --no-gh
