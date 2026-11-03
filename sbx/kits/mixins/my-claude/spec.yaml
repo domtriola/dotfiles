@@ -6,8 +6,9 @@ description: >-
   Claude Code with my custom settings.
 
 # sbx no longer has a built-in claude agent, and a kit cannot extend the
-# published one, so this is a mixin on it. sbx-up runs it as `sbx run --kit
-# <the claude kit> claude --kit <this kit>`.
+# published one, so this is a mixin on it. sbx-up runs it as `sbx run
+# docker.io/sbx/claude-kit@<digest> --kit <this kit>`. The bare name claude
+# resolves to the v3 kit docker.io/sbx/claude, which v2 mixins cannot go on.
 requires:
   agent: claude
 

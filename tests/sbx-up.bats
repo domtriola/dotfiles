@@ -32,7 +32,7 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   run sbx_up
   [ "$status" -eq 0 ]
   [ "$(cat "$FAKE_STATE/secrets/app-main")" = "'$sbx_token' mint --repo me/app" ]
-  [ "$(cut -d' ' -f1-2 "$FAKE_STATE/sbx.log" | tr '\n' ,)" = "rm --force,secret set,run --kit," ]
+  [[ "$(cut -d' ' -f1-2 "$FAKE_STATE/sbx.log" | tr '\n' ,)" == "rm --force,secret set,run docker.io/sbx/claude-kit@sha256:"*, ]]
 }
 
 @test "the default agent runs the pinned claude kit with the my-claude mixin first" {
@@ -40,7 +40,7 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   run sbx_up --no-gh
   [ "$status" -eq 0 ]
   kits="$SBX_UP_DOTFILES/sbx/kits/mixins"
-  grep -qxE "run --kit docker\.io/sbx/claude-kit@sha256:[0-9a-f]{64} claude --kit $kits/my-claude --name app-main --memory 4g --clone --kit $kits/agent-skills --kit $kits/dotfiles" "$FAKE_STATE/sbx.log"
+  grep -qxE "run docker\.io/sbx/claude-kit@sha256:[0-9a-f]{64} --kit $kits/my-claude --name app-main --memory 4g --clone --kit $kits/agent-skills --kit $kits/dotfiles" "$FAKE_STATE/sbx.log"
 }
 
 @test "the repos and permissions in .sbx.json reach the token" {

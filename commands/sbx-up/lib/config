@@ -12,6 +12,9 @@ sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "m
 # Renovate moves the digest when that tag moves (see renovate.json). The agent
 # "my-claude" is not a sandbox kit but a mixin on this kit, because sbx no
 # longer has a built-in claude agent and a kit cannot extend a published one.
+# The kit goes in place of the agent name: the bare name "claude" now resolves
+# to the v3 kit docker.io/sbx/claude, and sbx does not mix v3 kits with the v2
+# mixins here.
 sbx_up_claude_kit="docker.io/sbx/claude-kit@sha256:02a031ee538f699e86aadd613ba625f6156139a15a1cc80c2f554891dbd1c8fa"
 
 # sbx_up_profile prints this machine's profile, read the way lib/profile.sh
@@ -60,7 +63,7 @@ config_load() {
       if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
 
     def agent_args:
-      if . == "my-claude" then ["--kit", $claude_kit, "claude", "--kit", ("my-claude" | kit("mixins"))]
+      if . == "my-claude" then [$claude_kit, "--kit", ("my-claude" | kit("mixins"))]
       else [kit("sandboxes")] end;
 
     ($defaults * {clone: $in_git} * . * $override)

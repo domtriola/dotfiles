@@ -8,12 +8,14 @@ and is the agent `sbx-up` starts by default.
 `sbx` no longer has a built-in `claude` agent, and a kit cannot extend a
 published kit, so this kit is a mixin and not a sandbox kit. `sbx-up` pins the
 `claude` kit by digest in `commands/sbx-up/lib/config`, and Renovate opens a PR
-when its `latest` tag moves.
+when its `latest` tag moves. The kit goes in place of the agent name: the
+bare name `claude` now resolves to the v3 kit `docker.io/sbx/claude`, and
+`sbx` does not put v2 mixins such as this one on a v3 kit.
 
 ## Quick start
 
 ```console
-sbx run --kit docker.io/sbx/claude-kit:latest claude --kit ./sbx/kits/mixins/my-claude
+sbx run docker.io/sbx/claude-kit:latest --kit ./sbx/kits/mixins/my-claude
 ```
 
 ## What it changes
