@@ -17,7 +17,7 @@ setup() {
 
   # A dotfiles checkout with only the kits that sbx-up checks for.
   export SBX_UP_DOTFILES="$BATS_TEST_TMPDIR/dotfiles"
-  mkdir -p "$SBX_UP_DOTFILES/sbx/kits/sandboxes/my-claude"
+  mkdir -p "$SBX_UP_DOTFILES/sbx/kits/mixins/my-claude"
 
   project="$BATS_TEST_TMPDIR/app"
   git init -q -b main "$project"
@@ -32,7 +32,15 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   run sbx_up
   [ "$status" -eq 0 ]
   [ "$(cat "$FAKE_STATE/secrets/app-main")" = "'$sbx_token' mint --repo me/app" ]
-  [ "$(cut -d' ' -f1-2 "$FAKE_STATE/sbx.log" | tr '\n' ,)" = "rm --force,secret set,run $SBX_UP_DOTFILES/sbx/kits/sandboxes/my-claude," ]
+  [[ "$(cut -d' ' -f1-2 "$FAKE_STATE/sbx.log" | tr '\n' ,)" == "rm --force,secret set,run docker.io/sbx/claude-kit@sha256:"*, ]]
+}
+
+@test "the default agent runs the pinned claude kit with the my-claude mixin first" {
+  given_app
+  run sbx_up --no-gh
+  [ "$status" -eq 0 ]
+  kits="$SBX_UP_DOTFILES/sbx/kits/mixins"
+  grep -qxE "run docker\.io/sbx/claude-kit@sha256:[0-9a-f]{64} --kit $kits/my-claude --name app-main --memory 4g --clone --kit $kits/agent-skills --kit $kits/dotfiles" "$FAKE_STATE/sbx.log"
 }
 
 @test "the repos and permissions in .sbx.json reach the token" {

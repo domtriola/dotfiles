@@ -8,6 +8,15 @@
 # git has nothing to clone, so it is mounted.
 sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g"}'
 
+# The published Claude Code kit, pinned by the digest of its latest tag.
+# Renovate moves the digest when that tag moves (see renovate.json). The agent
+# "my-claude" is not a sandbox kit but a mixin on this kit, because sbx no
+# longer has a built-in claude agent and a kit cannot extend a published one.
+# The kit goes in place of the agent name: the bare name "claude" now resolves
+# to the v3 kit docker.io/sbx/claude, and sbx does not mix v3 kits with the v2
+# mixins here.
+sbx_up_claude_kit="docker.io/sbx/claude-kit@sha256:02a031ee538f699e86aadd613ba625f6156139a15a1cc80c2f554891dbd1c8fa"
+
 # sbx_up_profile prints this machine's profile, read the way lib/profile.sh
 # saves it, or nothing when no profile is set. It does not call
 # resolve_profile, which can ask a question and save the answer: sbx-up only
@@ -46,23 +55,28 @@ config_load() {
   if ! plan="$(jq \
     --arg dotfiles "$sbx_up_dotfiles" \
     --arg name "$name" \
+    --arg claude_kit "$sbx_up_claude_kit" \
     --argjson defaults "$sbx_up_defaults" \
     --argjson in_git "$in_git" \
     --argjson override "$override" '
     def kit($kind):
       if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
 
+    def agent_args:
+      if . == "my-claude" then [$claude_kit, "--kit", ("my-claude" | kit("mixins"))]
+      else [kit("sandboxes")] end;
+
     ($defaults * {clone: $in_git} * . * $override)
     | {
         args: (
-          ["run", (.agent | kit("sandboxes")), "--name", $name, "--memory", .memory]
+          ["run"] + (.agent | agent_args) + ["--name", $name, "--memory", .memory]
           + (if .clone then ["--clone"] else [] end)
           + (.kits | map("--kit", kit("mixins")))
         ),
         repos: (.repos // [] | if type == "array" and all(type == "string") then . else error("repos") end),
         perms: (.permissions // {} | if type == "object" and all(type == "string")
           then to_entries | map("\(.key)=\(.value)") else error("permissions") end),
-        spec: ((.agent | kit("sandboxes")) + "/spec.yaml"),
+        spec: ((if .agent == "my-claude" then "my-claude" | kit("mixins") else .agent | kit("sandboxes") end) + "/spec.yaml"),
         env: (if .disk == null then []
           elif (.disk | type == "string" and test("^[0-9]+(\\.[0-9]+)?[A-Za-z]*$"))
           then ["DOCKER_SANDBOXES_DOCKER_SIZE=\(.disk)"] else error("disk") end)

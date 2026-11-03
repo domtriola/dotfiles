@@ -42,8 +42,10 @@ repositories, and that sbx renews while the sandbox runs. If no token can be
 minted, nothing is started or removed. See `sbx-token --help`.
 
 Arguments:
-  agent       A kit under sbx/kits/sandboxes, or a path to any kit. Overrides
-              the "agent" setting for this run.
+  agent       my-claude, a kit under sbx/kits/sandboxes, or a path to any
+              kit. Overrides the "agent" setting for this run. my-claude is
+              the mixin of that name on the published claude kit, which
+              sbx-up pins by digest.
 
 Options:
   --no-gh     Start the sandbox without a GitHub token of its own. A global
