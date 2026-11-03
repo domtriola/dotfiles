@@ -13,6 +13,16 @@
       "extractVersionTemplate": "^v?(?<version>.*)$"
     },
     {
+      "description": "Kits that a kit spec extends, pinned by the digest of the kit's latest tag",
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)spec\\.yaml$/"],
+      "matchStrings": [
+        "extends: \"oci://(?<depName>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+      ],
+      "datasourceTemplate": "docker",
+      "currentValueTemplate": "latest"
+    },
+    {
       "description": "The nvm install script URL in the language setup steps",
       "customType": "regex",
       "managerFilePatterns": ["/(^|/)15_languages$/"],

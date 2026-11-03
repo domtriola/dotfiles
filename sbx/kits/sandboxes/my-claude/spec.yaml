@@ -5,7 +5,11 @@ displayName: My Claude
 description: >-
   Claude Code with my custom settings.
 
-extends: claude
+# sbx no longer has a built-in claude agent, so this names the published kit
+# (docker/sbx-kits-contrib, claude/). extends takes a remote kit only when it is
+# pinned, here by the digest of docker.io/sbx/claude-kit:latest. Renovate moves
+# the digest when that tag moves (see renovate.json).
+extends: "oci://docker.io/sbx/claude-kit@sha256:02a031ee538f699e86aadd613ba625f6156139a15a1cc80c2f554891dbd1c8fa"
 
 agentInstructions:
   filename: CLAUDE.md
