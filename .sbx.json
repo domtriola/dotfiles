@@ -1,5 +1,6 @@
 {
   "memory": "2g",
   "kits": ["dotfiles", "agent-skills"],
+  "disk": "10g",
   "clone": true
 }
