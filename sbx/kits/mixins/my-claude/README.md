@@ -23,11 +23,12 @@ sbx run docker.io/sbx/claude-kit:latest --kit ./sbx/kits/mixins/my-claude
 - `files/home/.config/my-claude/settings.json` holds the settings: the model,
   the status line, a full-screen TUI, bypass permissions mode with no prompt
   at startup, the error-reporting, feedback and auto-update switches, and a
-  small permission denylist. The kit does not set `DISABLE_TELEMETRY`: any
-  telemetry opt-out also turns off feature flags, and without them
-  `/remote-control` is not available. The kit sets `defaultMode` itself: if only the sandbox's
-  `~/.claude/settings.json` sets it, Claude Code asks at each start if auto
-  mode is to be the default.
+  small permission denylist. The kit sets `defaultMode` itself: if only the
+  sandbox's `~/.claude/settings.json` sets it, Claude Code asks at each start
+  if auto mode is to be the default.
+- `environment.variables` in `spec.yaml` sets `DISABLE_TELEMETRY` to `0`. The
+  published claude kit sets it to `1`, but any telemetry opt-out also turns
+  off feature flags, and without them `/remote-control` is not available.
 - `/remote-control` also needs the host setting `claude.remoteControl`. Without
   it, Remote Control connects and then keeps disconnecting. The `dev-mac` and
   `agent-server` setup steps set it, and `doctor` checks it.

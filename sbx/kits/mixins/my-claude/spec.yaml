@@ -17,6 +17,14 @@ requires:
 # kit puts them in files/home/.claude/CLAUDE.md, the user memory that Claude
 # Code always loads.
 
+environment:
+  variables:
+    # The published claude kit sets DISABLE_TELEMETRY=1. That also turns off
+    # feature flags, so the flag that enables /remote-control never loads.
+    # Mixin variables merge last-wins, so this value replaces the kit's.
+    # Claude Code reads "0" as false.
+    DISABLE_TELEMETRY: "0"
+
 permissions:
   network:
     allow:
