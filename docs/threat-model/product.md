@@ -12,13 +12,13 @@ Each profile has its own model, `profile-<name>.md`, for what only that profile 
 - **Commands**: `sync-env`, `setup`, `doctor`, `pull-nvim`, `sync-skills`, `sbx-up`, `sbx-shell`, `sbx-pull`, `sbx-policy`, `sbx-token`, and the scripts in `env/.local/bin`. Also the shared `lib/` that they source.
 - **The profile mechanism**: `lib/profile.sh`, and how `setup`, `sync-env`, and `doctor` read a profile's steps, manifest, and doctor checks. The content of each profile is in its own model.
 - **The dotfiles** in `env/` that a manifest copies into `$HOME`, which include the agent skills in `env/.agents/`.
-- **The sandbox kits** in `sbx/kits/` (`my-claude`, `pi-ailo`, and the `dotfiles`, `agent-skills`, and `playwright-cli` mixins), and what they run inside a sandbox.
+- **The sandbox kits** in `sbx/kits/` (`pi-ailo`, and the `my-claude`, `dotfiles`, `agent-skills`, and `playwright-cli` mixins), and what they run inside a sandbox.
 - **The GitHub side**: the `domtriola/dotfiles` repository with its `main` ruleset, and the GitHub App that `sbx-token` mints tokens from.
 
 Out of scope:
 
 - **What one profile installs and does**: its setup steps, its downloads, its doctor checks, and its machine. These are in the profile's model. [profile-dev-mac.md](profile-dev-mac.md) covers `dev-mac`. [profile-agent-server.md](profile-agent-server.md) covers `agent-server`. `dev-linux`, `infosec-qubes`, and `ai-server` have no model yet. `sbx-linux` is in scope here only as what the `dotfiles` mixin runs inside a sandbox.
-- **The internals of Docker Sandboxes** (the daemon, the proxy, the firewall, the VM) and of the upstream `claude` kit that `my-claude` extends. The model relies on them. See [Assumptions](#assumptions).
+- **The internals of Docker Sandboxes** (the daemon, the proxy, the firewall, the VM) and of the published `claude` kit that the `my-claude` mixin goes on. The model relies on them. See [Assumptions](#assumptions).
 - **A hostile repository that the operator clones and opens** (for example, an executable `.ready-tmux` that `tmux-sessionizer` runs). The operator chose to keep this adversary out of scope. A file of this kind that a *sandbox* writes is in scope as T10.
 - **Physical access** to a host, and other local users: every host has a single user.
 
@@ -192,7 +192,7 @@ STRIDE categories that have no threat above:
 | I10 | A kit's network allow list names only the hosts that the kit needs. Every other destination needs the operator's approval. | `sbx/kits/*/spec.yaml` | T23 |
 | I11 | `docs/agents/issue-tracker.md` keeps "PRs as a request surface: no", so `triage` never checks out or runs an external PR. | `docs/agents/issue-tracker.md` | T24 |
 | I13 | `read_manifest` refuses an empty `$HOME` or `/` as `$HOME`, and every destination that is outside `$HOME` or holds a `..` segment, before `sync-env` copies anything. | `lib/manifest.sh` | T27 |
-| I14 | A binary that a kit downloads by URL has a pinned version, and it is checked against a SHA-256 before it is installed. | `sbx/kits/sandboxes/my-claude/spec.yaml` | T29 |
+| I14 | A binary that a kit downloads by URL has a pinned version, and it is checked against a SHA-256 before it is installed. | `sbx/kits/mixins/my-claude/spec.yaml` | T29 |
 
 ## Accepted risks
 
@@ -215,7 +215,7 @@ STRIDE categories that have no threat above:
 - The GitHub account `domtriola` uses two-factor authentication.
 - The Renovate GitHub App is installed on `domtriola/dotfiles`.
 - Docker Sandboxes isolates a sandbox VM from the host. What crosses are the worktree (direct mode), a read-only source mount (clone mode), the `sandbox-<name>` git remote, and the proxy. The proxy injects the `github` secret and enforces the network policy.
-- The upstream `claude` kit that `my-claude` extends mounts no other host path.
+- The published `claude` kit that the `my-claude` mixin goes on mounts no other host path.
 - The GitHub App holds no permission beyond the `sbx-token` ceiling, and GitHub enforces that limit on the server side.
 - The ai-server that `pi-ailo` talks to is reachable only over the NetBird overlay.
 - No compliance or data-handling obligations apply.

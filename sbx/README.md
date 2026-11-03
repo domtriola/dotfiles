@@ -4,9 +4,9 @@ This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 
 | Kit                                                                  | What it is                                                                                  |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| [`kits/sandboxes/my-claude`](kits/sandboxes/my-claude/README.md)     | Claude Code with custom settings. The default agent.                                        |
 | [`kits/sandboxes/pi-ailo`](kits/sandboxes/pi-ailo/README.md)         | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential. |
 | [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md)     | Ships the personal agent skills into the sandbox.                                           |
+| [`kits/mixins/my-claude`](kits/mixins/my-claude/README.md)           | Claude Code with custom settings, on the published `claude` kit. The default agent.         |
 | [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)             | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.              |
 | [`kits/mixins/playwright-cli`](kits/mixins/playwright-cli/README.md) | Installs `playwright-cli` and Chromium, for projects that opt in.                           |
 

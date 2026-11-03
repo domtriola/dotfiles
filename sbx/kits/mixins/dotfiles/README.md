@@ -24,7 +24,7 @@ Four variables in `spec.yaml` decide what the startup hook does:
 To test a branch before it merges, change `DOTFILES_REF` and start a sandbox:
 
 ```console
-sbx run ./sbx/kits/sandboxes/my-claude --kit ./sbx/kits/mixins/dotfiles
+sbx run --kit docker.io/sbx/claude-kit:latest claude --kit ./sbx/kits/mixins/my-claude --kit ./sbx/kits/mixins/dotfiles
 ```
 
 ## Knowing when it has finished

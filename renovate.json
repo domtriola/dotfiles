@@ -13,11 +13,11 @@
       "extractVersionTemplate": "^v?(?<version>.*)$"
     },
     {
-      "description": "Kits that a kit spec extends, pinned by the digest of the kit's latest tag",
+      "description": "Published kits that sbx-up runs, pinned by the digest of the kit's latest tag",
       "customType": "regex",
-      "managerFilePatterns": ["/(^|/)spec\\.yaml$/"],
+      "managerFilePatterns": ["/(^|/)commands/sbx-up/lib/config$/"],
       "matchStrings": [
-        "extends: \"oci://(?<depName>[^@\"]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+        "(?<depName>docker\\.io/sbx/[a-z0-9-]+-kit)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker",
       "currentValueTemplate": "latest"
