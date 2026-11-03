@@ -129,3 +129,68 @@ given_kamaji() {
   run "$doctor" --profile dev-mac --offline
   [[ "$output" =~ pending\ +kamaji\ owners\ +needs\ an\ online\ sbx-token\ check ]]
 }
+
+# given_secret_store makes a store with two recipients and one scope, as
+# secrets init with two YubiKeys and secrets set would.
+given_secret_store() {
+  export SECRETS_HOME="$BATS_TEST_TMPDIR/secrets"
+  mkdir -p "$SECRETS_HOME/app"
+  chmod 700 "$SECRETS_HOME" "$SECRETS_HOME/app"
+  printf 'age1yubikey1main\nage1yubikey1backup\n' >"$SECRETS_HOME/recipients.txt"
+  : >"$SECRETS_HOME/identities.txt"
+  : >"$SECRETS_HOME/app/production.age"
+  chmod 600 "$SECRETS_HOME"/*.txt "$SECRETS_HOME/app/production.age"
+}
+
+@test "dev-mac doctor reports the secret store as pending when it is not set up" {
+  export SECRETS_HOME="$BATS_TEST_TMPDIR/secrets"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ pending\ +secret\ store\ +not\ set\ up ]]
+}
+
+@test "dev-mac doctor reports each secret store check as ok when all is set up" {
+  given_secret_store
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ ok\ +age\  ]]
+  [[ "$output" =~ ok\ +age-plugin-yubikey ]]
+  [[ "$output" =~ ok\ +store\ permissions ]]
+  [[ "$output" =~ ok\ +recipients\ +2,\ with\ a\ backup ]]
+  [[ "$output" =~ ok\ +store\ location ]]
+}
+
+@test "dev-mac doctor fails when the store or a file in it can be read by others" {
+  given_secret_store
+  chmod 755 "$SECRETS_HOME"
+  chmod 644 "$SECRETS_HOME/app/production.age"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ FAIL\ +store\ permissions.*not\ mode\ 700.*app/production\.age ]]
+}
+
+@test "dev-mac doctor warns when the store has no backup recipient" {
+  given_secret_store
+  printf '# main\nage1yubikey1main\n' >"$SECRETS_HOME/recipients.txt"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ warn\ +recipients\ +1,\ with\ no\ backup ]]
+}
+
+@test "dev-mac doctor warns when the recipients of a project have no backup, so a rekey can miss a lost key" {
+  given_secret_store
+  printf 'age1yubikey1main\n' >"$SECRETS_HOME/app/recipients.txt"
+  chmod 600 "$SECRETS_HOME/app/recipients.txt"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ warn\ +recipients\ of\ app\ +1,\ with\ no\ backup ]]
+}
+
+@test "dev-mac doctor fails when a scope is inside a git working tree" {
+  given_secret_store
+  git init --quiet "$SECRETS_HOME/app"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ FAIL\ +store\ location.*production\.age ]]
+}
+
+@test "dev-mac doctor fails when age is not installed" {
+  given_secret_store
+  PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -v "tests/fakes/bin" | paste -sd: -)"
+  run "$doctor" --profile dev-mac --offline
+  [[ "$output" =~ FAIL\ +age\ +not\ installed ]]
+}

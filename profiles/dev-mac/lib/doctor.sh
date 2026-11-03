@@ -256,6 +256,76 @@ fi
 unset kamaji_runtime token_installs
 
 # ---------------------------------------------------------------------------
+section "Secret store"
+# ---------------------------------------------------------------------------
+
+for tool in age age-plugin-yubikey; do
+  if have "$tool"; then
+    ok "$tool" "$(command -v "$tool")"
+  else
+    fail "$tool" "not installed, run setup 20_packages"
+  fi
+done
+unset tool
+
+# The store holds only ciphertext, but the scopes and the key names in it are
+# for this user only. A scope in a git working tree can be pushed by mistake,
+# and kept in its history after a rekey.
+# shellcheck source=../../../commands/secrets/lib/store.sh
+source "$dotfiles_dir/commands/secrets/lib/store.sh"
+store="$(secrets_home)"
+
+# recipients_check <label> <file> reports how many recipients a file has. A
+# project's own file replaces the shared one, so each needs a backup.
+recipients_check() {
+  local count
+  count="$(grep -c '^age1' "$2" 2>/dev/null || true)"
+  if [[ "${count:-0}" -ge 2 ]]; then
+    ok "$1" "$count, with a backup"
+  elif [[ "${count:-0}" -eq 1 ]]; then
+    warn "$1" "1, with no backup, run secrets init with the backup YubiKey"
+  else
+    fail "$1" "none in $2, run secrets init with a YubiKey inserted"
+  fi
+}
+
+if [[ ! -d "$store" ]]; then
+  pending "secret store" "not set up, see bootstrap.md"
+else
+  problems=""
+  [[ -n "$(find "$store" -maxdepth 0 -perm 700 2>/dev/null)" ]] || problems="the store is not mode 700"
+  readable="$(find "$store" -mindepth 1 \( -perm -040 -o -perm -004 \) 2>/dev/null | sed "s|^$store/||" | paste -sd ' ' -)"
+  [[ -z "$readable" ]] || problems="${problems:+$problems, }others can read $readable"
+  if [[ -z "$problems" ]]; then
+    ok "store permissions" "only you can read it"
+  else
+    fail "store permissions" "$problems, run chmod 700 $store && chmod -R go-rwx $store"
+  fi
+
+  recipients_check "recipients" "$store/recipients.txt"
+  for project_recipients in "$store"/*/recipients.txt; do
+    [[ -f "$project_recipients" ]] || continue
+    project="${project_recipients%/recipients.txt}"
+    recipients_check "recipients of ${project##*/}" "$project_recipients"
+  done
+
+  tracked=""
+  while IFS= read -r scope_file; do
+    if git -C "$(dirname "$scope_file")" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      tracked="${tracked:+$tracked }${scope_file#"$store"/}"
+    fi
+  done < <(find "$store" -name '*.age' 2>/dev/null)
+  if [[ -z "$tracked" ]]; then
+    ok "store location" "no scope is in a git working tree"
+  else
+    fail "store location" "in a git working tree: $tracked, move the store out of it"
+  fi
+  unset problems readable project_recipients project tracked scope_file
+fi
+unset store
+unset -f recipients_check
+
+# ---------------------------------------------------------------------------
 section "Environment"
 # ---------------------------------------------------------------------------
 
