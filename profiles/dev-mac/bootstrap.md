@@ -147,12 +147,12 @@ The `secrets` command keeps the secrets of each project's scripts in `~/.config/
 
 1. [ ] Do these steps for each YubiKey, with only that key inserted:
 
-   1. Change the PIV PIN (the default is `123456`), the PUK (the default is `12345678`), and the management key. Keep the PIN and the PUK in your password manager.
+   1. Change the PIV PIN (the default is `123456`), the PUK (the default is `12345678`), and the management key. Keep the PIN and the PUK in your password manager. The management key must use TDES: firmware 5.7 and later makes an AES key by default, and `age-plugin-yubikey` cannot use an AES key ([str4d/age-plugin-yubikey#92](https://github.com/str4d/age-plugin-yubikey/issues/92)).
 
       ```sh
       ykman piv access change-pin
       ykman piv access change-puk
-      ykman piv access change-management-key --generate --protect
+      ykman piv access change-management-key --algorithm TDES --generate --protect
       ```
 
    1. Add the key to the store. If it has no age slot yet, `secrets init` makes one, and asks for the PIN and a touch.
