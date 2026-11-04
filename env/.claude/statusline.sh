@@ -67,9 +67,12 @@ git rev-parse --git-dir >/dev/null 2>&1 && BRANCH=" | 🌿 $(git branch --show-c
 
 echo "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
 
+# Do not use an emoji that has a variation selector (U+FE0F), such as the stopwatch.
+# Programs measure those at different widths, and Claude Code repaints only the
+# changed cells, so a difference puts later digits in the wrong cells.
 COST_FMT=$(printf '$%.2f' "$COST")
 CTX_BAR=$(make_bar "$CTX_PCT")
-echo "🧠 ${CTX_BAR} $(fmt_tokens "$CTX_TOKENS") | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s"
+echo "🧠 ${CTX_BAR} $(fmt_tokens "$CTX_TOKENS") | ${YELLOW}${COST_FMT}${RESET} | ⏳ ${MINS}m ${SECS}s"
 
 if [ -n "$FIVE_H_PCT" ] && [ -n "$WEEK_PCT" ]; then
   NOW=$(date +%s)
