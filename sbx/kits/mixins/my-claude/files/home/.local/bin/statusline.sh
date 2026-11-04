@@ -67,9 +67,33 @@ git rev-parse --git-dir >/dev/null 2>&1 && BRANCH=" | 🌿 $(git branch --show-c
 
 echo "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
 
+# Memory: the cgroup v2 limit is the sandbox's allocation, not the host's.
+MEM_CUR=""
+MEM_MAX=""
+if [ -r /sys/fs/cgroup/memory.current ] && [ -r /sys/fs/cgroup/memory.max ]; then
+  MEM_CUR=$(cat /sys/fs/cgroup/memory.current)
+  MEM_MAX=$(cat /sys/fs/cgroup/memory.max)
+  if [ "$MEM_MAX" = "max" ]; then
+    MEM_MAX=$(awk '/^MemTotal:/{print $2*1024}' /proc/meminfo)
+  fi
+elif [ -r /proc/meminfo ]; then
+  MEM_MAX=$(awk '/^MemTotal:/{print $2*1024}' /proc/meminfo)
+  MEM_CUR=$((MEM_MAX - $(awk '/^MemAvailable:/{print $2*1024}' /proc/meminfo)))
+fi
+
+MEM_SEG=""
+if [ "$MEM_MAX" -gt 0 ] 2>/dev/null; then
+  read -r MEM_USED_G MEM_MAX_G MEM_PCT <<<"$(awk -v c="$MEM_CUR" -v m="$MEM_MAX" \
+    'BEGIN{printf "%.1f %.1f %d", c/1073741824, m/1073741824, (c*100)/m}')"
+  MEM_SEG=" | $(bar_color "$MEM_PCT")mem ${MEM_USED_G}/${MEM_MAX_G}G${RESET}"
+fi
+
+LOAD_SEG=""
+[ -r /proc/loadavg ] && LOAD_SEG=" | load $(awk '{print $1}' /proc/loadavg)"
+
 COST_FMT=$(printf '$%.2f' "$COST")
 CTX_BAR=$(make_bar "$CTX_PCT")
-echo "🧠 ${CTX_BAR} $(fmt_tokens "$CTX_TOKENS") | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s"
+echo "🧠 ${CTX_BAR} $(fmt_tokens "$CTX_TOKENS") | ${YELLOW}${COST_FMT}${RESET} | ⏱️ ${MINS}m ${SECS}s${MEM_SEG}${LOAD_SEG}"
 
 if [ -n "$FIVE_H_PCT" ] && [ -n "$WEEK_PCT" ]; then
   NOW=$(date +%s)

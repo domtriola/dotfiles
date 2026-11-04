@@ -31,7 +31,8 @@ sbx run docker.io/sbx/claude-kit:latest --kit ./sbx/kits/mixins/my-claude
 - `/remote-control` also needs the host setting `claude.remoteControl`. Without
   it, Remote Control connects and then keeps disconnecting. The `dev-mac` and
   `agent-server` setup steps set it, and `doctor` checks it.
-- `files/home/.local/bin/statusline.sh` draws the status line.
+- `files/home/.local/bin/statusline.sh` draws the status line. It shows the
+  memory use against the sandbox's cgroup limit, and the 1-minute load average.
 - `files/home/.claude/CLAUDE.md` holds the agent instructions, such as the
   language preferences. A mixin's `agentInstructions` go to a file that the
   agent reads only when it needs it, so the kit uses Claude Code's user memory,
