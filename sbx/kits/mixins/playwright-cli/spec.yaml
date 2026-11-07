@@ -57,7 +57,7 @@ setup:
           # Renovate bumps this pin (see renovate.json at the repository root),
           # after a 7-day release age.
           # renovate: datasource=npm depName=@playwright/cli
-          cli_version=0.1.22
+          cli_version=0.1.23
 
           # The install takes a minute or two, and the engine starts the agent
           # only after every startup hook returns. So the hook starts it
