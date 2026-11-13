@@ -21,13 +21,15 @@ tree, so there is nothing to commit and nothing that can drift.
 
 `agent-skills.dockerfile` copies the skills to `/usr/share/agent-skills/` in
 the image. Before the agent starts, the runtime shows each skill in every
-skills directory that the agent kit declares with `agent-skills@1`:
+skills directory that the workload declares with `agent-skills@1`:
 `~/.claude/skills/` for Claude Code, and `~/.agents/skills/` for pi. Editing a
 skill in the sandbox changes nothing on the host.
 
 Each entry is optional. The runtime does not overwrite a skill that is already
-there, for example from the host's shared skills store, so it skips that skill
-rather than refusing the sandbox.
+there, so it skips that skill rather than refusing the sandbox. A skill of the
+same name in the host's shared skills store, which `agent-skills@1` can mount
+read-only, therefore wins over the one from this repository. `sbx-up` does not
+fill that store.
 
 ## Local, untracked skills
 

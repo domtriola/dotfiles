@@ -59,14 +59,14 @@ One running Docker Sandbox, started for one project and branch. Never a kit.
 _Avoid_: Container, VM, sbx
 
 **Kit**:
-A packaged definition that Docker Sandboxes uses to build a sandbox. A kit is either a sandbox kit or a mixin.
+A packaged definition that Docker Sandboxes uses to build a sandbox. A kit is either a workload or a mixin. The kits here use the v3 kit format, in which each kit is one image.
 
-**Sandbox kit**:
-The kit that decides which agent a sandbox runs, and how. A sandbox uses exactly one.
-_Avoid_: Agent kit, agent
+**Workload**:
+The kit that decides which agent a sandbox runs, and how: the image the sandbox boots. A sandbox uses exactly one. The v2 kit format called it a sandbox kit.
+_Avoid_: Sandbox kit, agent kit, agent
 
 **Mixin**:
-A kit that adds one capability to any sandbox kit, such as the dotfiles or the agent skills.
+A kit that adds one capability to any workload, such as the dotfiles or the agent skills.
 
 ### Agent work
 

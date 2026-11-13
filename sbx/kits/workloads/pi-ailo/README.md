@@ -1,8 +1,8 @@
 # pi-ailo
 
-A v3 workload for the [pi](https://pi.dev) coding agent, pointed at a
-self-hosted model server. There are no hosted models configured, and no model
-API credential.
+A v3 workload for the [pi](https://pi.dev) coding agent, configured to use a
+self-hosted model server. It configures no hosted models and no model API
+credential.
 
 `pi-ailo.dockerfile` builds on Docker's pi image, `docker.io/sbx/pi`, pinned
 by version tag and digest. It takes only the image, not the descriptor of
@@ -56,8 +56,6 @@ forgotten value is a message rather than a sandbox that talks to nothing.
 
 ## Configuration
 
-| Input            | Kind     | Meaning                                                          |
-| ---------------- | -------- | ---------------------------------------------------------------- |
 | Input       | Variable     | Meaning                                                         |
 | ----------- | ------------ | --------------------------------------------------------------- |
 | `modelHost` | `MODEL_HOST` | The server, as addressed from inside the sandbox. Required.     |
@@ -67,9 +65,9 @@ forgotten value is a message rather than a sandbox that talks to nothing.
 Each kit arg reaches the container as the variable beside it. The startup
 hook builds the base URL, `http://$MODEL_HOST:$MODEL_PORT/v1`, from them.
 
-`modelHost` also becomes the kit's entry in its `network-policy@1` allow list, so the
-sandbox may reach exactly the server it was told to use, and nothing has to be
-granted by hand.
+`modelHost` also becomes the kit's entry in its `network-policy@1` allow
+list, so the sandbox may reach exactly the server it was told to use, and
+nothing has to be granted by hand.
 
 The variables are named for the role and not for the engine. Every server this
 kit has pointed at speaks the same interface, so a name tied to one of them is
@@ -79,20 +77,25 @@ A startup hook renders `~/.pi/agent/models.json` on every start, and seeds
 `~/.pi/agent/settings.json` with the default model only on the first start, so
 `/model` + Ctrl+S keeps working afterwards.
 
-Both setup steps are scripts rather than commands inside `pi-ailo.yaml`:
+Both hooks run scripts rather than commands inside `pi-ailo.yaml`:
 
-| Script                 | When            | What                             |
-| ---------------------- | --------------- | -------------------------------- |
-| `files/install.sh`     | once, at create | Points npm at the sandbox proxy. |
-| `files/startup.sh`     | every start     | Renders the pi configuration.    |
+| Script             | When            | What                             |
+| ------------------ | --------------- | -------------------------------- |
+| `files/install.sh` | once, at create | Points npm at the sandbox proxy. |
+| `files/startup.sh` | every start     | Renders the pi configuration.    |
 
 The recipe copies them to `/usr/local/libexec/pi-ailo-kit/`, so they can be
 read in a running sandbox as well as in this repository.
 
-The kit also declares `git-identity@1` and a `github` credential, as
-`my-claude` does (see [the sbx README](../../../README.md)), and
-`agent-skills@1` at `~/.agents/skills`, where pi reads skills. The
-`agent-skills` mixin puts its skills there.
+The kit also declares:
+
+- `sbx@1`, which every workload for Docker Sandboxes declares: `sbx` starts
+  the agent itself, as the image's user.
+- `git-identity@1` and a `github` credential, as `my-claude` does (see
+  [the sbx README](../../../README.md)). With v2, the `github` secret reached
+  every sandbox. With v3, it reaches only a kit that declares it.
+- `agent-skills@1` at `~/.agents/skills`, where pi reads skills. The
+  `agent-skills` mixin puts its skills there.
 
 ## Which models the sandbox sees
 

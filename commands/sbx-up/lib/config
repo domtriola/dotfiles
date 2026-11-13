@@ -15,7 +15,7 @@ sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "m
 # a kit of its own but a mixin on this workload. The workload goes in place of
 # the agent name: the bare name "claude" resolves to docker.io/sbx/claude:latest,
 # which moves.
-sbx_up_claude_kit="docker.io/docker/sbx-kit-claude:2.1.316@sha256:60a90df50354b1bb737b0f47bc2aad0475b36e019c65361173feace3efcf662a"
+sbx_up_claude_workload="docker.io/docker/sbx-kit-claude:2.1.316@sha256:60a90df50354b1bb737b0f47bc2aad0475b36e019c65361173feace3efcf662a"
 
 # sbx_up_profile prints this machine's profile, read the way lib/profile.sh
 # saves it, or nothing when no profile is set. It does not call
@@ -55,7 +55,7 @@ config_load() {
   if ! plan="$(jq \
     --arg dotfiles "$sbx_up_dotfiles" \
     --arg name "$name" \
-    --arg claude_kit "$sbx_up_claude_kit" \
+    --arg claude_workload "$sbx_up_claude_workload" \
     --argjson defaults "$sbx_up_defaults" \
     --argjson in_git "$in_git" \
     --argjson override "$override" '
@@ -63,7 +63,7 @@ config_load() {
       if test("/") then . else "\($dotfiles)/sbx/kits/\($kind)/\(.)" end;
 
     def agent_args:
-      if . == "my-claude" then [$claude_kit, "--kit", ("my-claude" | kit("mixins"))]
+      if . == "my-claude" then [$claude_workload, "--kit", ("my-claude" | kit("mixins"))]
       else [kit("workloads")] end;
 
     ($defaults * {clone: $in_git} * . * $override)
@@ -120,7 +120,7 @@ config_load() {
   # descriptor, <dir>/<dir>.yaml (the v3 layout).
   kit="$(jq -r '.kit' <<<"$plan")"
   if [[ ! -d "$kit" ]]; then
-    die "sandbox kit not found: $kit"
+    die "workload not found: $kit. Name a workload under sbx/kits/workloads, or give the path of a v3 workload directory."
   fi
   local descriptor
   descriptor="$kit/$(basename "$kit").yaml"

@@ -75,6 +75,7 @@ entries() {
   run "$sync_skills"
   [ "$status" -eq 0 ]
   [[ "$output" == *"bad name"* ]]
+  [[ "$output" == *"1 left out"* ]]
   [ "$(entries)" = "/usr/share/agent-skills/review" ]
   [ ! -e "$kit/skills/bad name" ]
 }

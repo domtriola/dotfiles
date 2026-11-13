@@ -62,7 +62,8 @@ die() {
 # line of its destination.
 execute() {
   if [[ $dry == "1" ]]; then
-    status_note "$*"
+    local line="$*"
+    status_note "${line//"$dotfiles_dir"\//}"
     return
   fi
 
@@ -110,7 +111,7 @@ for src in "$tracked" "$local_skills"; do
       continue
     fi
     if ! valid_name "$name"; then
-      skipped+=("${dir#"$dotfiles_dir"/}")
+      skipped+=("$name")
       continue
     fi
     entries+="$name"$'\t'"$dir"$'\n'
@@ -136,18 +137,18 @@ for dir in "${dirs[@]}"; do
   fi
 done
 
-heading "sync-skills"
+heading "sync-skills: ${kit#"$dotfiles_dir"/}"
 [[ "$dry" == "1" ]] && echo "Dry run: nothing changes"
 echo
 
-for dir in "${skipped[@]}"; do
-  status warn "${dir%/}" "not a valid skill name, so it is left out"
+for name in "${skipped[@]}"; do
+  status warn "$name" "not a valid skill name, so it is left out"
 done
 
 if [[ "$dry" == "1" ]]; then
-  status copy "${payload#"$dotfiles_dir"/}" "$count_tracked tracked, $count_local local"
+  status copy "skills/" "$count_tracked tracked, $count_local local"
 else
-  status copied "${payload#"$dotfiles_dir"/}" "$count_tracked tracked, $count_local local"
+  status copied "skills/" "$count_tracked tracked, $count_local local"
 fi
 
 # The payload is replaced whole, so a skill removed from the source leaves the
@@ -159,7 +160,8 @@ for i in "${!names[@]}"; do
 done
 
 if [[ "$dry" == "1" ]]; then
-  status info "${descriptor#"$dotfiles_dir"/}" "${#names[@]} agent-skill entries"
+  status copy "agent-skills.yaml" "${#names[@]} agent-skill entries"
+  status_note "write ${descriptor#"$dotfiles_dir"/} from ${template#"$dotfiles_dir"/}"
 else
   {
     cat "$template"
@@ -170,14 +172,20 @@ else
       printf '      path: %s/%s\n' "$image_dir" "$name"
     done
   } >"$descriptor"
-  status ok "${descriptor#"$dotfiles_dir"/}" "${#names[@]} agent-skill entries"
+  status ok "agent-skills.yaml" "${#names[@]} agent-skill entries"
+fi
+
+summary="$count_tracked tracked and $count_local local skills"
+worst=ok
+[[ "$dry" == "1" ]] && worst=copy
+if [[ ${#skipped[@]} -gt 0 ]]; then
+  summary+=", ${#skipped[@]} left out"
+  worst=warn
 fi
 
 echo
 if [[ "$dry" == "1" ]]; then
-  verdict copy "sync-skills: $count_tracked tracked and $count_local local skills to copy"
+  verdict "$worst" "sync-skills: $summary to copy"
 else
-  worst=ok
-  [[ ${#skipped[@]} -eq 0 ]] || worst=warn
-  verdict "$worst" "sync-skills: $count_tracked tracked and $count_local local skills in the kit"
+  verdict "$worst" "sync-skills: $summary in the kit"
 fi
