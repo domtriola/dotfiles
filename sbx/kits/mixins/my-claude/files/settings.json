@@ -9,7 +9,7 @@
   "permissions": { "defaultMode": "bypassPermissions" },
   "statusLine": {
     "type": "command",
-    "command": "bash $HOME/.local/bin/statusline.sh"
+    "command": "bash /usr/local/libexec/my-claude/statusline.sh"
   },
   "tui": "fullscreen",
   "remoteControlAtStartup": false,

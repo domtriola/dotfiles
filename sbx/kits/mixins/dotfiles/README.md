@@ -1,6 +1,6 @@
 # dotfiles
 
-A mixin kit that clones this dotfiles repo into the sandbox and applies it with
+A v3 mixin that clones this dotfiles repo into the sandbox and applies it with
 the `sbx-linux` profile, so a sandbox shell matches the other machines this
 repo sets up.
 
@@ -12,24 +12,31 @@ sbx run claude --kit ./sbx/kits/mixins/dotfiles
 
 ## Settings
 
-Four variables in `spec.yaml` decide what the startup hook does:
+Four kit args in `dotfiles.yaml` decide what the startup hook does. Each one
+reaches the container as the variable beside it:
 
-| Variable                | Default                                 | Meaning                                                            |
-| ----------------------- | --------------------------------------- | ------------------------------------------------------------------ |
-| `DOTFILES_REPO`         | `https://github.com/domtriola/dotfiles` | The repo to clone.                                                 |
-| `DOTFILES_REF`          | `main`                                  | The branch or tag to check out.                                    |
-| `DOTFILES_PROFILE`      | `sbx-linux`                             | The profile `sync-env` and `setup` use.                            |
-| `DOTFILES_NVIM_PREWARM` | `1`                                     | Install the nvim plugins in the background. Set to `0` to skip it. |
+| Kit arg       | Variable                | Default                                 | Meaning                                                            |
+| ------------- | ----------------------- | --------------------------------------- | ------------------------------------------------------------------ |
+| `repo`        | `DOTFILES_REPO`         | `https://github.com/domtriola/dotfiles` | The repo to clone.                                                 |
+| `ref`         | `DOTFILES_REF`          | `main`                                  | The branch or tag to check out.                                    |
+| `profile`     | `DOTFILES_PROFILE`      | `sbx-linux`                             | The profile `sync-env` and `setup` use.                            |
+| `nvimPrewarm` | `DOTFILES_NVIM_PREWARM` | `1`                                     | Install the nvim plugins in the background. Set to `0` to skip it. |
 
-To test a branch before it merges, change `DOTFILES_REF` and start a sandbox:
+To test a branch before it merges, pass `ref` for this kit:
 
 ```console
-sbx run docker.io/sbx/claude-kit:latest --kit ./sbx/kits/mixins/my-claude --kit ./sbx/kits/mixins/dotfiles
+sbx run docker.io/docker/sbx-kit-claude:<version>@sha256:<digest> \
+  --kit ./sbx/kits/mixins/my-claude --kit ./sbx/kits/mixins/dotfiles \
+  --kit-arg dotfiles.ref=<branch>
 ```
+
+The workloads are Debian, so `setup` installs the packages from
+`deb.debian.org`, which the kit's network policy allows.
 
 ## Knowing when it has finished
 
-The startup hook returns at once, so the agent does not wait for it. It writes
+The startup hook returns at once, so the agent does not wait for it. (In
+`sbx`, a v3 startup hook runs beside the agent in any case.) It writes
 the work to `~/.dotfiles-kit.sh` and starts it in the background. The work takes
 about twenty seconds: a clone, then roughly 150 MB of packages. Until it
 finishes, the agent and any shell opened early have neither the dotfiles nor

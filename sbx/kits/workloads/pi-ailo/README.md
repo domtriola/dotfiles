@@ -1,8 +1,13 @@
 # pi-ailo
 
-A sandbox kit for the [pi](https://pi.dev) coding agent, pointed at a
-self-hosted model server. There are no hosted models configured, and no API
-credential.
+A v3 workload for the [pi](https://pi.dev) coding agent, pointed at a
+self-hosted model server. There are no hosted models configured, and no model
+API credential.
+
+`pi-ailo.dockerfile` builds on Docker's pi image, `docker.io/sbx/pi`, pinned
+by version tag and digest. It takes only the image, not the descriptor of
+Docker's pi kit, so this kit does not get that kit's Anthropic credential or
+its network allows. Renovate moves the tag and the digest together.
 
 Any server that speaks the OpenAI-compatible HTTP interface works. The kit
 names no engine and no model: it is told where the server is, and asks the
@@ -25,7 +30,7 @@ printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
 Or supply it per run:
 
 ```console
-sbx run ./sbx/kits/sandboxes/pi-ailo --kit-arg modelHost=<host>
+sbx run ./sbx/kits/workloads/pi-ailo --kit-arg modelHost=<host>
 ```
 
 **Prefer a name to an address.** A name survives the address changing, and the
@@ -43,7 +48,7 @@ curl -fsS http://<host>:8080/v1/models
 ## Quick start
 
 ```console
-sbx run ./sbx/kits/sandboxes/pi-ailo --kit-arg modelHost=<host>
+sbx run ./sbx/kits/workloads/pi-ailo --kit-arg modelHost=<host>
 ```
 
 `sbx` refuses to create the sandbox when the argument is missing, so a
@@ -53,13 +58,16 @@ forgotten value is a message rather than a sandbox that talks to nothing.
 
 | Input            | Kind     | Meaning                                                          |
 | ---------------- | -------- | ---------------------------------------------------------------- |
-| `modelHost`      | kit arg  | The server, as addressed from inside the sandbox. Required.      |
-| `modelPort`      | kit arg  | The server's port. Defaults to `8080`.                           |
-| `modelIds`       | kit arg  | Pins the model list. Empty asks the server, which is the usual.  |
-| `MODEL_BASE_URL` | variable | Built from the host and port. Override to point elsewhere.       |
-| `MODEL_IDS`      | variable | Built from `modelIds`.                                           |
+| Input       | Variable     | Meaning                                                         |
+| ----------- | ------------ | --------------------------------------------------------------- |
+| `modelHost` | `MODEL_HOST` | The server, as addressed from inside the sandbox. Required.     |
+| `modelPort` | `MODEL_PORT` | The server's port. Defaults to `8080`.                          |
+| `modelIds`  | `MODEL_IDS`  | Pins the model list. Empty asks the server, which is the usual. |
 
-`modelHost` also becomes the kit's entry in `permissions.network.allow`, so the
+Each kit arg reaches the container as the variable beside it. The startup
+hook builds the base URL, `http://$MODEL_HOST:$MODEL_PORT/v1`, from them.
+
+`modelHost` also becomes the kit's entry in its `network-policy@1` allow list, so the
 sandbox may reach exactly the server it was told to use, and nothing has to be
 granted by hand.
 
@@ -71,15 +79,20 @@ A startup hook renders `~/.pi/agent/models.json` on every start, and seeds
 `~/.pi/agent/settings.json` with the default model only on the first start, so
 `/model` + Ctrl+S keeps working afterwards.
 
-Both setup steps are scripts rather than commands inside `spec.yaml`:
+Both setup steps are scripts rather than commands inside `pi-ailo.yaml`:
 
-| Script | When | What |
-| ------ | ---- | ---- |
-| `files/home/.pi-ailo-kit/install.sh` | once, at create | Points npm at the sandbox proxy. |
-| `files/home/.pi-ailo-kit/startup.sh` | every start | Renders the pi configuration. |
+| Script                 | When            | What                             |
+| ---------------------- | --------------- | -------------------------------- |
+| `files/install.sh`     | once, at create | Points npm at the sandbox proxy. |
+| `files/startup.sh`     | every start     | Renders the pi configuration.    |
 
-They are copied into the agent's home at create time, so they can be read in a
-running sandbox as well as in this repository.
+The recipe copies them to `/usr/local/libexec/pi-ailo-kit/`, so they can be
+read in a running sandbox as well as in this repository.
+
+The kit also declares `git-identity@1` and a `github` credential, as
+`my-claude` does (see [the sbx README](../../../README.md)), and
+`agent-skills@1` at `~/.agents/skills`, where pi reads skills. The
+`agent-skills` mixin puts its skills there.
 
 ## Which models the sandbox sees
 

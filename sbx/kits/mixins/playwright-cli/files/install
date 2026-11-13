@@ -8,7 +8,7 @@
 # the Node version the project asks for, and writes nothing there.
 #
 # PLAYWRIGHT_CLI_VERSION is the @playwright/cli version, which the kit's
-# spec.yaml pins. PLAYWRIGHT_CLI_KIT_NODE_MIRROR names a different Node release
+# playwright-cli.yaml pins. PLAYWRIGHT_CLI_KIT_NODE_MIRROR names a different Node release
 # mirror, for the tests. PLAYWRIGHT_CLI_KIT_LOCK_WAIT is how many seconds to
 # wait for another apt-get to finish (600 by default).
 # PLAYWRIGHT_CLI_KIT_PROXY_CA is the sandbox proxy's CA certificate, which
@@ -240,7 +240,7 @@ fi
 mkdir -p "$(dirname "$wrapper")"
 cat >"$wrapper" <<EOF
 #!/bin/sh
-# Written by the playwright-cli kit. See ~/.local/libexec/playwright-cli-kit.
+# Written by the playwright-cli kit. See /usr/local/libexec/playwright-cli-kit.
 PATH="$node_dir/bin:\$PATH"
 PLAYWRIGHT_MCP_BROWSER="\${PLAYWRIGHT_MCP_BROWSER:-chromium}"
 export PATH PLAYWRIGHT_MCP_BROWSER
