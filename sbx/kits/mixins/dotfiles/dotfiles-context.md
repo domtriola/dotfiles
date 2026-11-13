@@ -9,7 +9,7 @@ sandbox start, with the `sbx-linux` profile ($DOTFILES_PROFILE).
   first twenty seconds the dotfiles and these tools may not be there yet.
   Until `~/.dotfiles-kit.status` reads `ready`, the kit is still working.
 - The nvim plugins are then installed in the background. Until
-  `~/.dotfiles-kit.nvim-status` reads `ready`, nvim is still warming up.
+  `~/.dotfiles-kit.nvim-status` reads `ready`, the install is not complete.
 
 The state of the last start is in `~/.dotfiles-kit.log` and
 `~/.dotfiles-kit.status`.

@@ -12,13 +12,14 @@ description: >-
 sourceUrl: https://github.com/domtriola/dotfiles
 
 # agent-skills.dockerfile copies the skills to /usr/share/agent-skills/<name>.
-# The runtime then shows each skill at every skills directory that the agent
-# kit declares with agent-skills@1, before the agent starts: ~/.claude/skills
+# The runtime then shows each skill at every skills directory that the workload
+# declares with agent-skills@1, before the agent starts: ~/.claude/skills
 # for Claude Code, and ~/.agents/skills for pi. No hook copies anything.
 #
 # Each entry is optional. The runtime does not overwrite a skill that is
 # already there, for example from the host's shared skills store, so it skips
-# a skill of the same name rather than refusing the sandbox.
+# a skill of the same name rather than refusing the sandbox. The skill from
+# the store then wins.
 capabilities:
   - type: com.docker.sandbox/agent-context@1
     config:

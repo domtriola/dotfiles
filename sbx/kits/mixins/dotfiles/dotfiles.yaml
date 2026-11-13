@@ -10,17 +10,23 @@ sourceUrl: https://github.com/domtriola/dotfiles
 # The settings reach the container as environment variables. Change one for a
 # sandbox with --kit-arg, for example `--kit-arg dotfiles.ref=my-branch` to try
 # a branch before it merges.
+#
+# The hook gives these values to git and to the dotfiles commands, so each
+# pattern refuses a value that starts with "-" and could be read as an option.
 args:
   repo:
     default: "https://github.com/domtriola/dotfiles"
-    description: The repository to clone
+    pattern: '^https://[A-Za-z0-9.-]+/[A-Za-z0-9._/-]+$'
+    description: The repository to clone, over HTTPS
     env: DOTFILES_REPO
   ref:
     default: "main"
+    pattern: '^[A-Za-z0-9._][A-Za-z0-9._/-]*$'
     description: The branch or tag to check out
     env: DOTFILES_REF
   profile:
     default: "sbx-linux"
+    pattern: '^[a-z0-9][a-z0-9-]*$'
     description: The profile that sync-env and setup apply
     env: DOTFILES_PROFILE
   nvimPrewarm:
@@ -143,11 +149,11 @@ capabilities:
               # A shallow fetch of one ref keeps the start fast. The checkout is
               # detached on purpose: it is a copy to run, not one to commit from.
               if [ -d "$dest/.git" ]; then
-                git -C "$dest" fetch --depth 1 "$repo" "$ref"
+                git -C "$dest" fetch --depth 1 -- "$repo" "$ref"
                 git -C "$dest" checkout --force --detach FETCH_HEAD
               else
                 mkdir -p "$(dirname "$dest")"
-                git clone --depth 1 --branch "$ref" "$repo" "$dest"
+                git clone --depth 1 --branch "$ref" -- "$repo" "$dest"
               fi
 
               cd "$dest"

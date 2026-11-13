@@ -132,13 +132,15 @@ printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
 kit declares arguments. `sbx` rejects an argument that no kit declares, so
 passing it to every sandbox would break the ones that take none.
 
-`$SBX_KIT_ARGS_FILE` names a different file. The check reads the workload's
-descriptor (`<dir>/<dir>.yaml`) from disk. A line can name one kit, as
-`<kit>.<arg>=<value>`, where `<kit>` is the kit's directory name.
+`$SBX_KIT_ARGS_FILE` names a different file. The check reads the descriptor
+(`<dir>/<dir>.yaml`) of the workload in `sbx/kits/workloads/` from disk. The
+default agent, `my-claude`, declares no arguments, so the file never goes to
+it.
 
-A mixin's arguments go on the command line, with `--kit-arg`. For example,
-`--kit-arg dotfiles.ref=<branch>` makes the `dotfiles` kit apply a branch
-before it merges.
+A mixin's arguments go on the command line, with `--kit-arg`, when you run
+`sbx` yourself. For example, `--kit-arg dotfiles.ref=<branch>` makes the
+`dotfiles` kit apply a branch before it merges. `sbx-up` passes no
+`--kit-arg`.
 
 Only `pi-ailo` takes arguments today. Its README says what they mean.
 

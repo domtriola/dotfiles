@@ -42,7 +42,7 @@
 #              reused. $DOTFILES_PROFILE overrides both, without saving.
 #   --dry      Print what would be copied, and any drift, without making any
 #              changes.
-#   --yes      Copy everything without a drift check. The sandbox kit uses
+#   --yes      Copy everything without a drift check. The dotfiles kit uses
 #              it, because nothing in a sandbox is worth the time of a check.
 
 set -eo pipefail

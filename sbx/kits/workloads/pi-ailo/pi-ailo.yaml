@@ -3,7 +3,7 @@ schemaVersion: "3"
 kind: workload
 displayName: Pi Ailo
 description: >-
-  Pi, pointed at a self-hosted OpenAI-compatible model server.
+  Pi, configured to use a self-hosted OpenAI-compatible model server.
 sourceUrl: https://github.com/domtriola/dotfiles
 
 # pi-ailo.dockerfile builds on Docker's pi image, pinned by version tag and
@@ -39,6 +39,8 @@ args:
     env: MODEL_IDS
 
 capabilities:
+  # The workload runs on the Docker Sandboxes platform: sbx starts the agent,
+  # as the user that the image config names. Every sbx workload declares it.
   - type: com.docker.sandbox/sbx@1
 
   - type: com.docker.sandbox/network-policy@1
@@ -54,8 +56,13 @@ capabilities:
           # injects into must be here too.
           - github.com
           - api.github.com
+          - uploads.github.com
+          - objects.githubusercontent.com
+          - raw.githubusercontent.com
 
-  # The sandbox's `github` secret, which sbx-up stores with sbx-token.
+  # The sandbox's `github` secret, which sbx-up stores with sbx-token. In v2
+  # it reached every sandbox. In v3 the proxy injects it only for a kit that
+  # declares it. The entry is the same as in my-claude.
   - type: com.docker.sandbox/credential@1
     optional: true
     description: GitHub token for gh and for git over HTTPS
@@ -67,6 +74,8 @@ capabilities:
         proxyManaged: true
         inject:
           - {domain: api.github.com, header: Authorization, format: "Bearer %s"}
+          - {domain: uploads.github.com, header: Authorization, format: "Bearer %s"}
+          - {domain: raw.githubusercontent.com, header: Authorization, format: "Bearer %s"}
           - {domain: github.com, header: Authorization, format: "%s", username: x-access-token}
 
   - type: com.docker.sandbox/git-identity@1

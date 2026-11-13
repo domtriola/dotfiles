@@ -7,7 +7,7 @@
 
 ## Scope
 
-This model covers what only the `dev-mac` profile installs and does on the Mac. The commands, the dotfiles, the sandbox kits, the GitHub side, and the sandboxes that the Mac runs are in the [product model](product.md). In the product model, "the host" is the Mac for this profile.
+This model covers what only the `dev-mac` profile installs and does on the Mac. The commands, the dotfiles, the Docker Sandboxes kits, the GitHub side, and the sandboxes that the Mac runs are in the [product model](product.md). In the product model, "the host" is the Mac for this profile.
 
 - **The `dev-mac` setup steps** (`profiles/dev-mac/`), and what they download.
 - **Its `env.manifest`** and its doctor checks (`profiles/dev-mac/lib/doctor.sh`).
