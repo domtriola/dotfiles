@@ -43,6 +43,9 @@ brew_install imagemagick
 brew_install libpq
 brew link --force --overwrite libpq
 
+# Makefile alternative
+brew_install just
+
 # Development Environment
 # #######################################################
 
