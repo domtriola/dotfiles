@@ -7,7 +7,7 @@
 
 ## Scope
 
-This model covers what only the `agent-server` profile installs and does. The profile runs on drive 1 of the Framework Desktop (hostname `doms-agents`): a headless Ubuntu Server that is always on, where about 8 sandboxes run for long periods while the operator is away. The commands, the dotfiles, the sandbox kits, the GitHub side, and the sandboxes are in the [product model](product.md). In the product model, "the host" is the box for this profile.
+This model covers what only the `agent-server` profile installs and does. The profile runs on drive 1 of the Framework Desktop (hostname `doms-agents`): a headless Ubuntu Server that is always on, where about 8 sandboxes run for long periods while the operator is away. The commands, the dotfiles, the Docker Sandboxes kits, the GitHub side, and the sandboxes are in the [product model](product.md). In the product model, "the host" is the box for this profile.
 
 - **The `agent-server` setup steps** (`profiles/agent-server/`), and what they download: the Docker repository (for `sbx`), the NetBird repository, and pnpm from the npm registry.
 - **The SSH server** and **mosh-server** on the box, and the operator's SSH and mosh sessions from the laptop into the box's tmux.

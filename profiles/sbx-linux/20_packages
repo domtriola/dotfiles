@@ -3,7 +3,8 @@
 # The small CLI set that the shell, tmux and nvim configs expect.
 #
 # Everything comes from apt. A Docker Sandbox denies most third-party installer
-# domains by default (starship.rs, for one), while apt reaches ports.ubuntu.com.
+# domains by default (starship.rs, for one), while apt reaches the Debian
+# mirror (deb.debian.org).
 #
 # This runs on every sandbox start, so it does nothing when the tools are
 # already there, and only refreshes the package lists when it has work to do.

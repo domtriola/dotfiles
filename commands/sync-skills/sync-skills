@@ -3,8 +3,9 @@
 # Usage: sync-skills [--dry]
 #
 # Copies the skills in ./env/.agents/ into the agent-skills kit, which is how
-# they reach a sandbox. The copy is generated and gitignored: the kit is loaded
-# from this working tree (sbx-up builds $dotfiles/sbx/kits/mixins/<name>), so
+# they reach a sandbox, and writes the kit's descriptor with one agent-skill@1
+# entry for each skill. Both are generated and gitignored: the kit is built
+# from this working tree (sbx-up names $dotfiles/sbx/kits/mixins/<name>), so
 # there is nothing to commit and nothing that can drift.
 #
 # sbx-up runs this before it starts a sandbox. Run it by hand after editing a
@@ -16,18 +17,14 @@
 #   env/.agents/skills/        tracked
 #   env/.agents/skills-local/  untracked scratch
 #
-# A directory is a skill only if it holds a SKILL.md.
+# A directory is a skill only if it holds a SKILL.md. A skill whose name the
+# runtime refuses (see `valid_name`) is left out, with a warning.
 #
-# LAYOUT decides where the kit puts them:
+# What it writes, in sbx/kits/mixins/agent-skills/:
 #
-#   hooks   The payload lands at ~/skills, and the kit's setup hooks copy it
-#           into ~/.claude/skills and ~/.agents/skills. Safe whatever the
-#           runtime does with kit files under ~/.claude.
-#   direct  The payload lands at ~/.claude/skills and ~/.agents/skills, with no
-#           hooks at all. Only correct if the runtime keeps kit files under
-#           ~/.claude, which it does not today: ~/.claude is a sandbox-reserved
-#           path and a kit file placed there is discarded. Check this again
-#           before using it.
+#   skills/<name>/      a copy of each skill, which agent-skills.dockerfile
+#                       copies to /usr/share/agent-skills/<name>
+#   agent-skills.yaml   descriptor.yaml.tmpl, then one entry per skill
 #
 # Arguments:
 #   --dry  Print what would be copied without making any changes.
@@ -46,9 +43,13 @@ fi
 tracked="$dotfiles_dir/env/.agents/skills"
 local_skills="$dotfiles_dir/env/.agents/skills-local"
 source "$dotfiles_dir/lib/style.sh"
-kit_home="$dotfiles_dir/sbx/kits/mixins/agent-skills/files/home"
+kit="$dotfiles_dir/sbx/kits/mixins/agent-skills"
+template="$kit/descriptor.yaml.tmpl"
+descriptor="$kit/agent-skills.yaml"
+payload="$kit/skills"
 
-LAYOUT="${SKILLS_LAYOUT:-hooks}"
+# The directory in the image that agent-skills.dockerfile copies the skills to.
+image_dir="/usr/share/agent-skills"
 
 dry="0"
 
@@ -61,7 +62,8 @@ die() {
 # line of its destination.
 execute() {
   if [[ $dry == "1" ]]; then
-    status_note "$*"
+    local line="$*"
+    status_note "${line//"$dotfiles_dir"\//}"
     return
   fi
 
@@ -81,79 +83,109 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -d "$tracked" ]] || die "no skills at $tracked"
+[[ -f "$template" ]] || die "no descriptor template at $template"
 
-case "$LAYOUT" in
-hooks) destinations=("$kit_home/skills") ;;
-direct) destinations=("$kit_home/.claude/skills" "$kit_home/.agents/skills") ;;
-*) die "LAYOUT must be 'hooks' or 'direct', not '$LAYOUT'" ;;
-esac
-
-# Every path this script owns, whatever the layout. All of them are removed
-# first, so that changing LAYOUT does not leave the other layout's payload
-# behind to ship alongside the new one.
-managed=("$kit_home/skills" "$kit_home/.claude" "$kit_home/.agents")
-
-# count_skills prints how many skills $1 holds. A directory with no SKILL.md
-# is not a skill.
-count_skills() {
-  local dir count=0
-  [[ -d "$1" ]] || {
-    echo 0
-    return
-  }
-  for dir in "$1"/*/; do
-    [[ -f "$dir/SKILL.md" ]] && count=$((count + 1))
-  done
-  echo "$count"
+# valid_name succeeds when the runtime accepts $1 as a skill name
+# (agent-skill@1: [A-Za-z0-9][A-Za-z0-9._-]*, at most 255 bytes).
+valid_name() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && ${#1} -le 255 ]]
 }
 
-# Copies every skill in $1 into $2, leaving anything already there alone unless
-# it has the same name.
-copy_skills() {
-  local src="$1" dest="$2" dir name
+# is_skill succeeds when $1 is a directory that holds a SKILL.md.
+is_skill() {
+  [[ -f "$1/SKILL.md" ]]
+}
 
-  [[ -d "$src" ]] || return 0
-
+# Every skill as "name<TAB>source", sorted by name. A local skill replaces a
+# tracked skill of the same name. Nothing here needs bash 4, because sbx-up
+# runs this on the host, and macOS ships bash 3.2.
+skipped=()
+entries=""
+for src in "$tracked" "$local_skills"; do
+  [[ -d "$src" ]] || continue
   for dir in "$src"/*/; do
-    [[ -d "$dir" ]] || continue
-    [[ -f "$dir/SKILL.md" ]] || continue
-
+    dir="${dir%/}"
+    is_skill "$dir" || continue
     name="$(basename "$dir")"
-    execute rm -rf "$dest/$name"
-    execute cp -R "${dir%/}" "$dest/$name"
+    if [[ "$src" == "$tracked" ]] && is_skill "$local_skills/$name"; then
+      continue
+    fi
+    if ! valid_name "$name"; then
+      skipped+=("$name")
+      continue
+    fi
+    entries+="$name"$'\t'"$dir"$'\n'
   done
-}
+done
+entries="$(printf '%s' "$entries" | LC_ALL=C sort)"
 
-heading "sync-skills: $LAYOUT layout"
+names=()
+dirs=()
+while IFS=$'\t' read -r name dir; do
+  [[ -n "$name" ]] || continue
+  names+=("$name")
+  dirs+=("$dir")
+done <<<"$entries"
+
+count_tracked=0
+count_local=0
+for dir in "${dirs[@]}"; do
+  if [[ "$dir" == "$local_skills"/* ]]; then
+    count_local=$((count_local + 1))
+  else
+    count_tracked=$((count_tracked + 1))
+  fi
+done
+
+heading "sync-skills: ${kit#"$dotfiles_dir"/}"
 [[ "$dry" == "1" ]] && echo "Dry run: nothing changes"
 echo
 
-count_tracked="$(count_skills "$tracked")"
-count_local="$(count_skills "$local_skills")"
-
-for i in "${!destinations[@]}"; do
-  dest="${destinations[$i]}"
-  if [[ "$dry" == "1" ]]; then
-    status copy "${dest#"$dotfiles_dir"/}" "$count_tracked tracked, $count_local local"
-  else
-    status copied "${dest#"$dotfiles_dir"/}" "$count_tracked tracked, $count_local local"
-  fi
-
-  # Removed before the first copy. See $managed.
-  if [[ $i -eq 0 ]]; then
-    for path in "${managed[@]}"; do
-      execute rm -rf "$path"
-    done
-  fi
-
-  execute mkdir -p "$dest"
-  copy_skills "$tracked" "$dest"
-  copy_skills "$local_skills" "$dest"
+for name in "${skipped[@]}"; do
+  status warn "$name" "not a valid skill name, so it is left out"
 done
+
+if [[ "$dry" == "1" ]]; then
+  status copy "skills/" "$count_tracked tracked, $count_local local"
+else
+  status copied "skills/" "$count_tracked tracked, $count_local local"
+fi
+
+# The payload is replaced whole, so a skill removed from the source leaves the
+# kit too.
+execute rm -rf "$payload"
+execute mkdir -p "$payload"
+for i in "${!names[@]}"; do
+  execute cp -R "${dirs[$i]}" "$payload/${names[$i]}"
+done
+
+if [[ "$dry" == "1" ]]; then
+  status copy "agent-skills.yaml" "${#names[@]} agent-skill entries"
+  status_note "write ${descriptor#"$dotfiles_dir"/} from ${template#"$dotfiles_dir"/}"
+else
+  {
+    cat "$template"
+    for name in "${names[@]}"; do
+      printf '\n  - type: com.docker.sandbox/agent-skill@1\n'
+      printf '    optional: true\n'
+      printf '    config:\n'
+      printf '      path: %s/%s\n' "$image_dir" "$name"
+    done
+  } >"$descriptor"
+  status ok "agent-skills.yaml" "${#names[@]} agent-skill entries"
+fi
+
+summary="$count_tracked tracked and $count_local local skills"
+worst=ok
+[[ "$dry" == "1" ]] && worst=copy
+if [[ ${#skipped[@]} -gt 0 ]]; then
+  summary+=", ${#skipped[@]} left out"
+  worst=warn
+fi
 
 echo
 if [[ "$dry" == "1" ]]; then
-  verdict copy "sync-skills: $count_tracked tracked and $count_local local skills to copy"
+  verdict "$worst" "sync-skills: $summary to copy"
 else
-  verdict ok "sync-skills: $count_tracked tracked and $count_local local skills in the kit payload"
+  verdict "$worst" "sync-skills: $summary in the kit"
 fi

@@ -42,10 +42,10 @@ repositories, and that sbx renews while the sandbox runs. If no token can be
 minted, nothing is started or removed. See `sbx-token --help`.
 
 Arguments:
-  agent       my-claude, a kit under sbx/kits/sandboxes, or a path to any
-              kit. Overrides the "agent" setting for this run. my-claude is
-              the mixin of that name on the published claude kit, which
-              sbx-up pins by digest.
+  agent       my-claude, a workload under sbx/kits/workloads, or a path to
+              any v3 workload directory. Overrides the "agent" setting for
+              this run. my-claude is the mixin of that name on Docker's
+              Claude Code workload, which sbx-up pins by tag and digest.
 
 Options:
   --no-gh     Start the sandbox without a GitHub token of its own. A global
@@ -59,7 +59,7 @@ Examples:
 Per-project settings live in a .sbx.json at the project root. Every key is
 optional:
 
-  agent     the sandbox kit to run, which the argument above overrides.
+  agent     the workload to run, which the argument above overrides.
             Default: my-claude
   kits      the kits mixed into the sandbox.
             Default: agent-skills, dotfiles
@@ -83,12 +83,12 @@ optional:
             Default: {}
 
 A kit value that holds a / is a path. Every other value names a kit in this
-repository: an agent under sbx/kits/sandboxes, a mixin under sbx/kits/mixins.
+repository: a workload under sbx/kits/workloads, a mixin under sbx/kits/mixins.
 
 Environment:
   SBX_UP_DOTFILES     the checkout that holds the kits and sync-skills.
                       Default: ~/src/personal/dotfiles
-  SBX_KIT_ARGS_FILE   values for a sandbox kit that declares arguments.
+  SBX_KIT_ARGS_FILE   values for a workload that declares arguments.
                       Default: ~/.config/sbx/kit.args
 EOF
 }

@@ -32,15 +32,51 @@ sbx_up() { "$repo_root/commands/sbx-up/sbx-up" "$@"; }
   run sbx_up
   [ "$status" -eq 0 ]
   [ "$(cat "$FAKE_STATE/secrets/app-main")" = "'$sbx_token' mint --repo me/app" ]
-  [[ "$(cut -d' ' -f1-2 "$FAKE_STATE/sbx.log" | tr '\n' ,)" == "rm --force,secret set,run docker.io/sbx/claude-kit@sha256:"*, ]]
+  [[ "$(cut -d' ' -f1-2 "$FAKE_STATE/sbx.log" | tr '\n' ,)" == "rm --force,secret set,run docker.io/docker/sbx-kit-claude:"*, ]]
 }
 
-@test "the default agent runs the pinned claude kit with the my-claude mixin first" {
+@test "the default agent runs the claude workload, pinned by tag and digest, with the my-claude mixin first" {
   given_app
   run sbx_up --no-gh
   [ "$status" -eq 0 ]
   kits="$SBX_UP_DOTFILES/sbx/kits/mixins"
-  grep -qxE "run docker\.io/sbx/claude-kit@sha256:[0-9a-f]{64} --kit $kits/my-claude --name app-main --memory 4g --clone --kit $kits/agent-skills --kit $kits/dotfiles" "$FAKE_STATE/sbx.log"
+  grep -qxE "run docker\.io/docker/sbx-kit-claude:[0-9]+\.[0-9]+\.[0-9]+@sha256:[0-9a-f]{64} --kit $kits/my-claude --name app-main --memory 4g --clone --kit $kits/agent-skills --kit $kits/dotfiles" "$FAKE_STATE/sbx.log"
+}
+
+@test "a named agent is a workload under sbx/kits/workloads" {
+  given_app
+  mkdir -p "$SBX_UP_DOTFILES/sbx/kits/workloads/pi-ailo"
+  run sbx_up --no-gh pi-ailo
+  [ "$status" -eq 0 ]
+  kits="$SBX_UP_DOTFILES/sbx/kits"
+  grep -qx "run $kits/workloads/pi-ailo --name app-main --memory 4g --clone --kit $kits/mixins/agent-skills --kit $kits/mixins/dotfiles" "$FAKE_STATE/sbx.log"
+}
+
+@test "the kit args file goes only to a workload whose descriptor declares args" {
+  given_app
+  workloads="$SBX_UP_DOTFILES/sbx/kits/workloads"
+  mkdir -p "$workloads/with-args" "$workloads/no-args"
+  printf 'schemaVersion: "3"\nargs:\n  modelHost:\n    required: true\n' >"$workloads/with-args/with-args.yaml"
+  printf 'schemaVersion: "3"\n' >"$workloads/no-args/no-args.yaml"
+  export SBX_KIT_ARGS_FILE="$BATS_TEST_TMPDIR/kit.args"
+  echo 'modelHost=box' >"$SBX_KIT_ARGS_FILE"
+
+  run sbx_up --no-gh with-args
+  [ "$status" -eq 0 ]
+  grep -q "^run $workloads/with-args .* --kit-args-file $SBX_KIT_ARGS_FILE\$" "$FAKE_STATE/sbx.log"
+
+  : >"$FAKE_STATE/sbx.log"
+  run sbx_up --no-gh no-args
+  [ "$status" -eq 0 ]
+  ! grep -q -- "--kit-args-file" "$FAKE_STATE/sbx.log"
+}
+
+@test "an agent with no workload directory stops before anything is removed" {
+  given_app
+  run sbx_up --no-gh nothing-here
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"workloads/nothing-here"* ]]
+  [ ! -s "$FAKE_STATE/sbx.log" ]
 }
 
 @test "the repos and permissions in .sbx.json reach the token" {
