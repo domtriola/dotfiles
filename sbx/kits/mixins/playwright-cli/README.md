@@ -1,6 +1,6 @@
 # playwright-cli
 
-A mixin kit that installs [`playwright-cli`](https://github.com/microsoft/playwright-cli)
+A v3 mixin that installs [`playwright-cli`](https://github.com/microsoft/playwright-cli)
 and Chromium in the sandbox.
 
 ## Quick start
@@ -20,13 +20,14 @@ sbx run claude --kit ./sbx/kits/mixins/playwright-cli
 
 ## What it installs
 
-The install script is `files/home/.local/libexec/playwright-cli-kit/install`.
-It installs these, all for the agent user:
+The install script is `files/install`. `playwright-cli.dockerfile` copies it
+to `/usr/local/libexec/playwright-cli-kit/install`, and the startup hook runs
+it. It installs these, all for the agent user:
 
 | What           | Where                                                                    |
 | -------------- | ------------------------------------------------------------------------ |
 | Node           | `~/.local/share/playwright-cli-kit/node`, from nodejs.org, checksummed.  |
-| playwright-cli | `@playwright/cli`, at the version that `spec.yaml` pins, into that Node. |
+| playwright-cli | `@playwright/cli`, at the version the startup hook pins, into that Node.     |
 | Chromium       | `~/.cache/ms-playwright`, with its system packages from apt (with sudo). |
 | The proxy CA   | `~/.pki/nssdb`, with `certutil` from apt (`libnss3-tools`).              |
 | The wrapper    | `~/.local/bin/playwright-cli`, written last.                             |
@@ -86,5 +87,6 @@ sbx exec <name> -- cat /home/agent/.playwright-cli-kit.log
   the project chooses it. Its checksum comes from nodejs.org, the same host as
   the tarball.
 - **The network allow list** has only the install's hosts: nodejs.org, the npm
-  registry, the Playwright browser CDN and its mirror, and the Ubuntu apt
-  mirrors.
+  registry, the Playwright browser CDN and its mirror, and the Debian apt
+  mirror (`deb.debian.org`). The workloads are Debian trixie, so Playwright
+  installs Chromium's system packages with Debian's package names.

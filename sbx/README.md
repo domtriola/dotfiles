@@ -2,11 +2,18 @@
 
 This folder holds the custom Docker Sandboxes kits. Each kit has its own README.
 
+The kits use the v3 kit format: a directory `<name>/` holds the descriptor
+`<name>.yaml` and, when the kit adds files, the recipe `<name>.dockerfile`.
+`sbx` builds a local kit with Buildx when it creates a sandbox. A sandbox uses
+one kit format only, so every kit here moves to a new format at the same time.
+See the [v3 spec](https://github.com/docker/sandbox-kit-spec/blob/main/docs/spec/SPEC-v3.md)
+and the `author-sbx-kit` skill.
+
 | Kit                                                                  | What it is                                                                                  |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| [`kits/sandboxes/pi-ailo`](kits/sandboxes/pi-ailo/README.md)         | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential. |
+| [`kits/workloads/pi-ailo`](kits/workloads/pi-ailo/README.md)         | The pi agent, pointed at a self-hosted model server. No hosted model and no API credential. |
 | [`kits/mixins/agent-skills`](kits/mixins/agent-skills/README.md)     | Ships the personal agent skills into the sandbox.                                           |
-| [`kits/mixins/my-claude`](kits/mixins/my-claude/README.md)           | Claude Code with custom settings, on the published `claude` kit. The default agent.         |
+| [`kits/mixins/my-claude`](kits/mixins/my-claude/README.md)           | Claude Code with custom settings, on Docker's Claude Code workload. The default agent.      |
 | [`kits/mixins/dotfiles`](kits/mixins/dotfiles/README.md)             | Clones this repo into the sandbox and applies it with the `sbx-linux` profile.              |
 | [`kits/mixins/playwright-cli`](kits/mixins/playwright-cli/README.md) | Installs `playwright-cli` and Chromium, for projects that opt in.                           |
 
@@ -112,7 +119,7 @@ sbx-up pi-ailo
 ## Kit arguments
 
 A kit declares the inputs it needs in an `args:` block, and references them as
-`${{ kit.args.<name> }}` anywhere in its `spec.yaml`. Some of those values
+`${{ kit.args.<name> }}` anywhere in its descriptor. Some of those values
 belong to a machine rather than to this repository, such as the address of a
 private server, so they are kept outside it:
 
@@ -125,25 +132,35 @@ printf 'modelHost=%s\n' '<host>' >~/.config/sbx/kit.args
 kit declares arguments. `sbx` rejects an argument that no kit declares, so
 passing it to every sandbox would break the ones that take none.
 
-`$SBX_KIT_ARGS_FILE` names a different file. A sandbox kit given as a URL or a
-zip is left alone, because the check reads the kit's spec from disk; supply its
-arguments with `--kit-arg` by hand.
+`$SBX_KIT_ARGS_FILE` names a different file. The check reads the workload's
+descriptor (`<dir>/<dir>.yaml`) from disk. A line can name one kit, as
+`<kit>.<arg>=<value>`, where `<kit>` is the kit's directory name.
+
+A mixin's arguments go on the command line, with `--kit-arg`. For example,
+`--kit-arg dotfiles.ref=<branch>` makes the `dotfiles` kit apply a branch
+before it merges.
 
 Only `pi-ailo` takes arguments today. Its README says what they mean.
 
 ## Git identity
 
-No kit here sets the git identity, because `sbx` does it. When it creates a
-sandbox for a v2 kit, it copies `user.name` and `user.email` from the host's
-git config for the project into the sandbox's `~/.gitconfig`. A repository's
-own config still overrides them. If the host has no identity, `git commit` in
-the sandbox fails with "Author identity unknown". Set it on the host and
-recreate the sandbox.
+A v3 kit gets the host's git identity only when it declares the
+`com.docker.sandbox/git-identity@1` capability. `my-claude` and `pi-ailo`
+declare it, so `sbx` sets `user.name` and `user.email` in the sandbox's global
+git config. A repository's own config still overrides them. The entry is
+required: if the host has no identity, `sbx` refuses to create the sandbox,
+rather than start one where `git commit` fails with "Author identity unknown".
+Set the identity on the host and start again. Do not pass the identity as a kit
+argument: the kit spec says that the runtime selects it.
 
-A v3 kit gets the identity only when it declares the
-`com.docker.sandbox/git-identity@1` capability. Declare it when you migrate
-`my-claude` to v3. Do not pass the identity as a kit argument: the kit spec
-says that the runtime selects it.
+## GitHub access
+
+`my-claude` and `pi-ailo` declare a `com.docker.sandbox/credential@1` entry
+for the `github` service. In v3, the proxy injects a host secret only for a
+service that a kit declares. `sbx-up` stores the sandbox's `github` secret
+with `sbx-token`. Inside the sandbox, `$GH_TOKEN` holds a sentinel, and the
+proxy puts the real token on requests to the GitHub hosts that the entry
+names. The entry is optional, so `sbx-up --no-gh` still starts a sandbox.
 
 ## Pulling changes from a `--clone` sandbox
 

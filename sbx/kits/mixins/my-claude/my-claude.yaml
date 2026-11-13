@@ -1,0 +1,66 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: mixin
+displayName: My Claude
+description: >-
+  Claude Code with my custom settings and instructions, a pinned gh, and
+  GitHub access through the sandbox proxy.
+sourceUrl: https://github.com/domtriola/dotfiles
+
+# The Claude Code workload provides "claude". sbx-up runs this kit on
+# docker.io/docker/sbx-kit-claude, pinned by version tag and digest in
+# commands/sbx-up/lib/config.
+requires: ["claude"]
+
+# Everything that this kit adds to the filesystem comes from
+# my-claude.dockerfile, and is outside /home/agent:
+#
+#   /etc/claude-code/managed-settings.json  the settings
+#   /etc/claude-code/CLAUDE.md              the instructions
+#   /usr/local/libexec/my-claude/statusline.sh
+#   /usr/local/bin/gh                       a pinned gh
+#
+# The workload writes ~/.claude/settings.json in an install hook, and the
+# runtime manages ~/.claude/CLAUDE.md, so a kit file there can be replaced.
+# Claude Code reads the two files in /etc/claude-code on each start, and
+# nothing else writes them. Managed settings have the highest precedence. The
+# managed CLAUDE.md is always loaded, which v3 kit context is not: the runtime
+# lists a mixin's context file for the agent to read only when it needs it.
+
+capabilities:
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        # gh and git over HTTPS. Each domain that the credential below
+        # injects into must be here too.
+        allow:
+          - github.com
+          - api.github.com
+          - uploads.github.com
+          - objects.githubusercontent.com
+          - raw.githubusercontent.com
+
+  # The token is the sandbox's `github` secret, which sbx-up stores with
+  # sbx-token. GH_TOKEN holds a sentinel, so gh treats itself as logged in,
+  # and the proxy puts the real token on requests to the hosts below.
+  - type: com.docker.sandbox/credential@1
+    optional: true
+    description: GitHub token for gh and for git over HTTPS
+    config:
+      service: github
+      phase: runtime
+      apiKey:
+        name: GH_TOKEN
+        proxyManaged: true
+        inject:
+          - {domain: api.github.com, header: Authorization, format: "Bearer %s"}
+          - {domain: uploads.github.com, header: Authorization, format: "Bearer %s"}
+          - {domain: raw.githubusercontent.com, header: Authorization, format: "Bearer %s"}
+          # git's smart-HTTP transport rejects Bearer. With a username, the
+          # proxy sends Basic with the token as the password.
+          - {domain: github.com, header: Authorization, format: "%s", username: x-access-token}
+
+  # Commits carry the host's git identity. Required, because a commit with no
+  # identity fails with "Author identity unknown".
+  - type: com.docker.sandbox/git-identity@1
+    description: Attribute commits to my git identity

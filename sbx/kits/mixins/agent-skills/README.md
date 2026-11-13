@@ -1,6 +1,6 @@
 # agent-skills
 
-A mixin kit that ships this repo's personal agent skills into the sandbox and
+A v3 mixin that ships this repo's personal agent skills into the sandbox and
 exposes them to whichever coding agent is running.
 
 ```console
@@ -13,16 +13,21 @@ sbx run claude --kit ./sbx/kits/mixins/agent-skills
 authored there, on the host. See
 [Agent skills](../../../../README.md#agent-skills) in the root README.
 
-`sync-skills` copies them into this kit's `files/` tree, and `sbx-up` runs it
-before it starts a sandbox. The payload is generated and gitignored: the kit is
-loaded from this working tree, so there is nothing to commit and nothing that
-can drift.
+`sync-skills` copies them into this kit's `skills/` directory, and writes the
+kit's descriptor, `agent-skills.yaml`, from `descriptor.yaml.tmpl` with one
+`agent-skill@1` entry for each skill. `sbx-up` runs it before it starts a
+sandbox. Both are generated and gitignored: the kit is built from this working
+tree, so there is nothing to commit and nothing that can drift.
 
-Inside the sandbox the kit copies each skill into `~/.claude/skills/` and
-`~/.agents/skills/` before the agent starts. They are real directories, so
-editing one in the sandbox changes nothing on the host. A second hook restores
-any skill that is missing after a restart. See the comments in `spec.yaml` for
-why the two hooks differ.
+`agent-skills.dockerfile` copies the skills to `/usr/share/agent-skills/` in
+the image. Before the agent starts, the runtime shows each skill in every
+skills directory that the agent kit declares with `agent-skills@1`:
+`~/.claude/skills/` for Claude Code, and `~/.agents/skills/` for pi. Editing a
+skill in the sandbox changes nothing on the host.
+
+Each entry is optional. The runtime does not overwrite a skill that is already
+there, for example from the host's shared skills store, so it skips that skill
+rather than refusing the sandbox.
 
 ## Local, untracked skills
 
@@ -34,16 +39,19 @@ the next `sync-env`, and in the sandbox on the next start:
 cp -R ../some-repo/skills/thing env/.agents/skills-local/
 ```
 
-Local skills are copied after the tracked ones, so a local copy of a tracked
-skill shadows it. To promote one, move it into `env/.agents/skills/` and commit.
+A local skill shadows a tracked skill of the same name. To promote one, move it
+into `env/.agents/skills/` and commit.
+
+A skill whose directory name the runtime refuses (it must match
+`[A-Za-z0-9][A-Za-z0-9._-]*`) is left out, with a warning.
 
 ## Starting a sandbox without sbx-up
 
-The payload is built ahead of time, so a bare `sbx run` ships whatever
-`sync-skills` wrote last. Run it by hand after editing a skill.
+The kit is generated ahead of time, so a bare `sbx run` ships whatever
+`sync-skills` wrote last. Run it by hand after editing a skill. Without it,
+there is no `agent-skills.yaml`, and `sbx` cannot build the kit.
 
-If the payload is missing entirely, the sandbox still comes up, with no skills
-and a note in the log. To check what arrived:
+To check what arrived:
 
 ```console
 sbx exec <name> -- ls /home/agent/.claude/skills

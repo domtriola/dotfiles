@@ -9,10 +9,11 @@
 
 set -eu
 
-# Defaulted because a startup hook is not guaranteed to inherit
-# environment.variables.
-base_url="${MODEL_BASE_URL:-http://${{ kit.args.modelHost }}:${{ kit.args.modelPort }}/v1}"
-models="${MODEL_IDS:-${{ kit.args.modelIds }}}"
+# The kit's args reach this hook as environment variables (see pi-ailo.yaml).
+# The descriptor requires MODEL_HOST, so a missing one is a broken kit.
+: "${MODEL_HOST:?MODEL_HOST is not set: pass the modelHost kit arg}"
+base_url="http://$MODEL_HOST:${MODEL_PORT:-8080}/v1"
+models="${MODEL_IDS:-}"
 
 conf="$HOME/.pi/agent"
 mkdir -p "$conf"

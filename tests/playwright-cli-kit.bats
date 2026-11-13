@@ -14,7 +14,7 @@ load helpers
 
 setup() {
   common_setup
-  install="$repo_root/sbx/kits/mixins/playwright-cli/files/home/.local/libexec/playwright-cli-kit/install"
+  install="$repo_root/sbx/kits/mixins/playwright-cli/files/install"
   status_file="$HOME/.playwright-cli-kit.status"
   log="$HOME/.playwright-cli-kit.log"
   workspace="$BATS_TEST_TMPDIR/workspace"

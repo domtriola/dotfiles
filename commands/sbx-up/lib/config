@@ -8,14 +8,14 @@
 # git has nothing to clone, so it is mounted.
 sbx_up_defaults='{"agent": "my-claude", "kits": ["agent-skills", "dotfiles"], "memory": "4g"}'
 
-# The published Claude Code kit, pinned by the digest of its latest tag.
-# Renovate moves the digest when that tag moves (see renovate.json). The agent
-# "my-claude" is not a sandbox kit but a mixin on this kit, because sbx no
-# longer has a built-in claude agent and a kit cannot extend a published one.
-# The kit goes in place of the agent name: the bare name "claude" now resolves
-# to the v3 kit docker.io/sbx/claude, and sbx does not mix v3 kits with the v2
-# mixins here.
-sbx_up_claude_kit="docker.io/sbx/claude-kit@sha256:02a031ee538f699e86aadd613ba625f6156139a15a1cc80c2f554891dbd1c8fa"
+# Docker's v3 Claude Code workload, pinned by version tag and digest. The
+# workload is the base image of the sandbox, so the digest pins the image as
+# well as the kit: a tag alone can be moved in the registry. Renovate moves the
+# tag and the digest together (see renovate.json). The agent "my-claude" is not
+# a kit of its own but a mixin on this workload. The workload goes in place of
+# the agent name: the bare name "claude" resolves to docker.io/sbx/claude:latest,
+# which moves.
+sbx_up_claude_kit="docker.io/docker/sbx-kit-claude:2.1.316@sha256:60a90df50354b1bb737b0f47bc2aad0475b36e019c65361173feace3efcf662a"
 
 # sbx_up_profile prints this machine's profile, read the way lib/profile.sh
 # saves it, or nothing when no profile is set. It does not call
@@ -38,7 +38,7 @@ sbx_up_profile() {
 #   gh_perms   the "permissions" setting, as name=level, one per line
 config_load() {
   local root="$1" name="$2" agent="$3"
-  local config="$root/.sbx.json" given override plan arg spec in_git=false
+  local config="$root/.sbx.json" given override plan arg kit in_git=false
 
   given="$([[ -f "$config" ]] && cat "$config" || echo '{}')"
 
@@ -64,7 +64,7 @@ config_load() {
 
     def agent_args:
       if . == "my-claude" then [$claude_kit, "--kit", ("my-claude" | kit("mixins"))]
-      else [kit("sandboxes")] end;
+      else [kit("workloads")] end;
 
     ($defaults * {clone: $in_git} * . * $override)
     | {
@@ -76,7 +76,7 @@ config_load() {
         repos: (.repos // [] | if type == "array" and all(type == "string") then . else error("repos") end),
         perms: (.permissions // {} | if type == "object" and all(type == "string")
           then to_entries | map("\(.key)=\(.value)") else error("permissions") end),
-        spec: ((if .agent == "my-claude" then "my-claude" | kit("mixins") else .agent | kit("sandboxes") end) + "/spec.yaml"),
+        kit: (if .agent == "my-claude" then "my-claude" | kit("mixins") else .agent | kit("workloads") end),
         env: (if .disk == null then []
           elif (.disk | type == "string" and test("^[0-9]+(\\.[0-9]+)?[A-Za-z]*$"))
           then ["DOCKER_SANDBOXES_DOCKER_SIZE=\(.disk)"] else error("disk") end)
@@ -116,14 +116,15 @@ config_load() {
   gh_perms="$(jq -r '.perms[]' <<<"$plan")"
 
   # `sbx` rejects an argument that no resolved kit declares, so the file is
-  # passed only to a sandbox kit that asks for one. The check reads the kit's
-  # spec, so a kit named by a URL or a zip is left alone and takes --kit-arg
-  # by hand.
-  spec="$(jq -r '.spec' <<<"$plan")"
-  if [[ ! -d "$(dirname "$spec")" ]]; then
-    die "sandbox kit not found: $spec"
+  # passed only to a workload that asks for one. The check reads the kit's
+  # descriptor, <dir>/<dir>.yaml (the v3 layout).
+  kit="$(jq -r '.kit' <<<"$plan")"
+  if [[ ! -d "$kit" ]]; then
+    die "sandbox kit not found: $kit"
   fi
-  if [[ -f "$sbx_up_kit_args_file" && -f "$spec" ]] && grep -q '^args:' "$spec"; then
+  local descriptor
+  descriptor="$kit/$(basename "$kit").yaml"
+  if [[ -f "$sbx_up_kit_args_file" && -f "$descriptor" ]] && grep -q '^args:' "$descriptor"; then
     run+=(--kit-args-file "$sbx_up_kit_args_file")
   fi
 }
