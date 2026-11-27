@@ -5,7 +5,7 @@ metadata:
   author: domtriola
 ---
 
-When writing documentation follow these standards:
+When writing documentation follow these standards. When the draft is done, run the `humanize` skill in embedded mode on its prose and on any comments you wrote. Where the two skills conflict, these standards win (for example, write in the third person even where humanize uses "you").
 
 ## Standards
 
@@ -49,7 +49,6 @@ Use ASD-STE100 Simplified Technical English.
 Avoid jargon and phrasing that could be misleading.
 Be grammatically correct.
 Use full sentences.
-Never use em dashes.
 Write in the third person and don't use personal pronouns.
 
 ```
@@ -57,18 +56,9 @@ Bad:  We leverage a bespoke orchestration layer to hydrate the cache.
 Good: A script starts the services in order, then fills the cache.
 ```
 
-### 5. Be precise
+### 5. Comments
 
-Don't over-simplify concepts with phrases like "that's the whole difference" or "that's the whole point". Most things are nuanced. State the nuances plainly when they matter and don't use hyperbole.
-
-```
-Bad:  The cache makes it fast. That is the whole point.
-Good: The cache avoids one network round trip per file, about 40 ms each.
-```
-
-### 6. Comments
-
-#### 6.1 Comments describe the present, in their own scope
+#### 5.1 Comments describe the present, in their own scope
 
 A comment is read by someone looking at this code now. It is not a changelog, a migration note, or a record of how the code came to be.
 
@@ -114,7 +104,7 @@ retries="${UPLOAD_RETRIES:-3}"
 retries="${UPLOAD_RETRIES:-3}"
 ```
 
-#### 6.2 When reviewing, delete more than you add
+#### 5.2 When reviewing, delete more than you add
 
 Reviewing a comment has three useful outcomes: delete it, cut it to the one sentence that carries a constraint, or leave it alone. Rewriting it at the same length is rarely one of them.
 
