@@ -5,20 +5,20 @@
 
 ## Scope
 
-This model covers what every profile shares: the commands, the dotfiles, the sandbox kits, and the GitHub side. It also covers the Docker Sandboxes that a host runs. "The host" is the machine where the operator runs the commands.
+This model covers what every profile shares: the commands, the dotfiles, the Docker Sandboxes kits, and the GitHub side. It also covers the Docker Sandboxes that a host runs. "The host" is the machine where the operator runs the commands.
 
 Each profile has its own model, `profile-<name>.md`, for what only that profile installs and does. A profile model refers to the IDs in this model.
 
 - **Commands**: `sync-env`, `setup`, `doctor`, `pull-nvim`, `sync-skills`, `sbx-up`, `sbx-shell`, `sbx-pull`, `sbx-policy`, `sbx-token`, and the scripts in `env/.local/bin`. Also the shared `lib/` that they source.
 - **The profile mechanism**: `lib/profile.sh`, and how `setup`, `sync-env`, and `doctor` read a profile's steps, manifest, and doctor checks. The content of each profile is in its own model.
 - **The dotfiles** in `env/` that a manifest copies into `$HOME`, which include the agent skills in `env/.agents/`.
-- **The sandbox kits** in `sbx/kits/` (`pi-ailo`, and the `my-claude`, `dotfiles`, `agent-skills`, and `playwright-cli` mixins), and what they run inside a sandbox.
+- **The Docker Sandboxes kits** in `sbx/kits/` (the `pi-ailo` workload, and the `my-claude`, `dotfiles`, `agent-skills`, and `playwright-cli` mixins), all in the v3 kit format, what they run inside a sandbox, and the capabilities that they request.
 - **The GitHub side**: the `domtriola/dotfiles` repository with its `main` ruleset, and the GitHub App that `sbx-token` mints tokens from.
 
 Out of scope:
 
 - **What one profile installs and does**: its setup steps, its downloads, its doctor checks, and its machine. These are in the profile's model. [profile-dev-mac.md](profile-dev-mac.md) covers `dev-mac`. [profile-agent-server.md](profile-agent-server.md) covers `agent-server`. `dev-linux`, `infosec-qubes`, and `ai-server` have no model yet. `sbx-linux` is in scope here only as what the `dotfiles` mixin runs inside a sandbox.
-- **The internals of Docker Sandboxes** (the daemon, the proxy, the firewall, the VM) and of the published `claude` kit that the `my-claude` mixin goes on. The model relies on them. See [Assumptions](#assumptions).
+- **The internals of Docker Sandboxes** (the daemon, the proxy, the firewall, the VM) and of Docker's Claude Code workload (`docker.io/docker/sbx-kit-claude`) that the `my-claude` mixin goes on. The model relies on them. See [Assumptions](#assumptions).
 - **A hostile repository that the operator clones and opens** (for example, an executable `.ready-tmux` that `tmux-sessionizer` runs). The operator chose to keep this adversary out of scope. A file of this kind that a *sandbox* writes is in scope as T10.
 - **Physical access** to a host, and other local users: every host has a single user.
 
@@ -62,9 +62,12 @@ Out of scope:
 - **Downloads during setup**: each profile's model lists its own. The dotfiles add these on every profile that copies them:
   - lazy.nvim and its plugins (`env/.config/nvim`).
   - The Claude Code plugin marketplaces (`env/.claude/settings.json`).
+- **Downloads when `sbx` builds a local kit** (on the host, with Buildx, when it creates a sandbox). The builder runs the kit recipes and the two frontends (`docker/sandbox-kit`, `docker/dockerfile`) with the host's network, which the sandbox firewall does not cover:
+  - The Claude Code workload image, pinned by tag and digest (`sbx-up`).
+  - The `gh` release, and the Alpine image of its build stage (`my-claude`).
+  - The `docker.io/sbx/pi` image, pinned by tag and digest (`pi-ailo`).
 - **Downloads inside a sandbox**:
-  - The `gh` release (`my-claude`).
-  - The `pi-image` container and the npm extensions (`pi-ailo`).
+  - The npm extensions (`pi-ailo`).
   - The dotfiles clone at `main`, and apt packages (`dotfiles` mixin).
   - Node from nodejs.org, at the version that the project asks for, `@playwright/cli` at a pinned version from npm, Chromium from the Playwright CDN, and apt packages with sudo, including `libnss3-tools` to add the sandbox proxy's CA to Chromium's trust store (`playwright-cli` mixin).
 - **Workspace files that a kit reads**: the `playwright-cli` startup hook reads `.nvmrc`, `.node-version`, and `package.json` to choose the Node version. The version that it downloads always comes from the Node release index, not from the file.
@@ -96,7 +99,7 @@ flowchart LR
   subgraph Internet["B1: upstreams"]
     brew[installers and packages of the profile]
     plugins[nvim plugins, Claude plugin marketplaces]
-    image[pi-image, npm extensions, gh release]
+    image[workload images, npm extensions, gh release]
   end
   subgraph GitHub["B2 / B6: GitHub"]
     main[(dotfiles main)]
@@ -145,7 +148,7 @@ flowchart LR
 | T8 | I | `pull-nvim` copies all of `~/.config/nvim` into the repository with no prompt, so a secret file there can be committed to the public repository. | B2 | low | medium | accepted | None. |
 | T9 | E | A sandbox that mounts the dotfiles worktree edits code that the host runs, such as `sync-skills` (run by `sbx-up`) and `lib/style.sh` (sourced by `sbx-policy` and `sbx-shell`). | B3 | medium | high | mitigated | I3, I4 |
 | T10 | E | A sandbox that mounts any project worktree writes `.git/hooks`, `.git/config`, `.ready-tmux`, or `.sbx.json`, and the host runs or reads that file later. | B3 | medium | high | mitigated | I4 |
-| T11 | E | A sandbox edits the host's `.sbx.json` to choose any kit by path or URL, or to add repositories to the next token. | B3 | low | high | mitigated | I4. A change that reaches the host through `sbx-pull` is T12. |
+| T11 | E | A sandbox edits the host's `.sbx.json` to choose any kit by path or URL, or to add repositories to the next token. A v3 kit chosen by path is built on the host, so its recipe runs in the host's builder, outside the sandbox firewall. | B3 | low | high | mitigated | I4. A change that reaches the host through `sbx-pull` is T12. |
 | T12 | T | `sbx-pull` fast-forwards the operator's branch to sandbox commits that it does not verify. It lists the commits, but not their diff. | B3 | low | medium | accepted | Fast-forward only, unless `--rebase`. |
 | T13 | T | `sbx-policy` and `sbx-shell` print text from the sandbox (approval titles, kit status, log lines) to the host terminal, with no filter for escape sequences. | B3 | low | low | accepted | None. |
 | T14 | S | An approval that the operator gives for one sandbox answers the request of another sandbox. | B3 | low | medium | mitigated | I5 |
@@ -165,6 +168,10 @@ flowchart LR
 | T29 | T | The `gh` release that `my-claude` downloads is replaced. | B1 | low | high | mitigated | I14 |
 | T31 | T | The Node release that the `playwright-cli` mixin downloads is replaced, together with its `SHASUMS256.txt` on the same host. The project chooses the version, so the kit cannot pin it (I14 does not hold for it). | B1 | low | medium | open | It runs only inside a sandbox that opts in to the kit. |
 | T32 | I | A hijacked agent publishes project source to the npm registry, which the `playwright-cli` mixin allows for the life of the sandbox. | B5 | low | medium | open | The agent has no npm token unless it gets one from untrusted text. |
+| T33 | T | A tag of an image that a kit builds on (the Claude Code workload, the pi image, the Alpine build stage, the Dockerfile frontend) is moved to other content, and the next sandbox runs it. | B1 | low | high | mitigated | I15 |
+| T34 | E | A kit requests a capability that widens the sandbox, such as `privileged@1` or a host mount, and the operator approves it with the rest of the kit. | B4 | low | high | mitigated | I16 |
+| T35 | I | The `git-identity@1` capability that `my-claude` and `pi-ailo` request gives the operator's git name and email to the sandbox. | B4 | high | low | open | None. Every commit that the agent pushes already carries the same name and email. |
+| T36 | T | The `docker/sandbox-kit:3` frontend, which every descriptor names on its first line, is moved to other content. It validates each descriptor and builds the kit, so it can add files or capabilities. The spec uses that exact line to mark a v3 descriptor, so the kits do not pin it by digest (I15 does not hold for it). | B1 | low | high | open | It comes from Docker, which also ships `sbx`. |
 
 STRIDE categories that have no threat above:
 
@@ -180,7 +187,7 @@ STRIDE categories that have no threat above:
 
 | ID  | Invariant | Enforced in | Mitigates |
 | --- | --------- | ----------- | --------- |
-| I1 | Every URL that a setup step, a kit, or a command downloads from uses `https://`. The one exception is the `pi-ailo` model server URL, which goes over the encrypted NetBird overlay. | `profiles/*/*`, `sbx/kits/*/spec.yaml` | T5 |
+| I1 | Every URL that a setup step, a kit, or a command downloads from uses `https://`. The one exception is the `pi-ailo` model server URL, which goes over the encrypted NetBird overlay. | `profiles/*/*`, `sbx/kits/*/*/*.yaml`, `sbx/kits/*/*/*.dockerfile` | T5 |
 | I2 | The `main` ruleset of `domtriola/dotfiles` requires a PR with at least 1 approving review, blocks force pushes and deletion, and has no bypass actor other than the repository admin role. Check it with `gh api repos/domtriola/dotfiles/rulesets`. | GitHub ruleset "Main protection" | T6, T7 |
 | I3 | The `.sbx.json` of this repository sets `"clone": true`. | `.sbx.json` | T9 |
 | I4 | `sbx-up` passes `--clone` for every project inside git, unless that project's `.sbx.json` sets `"clone": false`. | `sbx-up` (`config_load`) | T9, T10, T11 |
@@ -189,10 +196,12 @@ STRIDE categories that have no threat above:
 | I7 | When a token cannot be minted, `sbx-up` stops before it removes the old sandbox. It never falls back to the `gh` token or a broader one. | `sbx-up` (`lib/github`), `sbx-token` | T16 |
 | I8 | `sbx-token` never puts the App private key, a JWT, or an installation token on a command line or in a log. It passes them through stdin, a file descriptor, or the `--command` that sbx runs. | `sbx-token` (`lib/store`, `lib/github`, `lib/mint`) | T17 |
 | I9 | `sbx-token check` exits non-zero when the App has an installation on an account that the operator did not expect. | `sbx-token` (`lib/check`) | T19 |
-| I10 | A kit's network allow list names only the hosts that the kit needs. Every other destination needs the operator's approval. | `sbx/kits/*/spec.yaml` | T23 |
+| I10 | A kit's network allow list names only the hosts that the kit needs. Every other destination needs the operator's approval. The GitHub hosts that `my-claude` and `pi-ailo` allow are those that their `github` credential injects into, and `objects.githubusercontent.com` for release downloads. | `sbx/kits/*/*/*.yaml` (`network-policy@1`) | T23 |
 | I11 | `docs/agents/issue-tracker.md` keeps "PRs as a request surface: no", so `triage` never checks out or runs an external PR. | `docs/agents/issue-tracker.md` | T24 |
 | I13 | `read_manifest` refuses an empty `$HOME` or `/` as `$HOME`, and every destination that is outside `$HOME` or holds a `..` segment, before `sync-env` copies anything. | `lib/manifest.sh` | T27 |
-| I14 | A binary that a kit downloads by URL has a pinned version, and it is checked against a SHA-256 before it is installed. | `sbx/kits/mixins/my-claude/spec.yaml` | T29 |
+| I14 | A binary that a kit downloads by URL has a pinned version, and it is checked against a SHA-256 before it is installed. | `sbx/kits/mixins/my-claude/my-claude.dockerfile` | T29 |
+| I15 | Every image that `sbx-up` runs or a kit recipe builds on, and the Dockerfile frontend of each recipe, is named by a version tag and a digest. Renovate moves the two together, in a PR. The `docker/sandbox-kit` frontend is the exception (T36). | `commands/sbx-up/lib/config`, `sbx/kits/*/*/*.dockerfile`, `renovate.json` | T33 |
+| I16 | No kit here requests `privileged@1`, `host-mount@1`, `host-port@1`, or `ssh-agent@1`, and every `agent-skills@1` entry is read-only (no entry sets `mode`, and the capability defaults to `readonly`). The capabilities that the kits request are `network-policy@1`, `lifecycle@1`, `agent-context@1`, `agent-skill@1`, `agent-skills@1`, `credential@1` (the `github` service only, at runtime), `git-identity@1`, and `sbx@1`. Docker in the sandbox comes from `sbx` itself, not from a kit. | `sbx/kits/*/*/*.yaml` | T34 |
 
 ## Accepted risks
 
@@ -215,7 +224,7 @@ STRIDE categories that have no threat above:
 - The GitHub account `domtriola` uses two-factor authentication.
 - The Renovate GitHub App is installed on `domtriola/dotfiles`.
 - Docker Sandboxes isolates a sandbox VM from the host. What crosses are the worktree (direct mode), a read-only source mount (clone mode), the `sandbox-<name>` git remote, and the proxy. The proxy injects the `github` secret and enforces the network policy.
-- The published `claude` kit that the `my-claude` mixin goes on mounts no other host path.
+- Docker's Claude Code workload that the `my-claude` mixin goes on mounts no other host path. Its `agent-skills@1` entry can mount the host's shared skills store, read-only. A skill in that store wins over an `agent-skills` mixin skill of the same name. `sbx-up` does not fill the store.
 - The GitHub App holds no permission beyond the `sbx-token` ceiling, and GitHub enforces that limit on the server side.
 - The ai-server that `pi-ailo` talks to is reachable only over the NetBird overlay.
 - No compliance or data-handling obligations apply.

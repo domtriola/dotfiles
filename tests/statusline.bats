@@ -9,7 +9,7 @@ setup() {
   common_setup
   command -v jq >/dev/null 2>&1 || skip "jq is not installed"
   dotfile="$repo_root/env/.claude/statusline.sh"
-  kit="$repo_root/sbx/kits/mixins/my-claude/files/home/.local/bin/statusline.sh"
+  kit="$repo_root/sbx/kits/mixins/my-claude/files/statusline.sh"
   input='{"model":{"display_name":"Opus"},"workspace":{"current_dir":"/src/app"},"cost":{"total_cost_usd":1.5,"total_duration_ms":65000},"context_window":{"used_percentage":12},"rate_limits":{"five_hour":{"used_percentage":10},"seven_day":{"used_percentage":42}}}'
 }
 

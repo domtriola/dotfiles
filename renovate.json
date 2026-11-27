@@ -4,23 +4,22 @@
   "minimumReleaseAge": "7 days",
   "customManagers": [
     {
-      "description": "Versions pinned in kit specs, after a '# renovate:' comment",
+      "description": "Versions pinned in the kits, after a '# renovate:' comment: a shell assignment in a descriptor, or an ARG in a recipe",
       "customType": "regex",
-      "managerFilePatterns": ["/(^|/)spec\\.yaml$/"],
+      "managerFilePatterns": ["/(^|/)sbx/kits/.+\\.(yaml|dockerfile)$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+\\w+=(?<currentValue>\\S+)"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+(?:ARG\\s+)?\\w+=(?<currentValue>\\S+)"
       ],
       "extractVersionTemplate": "^v?(?<version>.*)$"
     },
     {
-      "description": "Published kits that sbx-up runs, pinned by the digest of the kit's latest tag",
+      "description": "Docker's v3 workloads that sbx-up runs, pinned by version tag and digest. Renovate moves both together",
       "customType": "regex",
       "managerFilePatterns": ["/(^|/)commands/sbx-up/lib/config$/"],
       "matchStrings": [
-        "(?<depName>docker\\.io/sbx/[a-z0-9-]+-kit)@(?<currentDigest>sha256:[a-f0-9]{64})"
+        "(?<depName>docker\\.io/docker/sbx-kit-[a-z0-9-]+):(?<currentValue>[0-9][^@\\s\"]*)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
-      "datasourceTemplate": "docker",
-      "currentValueTemplate": "latest"
+      "datasourceTemplate": "docker"
     },
     {
       "description": "The nvm install script URL in the language setup steps",
